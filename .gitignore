@@ -1,0 +1,65 @@
+# dependencies
+/node_modules
+
+# testing
+/coverage
+
+# production
+/build
+/dist
+
+# misc
+.DS_Store
+.env
+.env.local
+.expo/
+.gitattributes
+.gitkeep
+.npm/
+.npmrc
+.yarn/
+.yarnrc
+.vscode/
+
+# react-native
+ios/build/
+android/build/
+android/.gradle
+android/app/build/
+android/app/.cxx/
+android/app/.externalNativeBuild/
+android/app/src/main/assets/
+android/app/src/main/res/raw/
+android/app/src/main/res/values/
+android/app/src/main/res/mipmap-*
+android/app/src/main/res/drawable-*
+android/app/src/main/res/layout-*
+android/app/src/main/res/menu-*
+android/app/src/main/res/xml-*
+android/gradlew
+android/gradlew.bat
+android/gradle/
+android/local.properties
+android/key.jks
+android/debug.keystore
+android/release.keystore
+android/app/google-services.json
+ios/Pods/
+ios/.xcode.env.local
+ios/*.xcworkspace
+ios/*.xcodeproj/project.xcworkspace
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/xcshareddata/
+ios/*.xcodeproj/project.xcworkspace/
+ios/*.xcodeproj/xcshareddata/xcschemes/
+ios/*.xcodeproj/xcshareddata/swiftpm/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcworkspace/xcshareddata/
+ios/*.xcworkspace/xcshareddata/xcschemes/
+ios/build/
+ios/DerivedData/
+ios/Fastlane/
+ios/TestFlight/
+ios/Package.resolved
+ios/Podfile.lock
+ios/Gemfile.lock
