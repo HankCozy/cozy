@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.62.0",
+    "@libsql/client": "^0.15.15",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.5",
+    "expo": "^54.0.8",
+    "openai": "^5.20.3",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  }
+}
