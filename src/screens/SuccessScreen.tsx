@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
 const SuccessScreen: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { auth, logout } = useAuth();
+  const { user } = auth;
 
   const handleLogout = () => {
     Alert.alert(
