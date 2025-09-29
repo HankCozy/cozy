@@ -90,6 +90,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 placeholder="Enter your password"
                 secureTextEntry
                 autoCapitalize="none"
+                textContentType="none"
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (

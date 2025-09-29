@@ -8,9 +8,27 @@ A simple React Native app for iOS and Android providing basic community authenti
 
 ## Core Philosophy
 
-**Efficient & Simple**: Built with minimal dependencies and maximum functionality. No bloatware or unnecessary complexity.
+**⚠️ CRITICAL: Small, Bite-Size Pieces - NO EXCEPTIONS**
 
-**Small, Bite-Size Pieces**: Build incrementally in focused chunks. Only implement what's explicitly outlined - no feature creep or preemptive additions.
+This is the #1 rule. When building features:
+- ✅ **DO**: Implement ONE screen at a time
+- ✅ **DO**: Make ONE change per task
+- ✅ **DO**: Ask clarifying questions before building
+- ❌ **DON'T**: Plan massive multi-phase implementations
+- ❌ **DON'T**: Build multiple screens/features at once
+- ❌ **DON'T**: Anticipate future needs or add "nice to have" features
+- ❌ **DON'T**: Create elaborate plans with phases and scopes
+
+**Example of CORRECT approach:**
+- User: "Add a home screen"
+- Assistant: Builds ONE home screen, nothing else
+
+**Example of WRONG approach:**
+- User: "Add a home screen"
+- Assistant: Plans home screen + navigation system + 5 other screens + backend changes + database migrations
+- ❌ This is irresponsible and dangerous
+
+**Efficient & Simple**: Built with minimal dependencies and maximum functionality. No bloatware or unnecessary complexity.
 
 **Closed Community Networks**: Each community operates as an isolated, private network. Users belong to specific communities with invitation-based registration.
 
