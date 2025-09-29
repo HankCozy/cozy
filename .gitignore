@@ -56,3 +56,9 @@ Desktop.ini
 # Temporary folders
 tmp/
 temp/
+
+# Backend
+backend/dist/
+backend/*.db
+backend/*.db-journal
+backend/src/generated/
