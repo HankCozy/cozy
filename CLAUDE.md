@@ -8,21 +8,49 @@ A simple React Native app for iOS and Android providing basic community authenti
 
 ## Core Philosophy
 
-**Efficient & Simple**: Built with minimal dependencies and maximum functionality. No bloatware or unnecessary complexity.
+**⚠️ CRITICAL: Small, Bite-Size Pieces - NO EXCEPTIONS**
 
-**Small, Bite-Size Pieces**: Build incrementally in focused chunks. Only implement what's explicitly outlined - no feature creep or preemptive additions.
+This is the #1 rule. When building features:
+- ✅ **DO**: Implement ONE screen at a time
+- ✅ **DO**: Make ONE change per task
+- ✅ **DO**: Ask clarifying questions before building
+- ❌ **DON'T**: Plan massive multi-phase implementations
+- ❌ **DON'T**: Build multiple screens/features at once
+- ❌ **DON'T**: Anticipate future needs or add "nice to have" features
+- ❌ **DON'T**: Create elaborate plans with phases and scopes
+
+**Example of CORRECT approach:**
+- User: "Add a home screen"
+- Assistant: Builds ONE home screen, nothing else
+
+**Example of WRONG approach:**
+- User: "Add a home screen"
+- Assistant: Plans home screen + navigation system + 5 other screens + backend changes + database migrations
+- ❌ This is irresponsible and dangerous
+
+**Efficient & Simple**: Built with minimal dependencies and maximum functionality. No bloatware or unnecessary complexity.
 
 **Closed Community Networks**: Each community operates as an isolated, private network. Users belong to specific communities with invitation-based registration.
 
 ## Architecture
 
 ### Technology Stack
+
+**Frontend:**
 - **React Native**: Expo framework for iOS and Android development
 - **Expo SDK**: Version 54.0.10 (with React 19.1.0 and React Native 0.81.4)
 - **TypeScript**: Type-safe development with strict mode enabled
 - **React Navigation**: Screen navigation and routing
 - **AsyncStorage**: Local token storage for authentication
 - **Development Build**: Native iOS/Android builds for optimal development experience
+
+**Backend:**
+- **Node.js + Express**: RESTful API server
+- **Prisma ORM**: Type-safe database queries and migrations
+- **Supabase PostgreSQL**: Cloud-hosted database with automatic backups
+- **bcrypt**: Password hashing (12 salt rounds)
+- **JWT**: Token-based authentication (7-day expiration)
+- **TypeScript**: End-to-end type safety
 
 ### Key Features
 - **User Authentication** - Login and registration with email/password
@@ -82,12 +110,27 @@ npx expo start --web   # Web browser testing
 - AsyncStorage for persistent token storage
 - Local component state for UI interactions
 
-## Security Considerations
+## Security Features
 
-- **JWT Tokens** for stateless authentication
-- **AsyncStorage** for secure token persistence
-- **Input Validation** on all forms
-- **Invitation System** prevents unauthorized registrations
+### Authentication Security
+- **Password Hashing**: bcrypt with 12 salt rounds (industry standard)
+- **JWT Tokens**: 7-day expiration, signed with secret key
+- **Minimum Password Length**: 12 characters enforced
+- **Email Validation**: Regex-based format checking
+- **Secure Storage**: JWT tokens stored in AsyncStorage on device
+
+### Database Security
+- **Supabase PostgreSQL**: Cloud-hosted with encryption at rest
+- **Connection Pooling**: Session pooler for secure, scalable connections
+- **Environment Variables**: Credentials never committed to git
+- **Prepared Statements**: SQL injection protection via Prisma ORM
+- **Database Transactions**: Atomic operations for data integrity
+
+### Access Control
+- **Invitation-Only Registration**: Prevents unauthorized signups
+- **Community Isolation**: Users scoped to specific communities
+- **Role-Based Access**: MEMBER and MANAGER roles
+- **Invitation Code Tracking**: Usage limits and expiration dates
 
 ## Development Environment
 
@@ -169,20 +212,67 @@ gh pr merge --merge  # or --squash or --rebase
 
 ## Backend Setup
 
-The project includes a Node.js backend with Prisma ORM and Supabase PostgreSQL for cloud database storage.
+The project includes a production-ready Node.js backend with Prisma ORM and Supabase PostgreSQL for cloud database storage.
+
+### Architecture Overview
+
+```
+Mobile App (React Native)
+    ↓
+Express API Server (localhost:3001)
+    ↓
+Prisma ORM (type-safe queries)
+    ↓
+Supabase PostgreSQL (cloud database)
+```
 
 ### First Time Setup
 
+**1. Create Supabase Project**
+- Go to https://supabase.com and create a new project
+- Wait 2-3 minutes for provisioning
+- Go to Settings → Database → Connection string
+- Copy the **Session pooler** connection string (IPv4, port 5432)
+
+**2. Install Backend Dependencies**
 ```bash
 cd backend
 npm install
+```
 
-# Configure .env with Supabase connection strings
-# Get from: Supabase Dashboard → Settings → Database → Connection string (Session pooler)
+**3. Configure Environment**
+```bash
+# Copy example env file
+cp .env.example .env
 
-npm run db:migrate    # Create database tables in Supabase
+# Edit .env and add your Supabase connection strings:
+# - DATABASE_URL (Session pooler for runtime)
+# - DIRECT_URL (Direct connection for migrations)
+# - Generate JWT secret: openssl rand -base64 32
+```
+
+**4. Initialize Database**
+```bash
+npm run db:migrate    # Create tables in Supabase
 npm run db:seed       # Add test data
-npm run dev           # Start backend server
+```
+
+**5. Start Backend Server**
+```bash
+npm run dev           # Runs at http://localhost:3001
+```
+
+### Verify Setup
+
+Test the API endpoints:
+```bash
+# Health check
+curl http://localhost:3001/health
+
+# Test login
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"testpassword123"}'
 ```
 
 Backend runs at `http://localhost:3001`
@@ -209,13 +299,61 @@ npm run db:seed     # Seed database with test data
 npm run db:studio   # Open Prisma Studio (database GUI)
 ```
 
+### Database Schema
+
+The backend uses three main tables:
+
+**Community**
+- `id` (UUID) - Primary key
+- `name` - Community name
+- `description` - Optional description
+- `createdAt`, `updatedAt` - Timestamps
+
+**User**
+- `id` (UUID) - Primary key
+- `email` (unique) - User email address
+- `passwordHash` - bcrypt hashed password
+- `firstName`, `lastName` - Optional user names
+- `role` - MEMBER or MANAGER
+- `communityId` - Foreign key to Community
+- `createdAt`, `updatedAt` - Timestamps
+
+**Invitation**
+- `id` (UUID) - Primary key
+- `code` (unique) - Invitation code (e.g., ALPHA2025)
+- `communityId` - Foreign key to Community
+- `role` - MEMBER or MANAGER (assigned to new users)
+- `maxUses` - Maximum number of times code can be used
+- `usedCount` - Current usage count
+- `expiresAt` - Optional expiration date
+- `active` - Boolean flag to enable/disable
+- `createdAt`, `updatedAt` - Timestamps
+
 ### API Endpoints
 
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - New user registration
-- `POST /api/invitations/validate` - Validate invitation code
+**Authentication**
+- `POST /api/auth/login` - User login with email/password
+- `POST /api/auth/register` - Register new user with invitation code
+- `POST /api/invitations/validate` - Validate invitation code before registration
 
-See `backend/README.md` for detailed API documentation.
+**Health Check**
+- `GET /health` - Server health status
+
+See `backend/README.md` for detailed API documentation with request/response examples.
+
+### View Database Data
+
+**Supabase Dashboard** (Recommended)
+1. Go to your Supabase project
+2. Click **Table Editor** in sidebar
+3. View and edit Communities, Users, and Invitations
+
+**Prisma Studio** (Local GUI)
+```bash
+cd backend
+npm run db:studio
+# Opens at http://localhost:5555
+```
 
 ## Deployment
 

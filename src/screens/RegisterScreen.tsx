@@ -28,10 +28,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     invitationCode: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [invitationValid, setInvitationValid] = useState<boolean | null>(null);
-  const [invitationInfo, setInvitationInfo] = useState<any>(null);
   const [passwordValid, setPasswordValid] = useState<boolean | null>(null);
-  const { register, validateInvitation } = useAuth();
+  const { register } = useAuth();
 
   const handleRegister = async () => {
     if (!formData.email || !formData.password || !formData.invitationCode) {
@@ -63,23 +61,6 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
     }
     // On success, navigation will be handled by the auth flow
     setIsLoading(false);
-  };
-
-  const handleInvitationCodeChange = async (code: string) => {
-    setFormData(prev => ({ ...prev, invitationCode: code }));
-
-    if (code.length >= 8) {
-      const result = await validateInvitation(code);
-      setInvitationValid(result.valid);
-      if (result.valid) {
-        setInvitationInfo(result.invitation);
-      } else {
-        setInvitationInfo(null);
-      }
-    } else {
-      setInvitationValid(null);
-      setInvitationInfo(null);
-    }
   };
 
   const handlePasswordChange = (password: string) => {
@@ -114,24 +95,12 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Invitation Code *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  invitationValid === true && styles.inputValid,
-                  invitationValid === false && styles.inputInvalid
-                ]}
+                style={styles.input}
                 value={formData.invitationCode}
-                onChangeText={handleInvitationCodeChange}
+                onChangeText={(code) => setFormData(prev => ({ ...prev, invitationCode: code }))}
                 placeholder="Enter your invitation code"
                 autoCapitalize="characters"
               />
-              {invitationValid === true && invitationInfo && (
-                <View style={styles.validationMessage}>
-                  <Text style={styles.validText}>
-                    ✓ Valid invitation for {invitationInfo.community.name}
-                    {invitationInfo.role === 'MANAGER' && ' as Manager'}
-                  </Text>
-                </View>
-              )}
             </View>
 
             <View style={styles.row}>
@@ -181,6 +150,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 placeholder="Create a password"
                 secureTextEntry
                 autoCapitalize="none"
+                textContentType="none"
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (
@@ -204,16 +174,17 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 placeholder="Confirm your password"
                 secureTextEntry
                 autoCapitalize="none"
+                textContentType="none"
               />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.button,
-                (isLoading || invitationValid !== true) && styles.buttonDisabled
+                isLoading && styles.buttonDisabled
               ]}
               onPress={handleRegister}
-              disabled={isLoading || invitationValid !== true}
+              disabled={isLoading}
             >
               <Text style={styles.buttonText}>
                 {isLoading ? 'Creating Account...' : 'Create Account'}

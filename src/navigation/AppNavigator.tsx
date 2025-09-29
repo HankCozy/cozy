@@ -1,12 +1,15 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../contexts/AuthContext';
 
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-import SuccessScreen from '../screens/SuccessScreen';
+import HomeScreen from '../screens/HomeScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import CommunityScreen from '../screens/CommunityScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -14,12 +17,14 @@ export type AuthStackParamList = {
   Register: undefined;
 };
 
-export type AppStackParamList = {
-  Success: undefined;
+export type AppTabsParamList = {
+  Home: undefined;
+  Community: undefined;
+  Profile: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const AppStack = createNativeStackNavigator<AppStackParamList>();
+const AppTabs = createBottomTabNavigator<AppTabsParamList>();
 
 function AuthNavigator() {
   return (
@@ -37,13 +42,15 @@ function AuthNavigator() {
 
 function AppNavigator() {
   return (
-    <AppStack.Navigator
+    <AppTabs.Navigator
       screenOptions={{
         headerShown: false,
       }}
     >
-      <AppStack.Screen name="Success" component={SuccessScreen} />
-    </AppStack.Navigator>
+      <AppTabs.Screen name="Home" component={HomeScreen} />
+      <AppTabs.Screen name="Community" component={CommunityScreen} />
+      <AppTabs.Screen name="Profile" component={ProfileScreen} />
+    </AppTabs.Navigator>
   );
 }
 
