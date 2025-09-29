@@ -276,6 +276,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f9fafb',
   },
+  inputValid: {
+    borderColor: '#10b981',
+  },
+  inputInvalid: {
+    borderColor: '#ef4444',
+  },
   labelValid: {
     color: '#10b981',
     fontWeight: 'bold',
