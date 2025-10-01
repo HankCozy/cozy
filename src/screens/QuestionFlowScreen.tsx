@@ -117,9 +117,12 @@ export default function QuestionFlowScreen() {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.generateButton}
-            onPress={() => navigation.navigate('ProfileSummary')}
+            onPress={() => {
+              // Navigate back to Profile tab in main tabs
+              navigation.navigate('MainTabs', { screen: 'Profile' });
+            }}
           >
-            <Text style={styles.generateButtonText}>Generate Profile</Text>
+            <Text style={styles.generateButtonText}>View Profile</Text>
           </TouchableOpacity>
         </View>
       )}

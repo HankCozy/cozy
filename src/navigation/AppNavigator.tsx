@@ -12,7 +12,6 @@ import CommunityScreen from '../screens/CommunityScreen';
 import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
-import ProfileSummaryScreen from '../screens/ProfileSummaryScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -29,7 +28,6 @@ export type QuestionFlowParamList = {
   QuestionFlow: undefined;
   SectionQuestions: { sectionId: string; sectionName: string };
   AnswerQuestion: { sectionId: string; questions: any[] };
-  ProfileSummary: undefined;
 };
 
 export type RootStackParamList = {
@@ -66,7 +64,6 @@ function QuestionFlowNavigator() {
       <QuestionFlowStack.Screen name="QuestionFlow" component={QuestionFlowScreen} />
       <QuestionFlowStack.Screen name="SectionQuestions" component={SectionQuestionsScreen} />
       <QuestionFlowStack.Screen name="AnswerQuestion" component={AnswerQuestionScreen} />
-      <QuestionFlowStack.Screen name="ProfileSummary" component={ProfileSummaryScreen} />
     </QuestionFlowStack.Navigator>
   );
 }
