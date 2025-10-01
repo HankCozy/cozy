@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,6 +18,8 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Waveform from '../components/Waveform';
+import { transcribeAudio } from '../services/api';
 
 export default function AnswerQuestionScreen() {
   const navigation = useNavigation<any>();
@@ -27,6 +30,7 @@ export default function AnswerQuestionScreen() {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const player = useAudioPlayer(recordingUri || '');
@@ -102,15 +106,27 @@ export default function AnswerQuestionScreen() {
     }
 
     try {
-      // Save to AsyncStorage
+      console.log('[AnswerScreen] Starting save process...');
+      // Start transcription
+      setIsTranscribing(true);
+      console.log('[AnswerScreen] Calling transcribeAudio...');
+      const transcript = await transcribeAudio(recordingUri);
+      console.log('[AnswerScreen] Transcript received:', transcript);
+
+      // Save to AsyncStorage with transcript
       const key = `answer_${sectionId}_${Date.now()}`;
       const answerData = {
         sectionId,
         question: currentQuestion,
         audioUri: recordingUri,
+        transcript,
         timestamp: new Date().toISOString(),
       };
+      console.log('[AnswerScreen] Saving to AsyncStorage:', key, answerData);
       await AsyncStorage.setItem(key, JSON.stringify(answerData));
+      console.log('[AnswerScreen] Saved successfully');
+
+      setIsTranscribing(false);
 
       // Move to next question or finish
       if (isLastQuestion) {
@@ -132,8 +148,9 @@ export default function AnswerQuestionScreen() {
         setRecordingUri(null);
       }
     } catch (err) {
-      console.error('Failed to save answer', err);
-      Alert.alert('Error', 'Failed to save your answer');
+      console.error('[AnswerScreen] Failed to save answer', err);
+      setIsTranscribing(false);
+      Alert.alert('Error', 'Failed to transcribe or save your answer');
     }
   };
 
@@ -155,7 +172,7 @@ export default function AnswerQuestionScreen() {
         <Text style={styles.question}>{currentQuestion}</Text>
 
         <View style={styles.controlsContainer}>
-          {!isRecording && !recordingUri && (
+          {!isRecording && !recordingUri && !isTranscribing && (
             <TouchableOpacity
               style={styles.recordButton}
               onPress={startRecording}
@@ -165,15 +182,18 @@ export default function AnswerQuestionScreen() {
           )}
 
           {isRecording && (
-            <TouchableOpacity
-              style={[styles.recordButton, styles.recordingButton]}
-              onPress={stopRecording}
-            >
-              <Icon name="square" size={32} color="white" />
-            </TouchableOpacity>
+            <>
+              <Waveform isRecording={isRecording} />
+              <TouchableOpacity
+                style={[styles.recordButton, styles.recordingButton]}
+                onPress={stopRecording}
+              >
+                <Icon name="square" size={32} color="white" />
+              </TouchableOpacity>
+            </>
           )}
 
-          {recordingUri && (
+          {recordingUri && !isTranscribing && (
             <View style={styles.playbackControls}>
               <TouchableOpacity
                 style={styles.playButton}
@@ -194,8 +214,14 @@ export default function AnswerQuestionScreen() {
             </View>
           )}
 
+          {isTranscribing && (
+            <ActivityIndicator size="large" color="#3b82f6" />
+          )}
+
           <Text style={styles.statusText}>
-            {isRecording
+            {isTranscribing
+              ? 'Transcribing your answer...'
+              : isRecording
               ? 'Recording... Tap to stop'
               : recordingUri
               ? 'Tap play to review'
@@ -203,7 +229,7 @@ export default function AnswerQuestionScreen() {
           </Text>
         </View>
 
-        {recordingUri && (
+        {recordingUri && !isTranscribing && (
           <TouchableOpacity style={styles.nextButton} onPress={saveAnswer}>
             <Text style={styles.nextButtonText}>
               {isLastQuestion ? 'Finish' : 'Next Question'}
