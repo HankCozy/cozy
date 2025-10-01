@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import invitationRoutes from './routes/invitations';
+import transcribeRoutes from './routes/transcribe';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use((req, _res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/transcribe', transcribeRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
