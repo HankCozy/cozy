@@ -142,13 +142,68 @@ export default function ProfileScreen() {
     }
   };
 
+  const clearAllAnswers = async () => {
+    Alert.alert(
+      'Clear All Answers',
+      'This will permanently delete all your answers, recordings, and profile summary. This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Get all keys from AsyncStorage
+              const keys = await AsyncStorage.getAllKeys();
+
+              // Filter keys to remove answers, section completion, and profile summary
+              const keysToRemove = keys.filter(
+                (key) =>
+                  key.startsWith('answer_') ||
+                  key.startsWith('section_') ||
+                  key === 'profile_summary'
+              );
+
+              // Remove all filtered keys
+              await AsyncStorage.multiRemove(keysToRemove);
+
+              // Reset state
+              setAnswers([]);
+              setCompletedSections([]);
+              setAnswerCounts({});
+              setProfileSummary(null);
+
+              Alert.alert('Success', 'All answers have been cleared');
+            } catch (error) {
+              console.error('Failed to clear answers:', error);
+              Alert.alert('Error', 'Failed to clear answers');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const hasAnswers = answers.length > 0;
   const allSectionsComplete = completedSections.length === SECTIONS.length;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Your Profile</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Your Profile</Text>
+          {hasAnswers && (
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={clearAllAnswers}
+            >
+              <Icon name="trash-2" size={20} color="#ef4444" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -347,10 +402,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  clearButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
   },
   loadingContainer: {
     flex: 1,
