@@ -32,6 +32,14 @@ This is the #1 rule. When building features:
 
 **Closed Community Networks**: Each community operates as an isolated, private network. Users belong to specific communities with invitation-based registration.
 
+## Visual Architecture Diagrams
+
+📊 **Detailed technical diagrams and schematics are available:**
+- **[Architecture Documentation](docs/architecture.md)** - Detailed tech stack, data flows, and component diagrams
+- **[System Schematic](docs/system-schematic.md)** - Simple visual overview of all systems and providers
+
+These diagrams show how the mobile app, backend API, and external services (Supabase, AssemblyAI, Claude AI) work together.
+
 ## Architecture
 
 ### Technology Stack
@@ -52,12 +60,21 @@ This is the #1 rule. When building features:
 - **JWT**: Token-based authentication (7-day expiration)
 - **TypeScript**: End-to-end type safety
 
+**AI & External Services:**
+- **AssemblyAI**: Audio transcription service (speech-to-text)
+- **Claude AI (Haiku)**: Profile generation from Q&A transcripts
+- **Supabase**: Cloud PostgreSQL database with built-in authentication
+
 ### Key Features
 - **User Authentication** - Login and registration with email/password
 - **Community System** - Users belong to specific communities
 - **Invitation-based Registration** - New users must have valid invitation codes
 - **Role Management** - MEMBER and MANAGER user roles
 - **Secure Token Storage** - JWT tokens stored securely on device
+- **Voice Profile Building** - Record audio answers to profile questions
+- **AI Transcription** - Automatic speech-to-text via AssemblyAI
+- **AI Profile Generation** - Claude AI creates personalized profile summaries
+- **Profile Editing** - Edit and regenerate AI-created profiles
 
 ## Important Commands
 
