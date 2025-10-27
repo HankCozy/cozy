@@ -13,6 +13,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
 import { generateProfile, QuestionAnswer } from '../services/api';
+import { resetOnboardingFlags } from '../utils/resetOnboarding';
 
 interface Answer {
   sectionId: string;
@@ -190,19 +191,45 @@ export default function ProfileScreen() {
   const hasAnswers = answers.length > 0;
   const allSectionsComplete = completedSections.length === SECTIONS.length;
 
+  const handleResetOnboarding = async () => {
+    Alert.alert(
+      'Reset Onboarding',
+      'This will reset the onboarding and name screen flags. You will need to restart the app to see the onboarding flow.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await resetOnboardingFlags();
+            Alert.alert('Success', 'Flags reset! Please restart the app to see the onboarding flow.');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.title}>Your Profile</Text>
-          {hasAnswers && (
+          <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={styles.clearButton}
-              onPress={clearAllAnswers}
+              style={styles.debugButton}
+              onPress={handleResetOnboarding}
             >
-              <Icon name="trash-2" size={20} color="#ef4444" />
+              <Icon name="refresh-cw" size={18} color="#3b82f6" />
             </TouchableOpacity>
-          )}
+            {hasAnswers && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={clearAllAnswers}
+              >
+                <Icon name="trash-2" size={20} color="#ef4444" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
 
@@ -411,6 +438,15 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#111827',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  debugButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
   },
   clearButton: {
     padding: 8,
