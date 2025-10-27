@@ -19,19 +19,25 @@ export interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasSeenOnboarding: boolean;
+  hasCompletedProfile: boolean;
 }
 
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string } }
   | { type: 'LOGOUT' }
-  | { type: 'UPDATE_USER'; payload: Partial<User> };
+  | { type: 'UPDATE_USER'; payload: Partial<User> }
+  | { type: 'MARK_ONBOARDING_COMPLETE' }
+  | { type: 'MARK_PROFILE_COMPLETE' };
 
 const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
-  isLoading: true
+  isLoading: true,
+  hasSeenOnboarding: false,
+  hasCompletedProfile: false
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -63,6 +69,18 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         user: state.user ? { ...state.user, ...action.payload } : null
       };
 
+    case 'MARK_ONBOARDING_COMPLETE':
+      return {
+        ...state,
+        hasSeenOnboarding: true
+      };
+
+    case 'MARK_PROFILE_COMPLETE':
+      return {
+        ...state,
+        hasCompletedProfile: true
+      };
+
     default:
       return state;
   }
@@ -81,6 +99,8 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   validateInvitation: (code: string) => Promise<{ valid: boolean; error?: string; invitation?: any }>;
+  markOnboardingComplete: () => Promise<void>;
+  updateUserProfile: (firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,10 +117,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = await AsyncStorage.getItem('auth_token');
         const userStr = await AsyncStorage.getItem('auth_user');
+        const hasSeenOnboarding = await AsyncStorage.getItem('has_seen_onboarding');
+        const hasCompletedProfile = await AsyncStorage.getItem('has_completed_profile');
 
         if (token && userStr) {
           const user = JSON.parse(userStr);
           dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
+
+          if (hasSeenOnboarding === 'true') {
+            dispatch({ type: 'MARK_ONBOARDING_COMPLETE' });
+          }
+
+          // Check if user has firstName and lastName in their profile
+          if (hasCompletedProfile === 'true' || (user.firstName && user.lastName)) {
+            dispatch({ type: 'MARK_PROFILE_COMPLETE' });
+          }
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
@@ -199,6 +230,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markOnboardingComplete = async () => {
+    try {
+      await AsyncStorage.setItem('has_seen_onboarding', 'true');
+      dispatch({ type: 'MARK_ONBOARDING_COMPLETE' });
+    } catch (error) {
+      console.error('Failed to mark onboarding complete:', error);
+    }
+  };
+
+  const updateUserProfile = async (firstName: string, lastName: string) => {
+    try {
+      if (!auth.token || !auth.user) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.token}`
+        },
+        body: JSON.stringify({ firstName, lastName })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local user state
+        const updatedUser = { ...auth.user, firstName, lastName };
+        await AsyncStorage.setItem('auth_user', JSON.stringify(updatedUser));
+        await AsyncStorage.setItem('has_completed_profile', 'true');
+
+        dispatch({ type: 'UPDATE_USER', payload: { firstName, lastName } });
+        dispatch({ type: 'MARK_PROFILE_COMPLETE' });
+
+        return { success: true };
+      } else {
+        return { success: false, error: data.error };
+      }
+    } catch (_error) {
+      return { success: false, error: 'Network error - make sure your backend is running' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -207,7 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
-        validateInvitation
+        validateInvitation,
+        markOnboardingComplete,
+        updateUserProfile
       }}
     >
       {children}

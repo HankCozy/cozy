@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
+import NameScreen from '../screens/NameScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CommunityScreen from '../screens/CommunityScreen';
 import QuestionFlowScreen from '../screens/QuestionFlowScreen';
@@ -102,9 +104,20 @@ export default function RootNavigator() {
     return null;
   }
 
+  // Determine which screen to show based on auth state
+  const getAuthenticatedScreen = () => {
+    if (!auth.hasSeenOnboarding) {
+      return <OnboardingScreen />;
+    }
+    if (!auth.hasCompletedProfile) {
+      return <NameScreen />;
+    }
+    return <AppNavigator />;
+  };
+
   return (
     <NavigationContainer>
-      {auth.isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
+      {auth.isAuthenticated ? getAuthenticatedScreen() : <AuthNavigator />}
     </NavigationContainer>
   );
 }

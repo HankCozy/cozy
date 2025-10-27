@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import invitationRoutes from './routes/invitations';
 import transcribeRoutes from './routes/transcribe';
 import profileRoutes from './routes/profile';
+import usersRoutes from './routes/users';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/transcribe', transcribeRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
