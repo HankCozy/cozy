@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 // Sample questions for each section
@@ -69,7 +69,7 @@ export default function SectionQuestionsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-left" size={24} color="#374151" />
+          <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.title}>{sectionName}</Text>
         <Text style={styles.subtitle}>
@@ -97,7 +97,7 @@ export default function SectionQuestionsScreen() {
                     isSelected && styles.checkboxSelected,
                   ]}
                 >
-                  {isSelected && <Icon name="check" size={16} color="white" />}
+                  {isSelected && <Feather name="check" size={16} color="white" />}
                 </View>
               </View>
             </TouchableOpacity>

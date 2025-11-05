@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { generateProfile, QuestionAnswer } from '../services/api';
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 
@@ -219,14 +219,14 @@ export default function ProfileScreen() {
               style={styles.debugButton}
               onPress={handleResetOnboarding}
             >
-              <Icon name="refresh-cw" size={18} color="#3b82f6" />
+              <Feather name="refresh-cw" size={18} color="#3b82f6" />
             </TouchableOpacity>
             {hasAnswers && (
               <TouchableOpacity
                 style={styles.clearButton}
                 onPress={clearAllAnswers}
               >
-                <Icon name="trash-2" size={20} color="#ef4444" />
+                <Feather name="trash-2" size={20} color="#ef4444" />
               </TouchableOpacity>
             )}
           </View>
@@ -254,7 +254,7 @@ export default function ProfileScreen() {
                   : 'Answer questions to create your community profile'}
               </Text>
             </View>
-            <Icon name="arrow-right" size={24} color="#3b82f6" />
+            <Feather name="arrow-right" size={24} color="#3b82f6" />
           </TouchableOpacity>
 
           {/* Progress Tracker */}
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
                   <View key={section.id} style={styles.sectionIndicator}>
                     <View
                       style={[
-                        styles.sectionIconContainer,
+                        styles.sectionFeatherContainer,
                         {
                           backgroundColor: hasAnswers ? section.color : '#e5e7eb',
                         },
@@ -292,7 +292,7 @@ export default function ProfileScreen() {
           {profileSummary && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryHeader}>
-                <Icon name="user" size={20} color="#3b82f6" />
+                <Feather name="user" size={20} color="#3b82f6" />
                 <Text style={styles.summaryTitle}>AI Profile Summary</Text>
               </View>
 
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                         setEditedSummary('');
                       }}
                     >
-                      <Icon name="x" size={16} color="#ef4444" />
+                      <Feather name="x" size={16} color="#ef4444" />
                       <Text style={styles.cancelButtonText}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -337,7 +337,7 @@ export default function ProfileScreen() {
                         }
                       }}
                     >
-                      <Icon name="check" size={16} color="#10b981" />
+                      <Feather name="check" size={16} color="#10b981" />
                       <Text style={styles.saveButtonText}>Save</Text>
                     </TouchableOpacity>
                   </>
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
                         setIsEditingProfile(true);
                       }}
                     >
-                      <Icon name="edit-2" size={16} color="#3b82f6" />
+                      <Feather name="edit-2" size={16} color="#3b82f6" />
                       <Text style={styles.editButtonText}>Edit</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -362,7 +362,7 @@ export default function ProfileScreen() {
                         <ActivityIndicator size="small" color="#3b82f6" />
                       ) : (
                         <>
-                          <Icon name="refresh-cw" size={16} color="#3b82f6" />
+                          <Feather name="refresh-cw" size={16} color="#3b82f6" />
                           <Text style={styles.regenerateButtonText}>Regenerate</Text>
                         </>
                       )}
@@ -384,7 +384,7 @@ export default function ProfileScreen() {
                 <ActivityIndicator size="small" color="white" />
               ) : (
                 <>
-                  <Icon name="cpu" size={20} color="white" />
+                  <Feather name="cpu" size={20} color="white" />
                   <Text style={styles.generateButtonText}>Generate AI Profile Summary</Text>
                 </>
               )}
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  sectionIconContainer: {
+  sectionFeatherContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,

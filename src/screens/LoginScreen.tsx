@@ -11,7 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginScreenProps {
@@ -94,7 +94,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (
-                  <Icon name="check-circle" size={14} color="#10b981" style={styles.checkIcon} />
+                  <Feather name="check-circle" size={14} color="#10b981" style={styles.checkFeather} />
                 )}
                 <Text style={[
                   styles.requirementText,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  checkIcon: {
+  checkFeather: {
     marginRight: 6,
   },
   requirementText: {

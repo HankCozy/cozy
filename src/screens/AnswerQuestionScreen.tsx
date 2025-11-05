@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   useAudioRecorder,
@@ -161,7 +161,7 @@ export default function AnswerQuestionScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-left" size={24} color="#374151" />
+          <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.progress}>
           Question {currentQuestionIndex + 1} of {questions.length}
@@ -177,7 +177,7 @@ export default function AnswerQuestionScreen() {
               style={styles.recordButton}
               onPress={startRecording}
             >
-              <Icon name="mic" size={32} color="white" />
+              <Feather name="mic" size={32} color="white" />
             </TouchableOpacity>
           )}
 
@@ -188,7 +188,7 @@ export default function AnswerQuestionScreen() {
                 style={[styles.recordButton, styles.recordingButton]}
                 onPress={stopRecording}
               >
-                <Icon name="square" size={32} color="white" />
+                <Feather name="square" size={32} color="white" />
               </TouchableOpacity>
             </>
           )}
@@ -199,7 +199,7 @@ export default function AnswerQuestionScreen() {
                 style={styles.playButton}
                 onPress={player.playing ? stopPlayback : playRecording}
               >
-                <Icon
+                <Feather
                   name={player.playing ? 'pause' : 'play'}
                   size={32}
                   color="white"
@@ -209,7 +209,7 @@ export default function AnswerQuestionScreen() {
                 style={styles.rerecordButton}
                 onPress={startRecording}
               >
-                <Icon name="rotate-ccw" size={24} color="#374151" />
+                <Feather name="rotate-ccw" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
           )}
