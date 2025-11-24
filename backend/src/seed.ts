@@ -9,15 +9,17 @@ async function main() {
   // Create test communities
   const community1 = await prisma.community.create({
     data: {
-      name: 'Test Community Alpha',
-      description: 'A test community for development'
+      organization: 'Test Community Alpha',
+      division: 'A test community for development',
+      accountOwner: 'Test Admin'
     }
   });
 
   const community2 = await prisma.community.create({
     data: {
-      name: 'Test Community Beta',
-      description: 'Another test community for development'
+      organization: 'Test Community Beta',
+      division: 'Another test community for development',
+      accountOwner: 'Beta Admin'
     }
   });
 

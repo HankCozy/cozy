@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { generateProfile, QuestionAnswer } from '../services/api';
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Answer {
   sectionId: string;
@@ -32,6 +33,8 @@ const SECTIONS = [
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
+  const { auth, logout } = useAuth();
+  const token = auth.token;
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
   const [completedSections, setCompletedSections] = useState<string[]>([]);
@@ -40,6 +43,8 @@ export default function ProfileScreen() {
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedSummary, setEditedSummary] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   const loadAnswers = async () => {
@@ -92,6 +97,10 @@ export default function ProfileScreen() {
       if (savedSummary) {
         setProfileSummary(savedSummary);
       }
+
+      // Load published status
+      const publishedStatus = await AsyncStorage.getItem('profile_published');
+      setIsPublished(publishedStatus === 'true');
     } catch (error) {
       console.error('Failed to load profile summary:', error);
     }
@@ -189,7 +198,6 @@ export default function ProfileScreen() {
   };
 
   const hasAnswers = answers.length > 0;
-  const allSectionsComplete = completedSections.length === SECTIONS.length;
 
   const handleResetOnboarding = async () => {
     Alert.alert(
@@ -209,6 +217,45 @@ export default function ProfileScreen() {
     );
   };
 
+  const handlePublishProfile = async () => {
+    try {
+      setIsPublishing(true);
+
+      // Prepare profile data
+      const profileData = {
+        profileSummary: profileSummary || null,
+        profileAnswers: answers,
+        profilePublished: true,
+      };
+
+      // Send to backend
+      const response = await fetch('http://localhost:3001/api/users/profile', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Save published status locally
+        await AsyncStorage.setItem('profile_published', 'true');
+        setIsPublished(true);
+        Alert.alert('Success!', 'Your profile is now published and visible to your community.');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to publish profile');
+      }
+    } catch (error) {
+      console.error('Failed to publish profile:', error);
+      Alert.alert('Error', 'Failed to publish profile. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -220,6 +267,25 @@ export default function ProfileScreen() {
               onPress={handleResetOnboarding}
             >
               <Feather name="refresh-cw" size={18} color="#3b82f6" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Logout',
+                      style: 'destructive',
+                      onPress: () => logout(),
+                    },
+                  ]
+                );
+              }}
+            >
+              <Feather name="log-out" size={18} color="#f59e0b" />
             </TouchableOpacity>
             {hasAnswers && (
               <TouchableOpacity
@@ -332,7 +398,7 @@ export default function ProfileScreen() {
                           setProfileSummary(editedSummary);
                           setIsEditingProfile(false);
                           Alert.alert('Success', 'Profile updated!');
-                        } catch (error) {
+                        } catch (_error) {
                           Alert.alert('Error', 'Failed to save changes');
                         }
                       }}
@@ -391,6 +457,32 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Publish Profile Button */}
+          {hasAnswers && !isPublished && (
+            <TouchableOpacity
+              style={styles.publishButton}
+              onPress={handlePublishProfile}
+              disabled={isPublishing}
+            >
+              {isPublishing ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <>
+                  <Feather name="share-2" size={20} color="white" />
+                  <Text style={styles.publishButtonText}>Publish Profile to Community</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Published Status Badge */}
+          {isPublished && (
+            <View style={styles.publishedBadge}>
+              <Feather name="check-circle" size={20} color="#10b981" />
+              <Text style={styles.publishedText}>Profile Published</Text>
+            </View>
+          )}
+
           {/* Answers List */}
           {hasAnswers && (
             <>
@@ -447,6 +539,11 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#eff6ff',
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#fffbeb',
   },
   clearButton: {
     padding: 8,
@@ -700,5 +797,45 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     color: '#9ca3af',
+  },
+  publishButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  publishButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  publishedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#d1fae5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 8,
+  },
+  publishedText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10b981',
   },
 });
