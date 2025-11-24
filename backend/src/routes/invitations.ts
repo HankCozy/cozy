@@ -47,8 +47,9 @@ router.post('/validate', async (req: Request, res: Response): Promise<void> => {
         role: invitation.role,
         community: {
           id: invitation.community.id,
-          name: invitation.community.name,
-          description: invitation.community.description
+          organization: invitation.community.organization,
+          division: invitation.community.division,
+          accountOwner: invitation.community.accountOwner
         }
       }
     });

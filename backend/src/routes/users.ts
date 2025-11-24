@@ -34,35 +34,53 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
 };
 
 // PATCH /api/users/profile
-// Update user's first name and last name
+// Update user's profile (name, summary, answers, published status)
 router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName } = req.body;
+    const { firstName, lastName, profileSummary, profileAnswers, profilePublished } = req.body;
     const userId = req.userId;
 
-    // Input validation
-    if (!firstName || !lastName) {
-      res.status(400).json({ success: false, error: 'First name and last name are required' });
-      return;
+    // Build update data object with only provided fields
+    const updateData: any = {};
+
+    // Handle name updates (required if provided)
+    if (firstName !== undefined || lastName !== undefined) {
+      if (!firstName || !lastName) {
+        res.status(400).json({ success: false, error: 'Both first name and last name are required when updating name' });
+        return;
+      }
+
+      if (typeof firstName !== 'string' || typeof lastName !== 'string') {
+        res.status(400).json({ success: false, error: 'First name and last name must be strings' });
+        return;
+      }
+
+      if (firstName.trim().length === 0 || lastName.trim().length === 0) {
+        res.status(400).json({ success: false, error: 'First name and last name cannot be empty' });
+        return;
+      }
+
+      updateData.firstName = firstName.trim();
+      updateData.lastName = lastName.trim();
     }
 
-    if (typeof firstName !== 'string' || typeof lastName !== 'string') {
-      res.status(400).json({ success: false, error: 'First name and last name must be strings' });
-      return;
+    // Handle profile fields (optional)
+    if (profileSummary !== undefined) {
+      updateData.profileSummary = profileSummary;
     }
 
-    if (firstName.trim().length === 0 || lastName.trim().length === 0) {
-      res.status(400).json({ success: false, error: 'First name and last name cannot be empty' });
-      return;
+    if (profileAnswers !== undefined) {
+      updateData.profileAnswers = profileAnswers;
+    }
+
+    if (profilePublished !== undefined) {
+      updateData.profilePublished = profilePublished;
     }
 
     // Update user profile
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        firstName: firstName.trim(),
-        lastName: lastName.trim()
-      },
+      data: updateData,
       include: { community: true }
     });
 
@@ -76,8 +94,9 @@ router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Respon
         role: updatedUser.role,
         community: {
           id: updatedUser.community.id,
-          name: updatedUser.community.name,
-          description: updatedUser.community.description
+          organization: updatedUser.community.organization,
+          division: updatedUser.community.division,
+          accountOwner: updatedUser.community.accountOwner
         }
       }
     });

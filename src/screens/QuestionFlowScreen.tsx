@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -63,7 +63,7 @@ export default function QuestionFlowScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-left" size={24} color="#374151" />
+          <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.title}>Build Your Profile</Text>
         <Text style={styles.subtitle}>
@@ -88,7 +88,7 @@ export default function QuestionFlowScreen() {
               }
             >
               <View style={[styles.iconContainer, { backgroundColor: section.color }]}>
-                <Icon name={section.icon} size={32} color="white" />
+                <Feather name={section.icon} size={32} color="white" />
               </View>
               <View style={styles.sectionContent}>
                 <View>
@@ -102,10 +102,10 @@ export default function QuestionFlowScreen() {
                 <View style={styles.rightSection}>
                   {isCompleted && (
                     <View style={styles.completedBadge}>
-                      <Icon name="check" size={16} color="#10b981" />
+                      <Feather name="check" size={16} color="#10b981" />
                     </View>
                   )}
-                  <Icon name="chevron-right" size={24} color="#9ca3af" />
+                  <Feather name="chevron-right" size={24} color="#9ca3af" />
                 </View>
               </View>
             </TouchableOpacity>

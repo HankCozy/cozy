@@ -14,6 +14,7 @@ import CommunityScreen from '../screens/CommunityScreen';
 import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
+import MemberProfileScreen from '../screens/MemberProfileScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -35,6 +36,7 @@ export type QuestionFlowParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
+  MemberProfile: { userId: string };
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -92,6 +94,7 @@ function AppNavigator() {
     >
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
+      <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
     </RootStack.Navigator>
   );
 }

@@ -25,6 +25,15 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/**', '.expo/**', 'dist/**'],
+    ignores: [
+      'node_modules/**',
+      '.expo/**',
+      'dist/**',
+      'backend/src/generated/**',
+      'backend/prisma/migrations/**',
+      'backend/check_users.js',
+      'backend/seed_fake_users.js',
+      '**/*.config.js'
+    ],
   },
 ];

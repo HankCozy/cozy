@@ -16,26 +16,30 @@ datasource db {
 }
 
 model Community {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  organization String
+  division     String?
+  accountOwner String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  users       User[]
-  invitations Invitation[]
+  users        User[]
+  invitations  Invitation[]
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  firstName    String?
-  lastName     String?
-  role         Role     @default(MEMBER)
-  communityId  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String
+  firstName        String?
+  lastName         String?
+  role             Role     @default(MEMBER)
+  communityId      String
+  profileSummary   String?
+  profilePublished Boolean  @default(false)
+  profileAnswers   Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   community Community @relation(fields: [communityId], references: [id])
 }

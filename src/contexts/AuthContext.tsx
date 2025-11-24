@@ -9,8 +9,9 @@ export interface User {
   role: 'MEMBER' | 'MANAGER';
   community: {
     id: string;
-    name: string;
-    description?: string;
+    organization: string;
+    division?: string;
+    accountOwner?: string;
   };
 }
 

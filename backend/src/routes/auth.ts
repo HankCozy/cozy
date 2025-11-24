@@ -72,8 +72,9 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         community: {
           id: user.community.id,
-          name: user.community.name,
-          description: user.community.description
+          organization: user.community.organization,
+          division: user.community.division,
+          accountOwner: user.community.accountOwner
         }
       }
     });
@@ -184,8 +185,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         community: {
           id: user.community.id,
-          name: user.community.name,
-          description: user.community.description
+          organization: user.community.organization,
+          division: user.community.division,
+          accountOwner: user.community.accountOwner
         }
       }
     });
