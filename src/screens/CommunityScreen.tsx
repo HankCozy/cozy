@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileBadge from '../components/ProfileBadge';
 
 interface CommunityMember {
   id: string;
@@ -31,6 +32,7 @@ export default function CommunityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
+  const [answerCount, setAnswerCount] = useState(0);
 
   const fetchCommunityMembers = async () => {
     try {
@@ -60,8 +62,10 @@ export default function CommunityScreen() {
       // Check if user has any answers recorded
       const keys = await AsyncStorage.getAllKeys();
       const answerKeys = keys.filter((key) => key.startsWith('answer_'));
+      const totalAnswers = answerKeys.length;
+      setAnswerCount(totalAnswers);
 
-      if (answerKeys.length === 0) {
+      if (totalAnswers === 0) {
         setProfileStatus('start');
         return;
       }
@@ -78,6 +82,7 @@ export default function CommunityScreen() {
     } catch (error) {
       console.error('Error determining profile status:', error);
       setProfileStatus('start');
+      setAnswerCount(0);
     }
   };
 
@@ -99,30 +104,17 @@ export default function CommunityScreen() {
     navigation.navigate('MemberProfile', { userId: member.id });
   };
 
-  const getStatusColor = () => {
-    switch (profileStatus) {
-      case 'sharing':
-        return '#10b981';
-      case 'draft':
-        return '#f59e0b';
-      case 'start':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
+  const getBadgeColor = () => {
+    if (answerCount === 0) return '#DC2626'; // Red
+    if (answerCount < 4) return '#F59E0B'; // Amber
+    return '#10B981'; // Green
   };
 
   const getStatusText = () => {
-    switch (profileStatus) {
-      case 'sharing':
-        return 'Sharing';
-      case 'draft':
-        return 'Draft';
-      case 'start':
-        return 'Start now';
-      default:
-        return 'Start now';
-    }
+    if (profileStatus === 'sharing') return 'Sharing profile';
+    if (answerCount === 0) return 'Start your profile';
+    if (answerCount < 4) return 'Complete your profile';
+    return 'Profile not shared';
   };
 
   if (loading) {
@@ -142,44 +134,47 @@ export default function CommunityScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Organization Header */}
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Circle</Text>
-        <Text style={styles.organizationName}>{user?.community.organization}</Text>
-        {user?.community.division && (
-          <Text style={styles.division}>{user.community.division}</Text>
-        )}
+        <Text style={styles.headerSubtitle}>Your circle:</Text>
+        <Text style={styles.headerTitle}>{user?.community.organization}</Text>
       </View>
 
-      {/* Profile Status */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusHeader}>
-          <Feather name="user" size={20} color={getStatusColor()} />
-          <Text style={styles.statusLabel}>Your Profile Status</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor()}15` }]}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-          <Text style={[styles.statusText, { color: getStatusColor() }]}>
-            {getStatusText()}
+      {/* Profile Status Card */}
+      <TouchableOpacity
+        style={styles.profileStatusCard}
+        onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
+        activeOpacity={0.7}
+      >
+        <ProfileBadge
+          firstName={user?.firstName}
+          lastName={user?.lastName}
+          totalAnswers={answerCount}
+        />
+        <View style={styles.profileStatusInfo}>
+          <Text style={styles.profileName}>
+            {user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : 'Your Profile'}
           </Text>
-        </View>
-        {profileStatus !== 'sharing' && (
-          <TouchableOpacity
-            style={styles.goToProfileButton}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
-          >
-            <Text style={styles.goToProfileText}>
-              {profileStatus === 'start' ? 'Start your profile' : 'Publish your profile'}
+          <Text style={styles.profileStatusText}>{getStatusText()}</Text>
+          {profileStatus !== 'sharing' && (
+            <Text style={styles.profileQuestionCount}>
+              {answerCount}/4 questions answered
             </Text>
-            <Feather name="arrow-right" size={16} color="#3b82f6" />
-          </TouchableOpacity>
-        )}
-      </View>
+          )}
+        </View>
+        <Feather
+          name={profileStatus === 'sharing' ? 'chevron-right' : 'chevron-left'}
+          size={20}
+          color="#9CA3AF"
+        />
+      </TouchableOpacity>
 
       {/* Community Members */}
       <View style={styles.membersSection}>
         <Text style={styles.sectionTitle}>
-          Community Members ({members.length})
+          Your {user?.community.organization} circle ({members.length})
         </Text>
         {members.length === 0 ? (
           <View style={styles.emptyState}>
@@ -190,30 +185,56 @@ export default function CommunityScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.membersList}>
+          <View style={[styles.membersList, profileStatus !== 'sharing' && styles.membersListDimmed]}>
             {members.map((member) => (
               <TouchableOpacity
                 key={member.id}
                 style={styles.memberCard}
                 onPress={() => handleMemberPress(member)}
+                disabled={profileStatus !== 'sharing'}
               >
-                <View style={styles.memberAvatar}>
+                <View style={[
+                  styles.memberAvatar,
+                  profileStatus !== 'sharing' && styles.memberAvatarDimmed
+                ]}>
                   <Text style={styles.memberInitials}>
                     {member.firstName?.[0]?.toUpperCase() || '?'}
                     {member.lastName?.[0]?.toUpperCase() || ''}
                   </Text>
                 </View>
                 <View style={styles.memberInfo}>
-                  <Text style={styles.memberName}>
+                  <Text style={[
+                    styles.memberName,
+                    profileStatus !== 'sharing' && styles.memberTextDimmed
+                  ]}>
                     {member.firstName} {member.lastName}
                   </Text>
-                  <Text style={styles.memberRole}>
+                  <Text style={[
+                    styles.memberRole,
+                    profileStatus !== 'sharing' && styles.memberTextDimmed
+                  ]}>
                     {member.role === 'MANAGER' ? 'Manager' : 'Member'}
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={20} color="#9ca3af" />
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={profileStatus !== 'sharing' ? '#D1D5DB' : '#9ca3af'}
+                />
               </TouchableOpacity>
             ))}
+          </View>
+        )}
+
+        {/* Overlay Share Prompt */}
+        {profileStatus !== 'sharing' && members.length > 0 && (
+          <View style={styles.sharePromptOverlay}>
+            <View style={styles.sharePromptContent}>
+              <Feather name="lock" size={32} color="#6B7280" />
+              <Text style={styles.sharePromptOverlayText}>
+                Share your profile to unlock your circle
+              </Text>
+            </View>
           </View>
         )}
       </View>
@@ -241,83 +262,78 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   header: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  organizationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#3b82f6',
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
     marginBottom: 4,
   },
-  division: {
-    fontSize: 14,
-    color: '#6b7280',
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
   },
-  statusCard: {
+  profileStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    gap: 12,
   },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+  profileStatusInfo: {
+    flex: 1,
   },
-  statusLabel: {
-    fontSize: 14,
+  profileName: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
-    marginLeft: 8,
+    color: '#111827',
+    marginBottom: 4,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
+  profileStatusText: {
     fontSize: 14,
-    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
   },
-  goToProfileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    paddingVertical: 8,
-  },
-  goToProfileText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-    marginRight: 4,
+  profileQuestionCount: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   membersSection: {
     marginTop: 24,
     paddingHorizontal: 20,
+    position: 'relative',
+  },
+  sharePromptOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 80,
+  },
+  sharePromptContent: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(249, 250, 251, 0.95)',
+    paddingVertical: 32,
+    paddingHorizontal: 40,
+    borderRadius: 16,
+  },
+  sharePromptOverlayText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -380,5 +396,14 @@ const styles = StyleSheet.create({
   memberRole: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  membersListDimmed: {
+    opacity: 0.4,
+  },
+  memberAvatarDimmed: {
+    opacity: 0.5,
+  },
+  memberTextDimmed: {
+    color: '#D1D5DB',
   },
 });

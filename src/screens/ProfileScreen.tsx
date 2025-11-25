@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { generateProfile, QuestionAnswer } from '../services/api';
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileBadge from '../components/ProfileBadge';
 
 interface Answer {
   sectionId: string;
@@ -46,6 +47,9 @@ export default function ProfileScreen() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const textInputRef = useRef<TextInput>(null);
+
+  // Calculate total answers across all sections
+  const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
 
   const loadAnswers = async () => {
     try {
@@ -139,8 +143,6 @@ export default function ProfileScreen() {
       // Save to AsyncStorage
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);
-
-      Alert.alert('Success', 'Your profile summary has been generated!');
     } catch (error) {
       console.error('Failed to generate summary:', error);
       Alert.alert(
@@ -155,7 +157,7 @@ export default function ProfileScreen() {
   const clearAllAnswers = async () => {
     Alert.alert(
       'Clear All Answers',
-      'This will permanently delete all your answers, recordings, and profile summary. This action cannot be undone.',
+      'This will permanently delete all your answers, recordings, profile summary, and published status. This action cannot be undone.',
       [
         {
           text: 'Cancel',
@@ -169,12 +171,13 @@ export default function ProfileScreen() {
               // Get all keys from AsyncStorage
               const keys = await AsyncStorage.getAllKeys();
 
-              // Filter keys to remove answers, section completion, and profile summary
+              // Filter keys to remove answers, section completion, profile summary, and published status
               const keysToRemove = keys.filter(
                 (key) =>
                   key.startsWith('answer_') ||
                   key.startsWith('section_') ||
-                  key === 'profile_summary'
+                  key === 'profile_summary' ||
+                  key === 'profile_published'
               );
 
               // Remove all filtered keys
@@ -185,8 +188,9 @@ export default function ProfileScreen() {
               setCompletedSections([]);
               setAnswerCounts({});
               setProfileSummary(null);
+              setIsPublished(false);
 
-              Alert.alert('Success', 'All answers have been cleared');
+              Alert.alert('Success', 'All answers and profile data have been cleared');
             } catch (error) {
               console.error('Failed to clear answers:', error);
               Alert.alert('Error', 'Failed to clear answers');
@@ -287,14 +291,12 @@ export default function ProfileScreen() {
             >
               <Feather name="log-out" size={18} color="#f59e0b" />
             </TouchableOpacity>
-            {hasAnswers && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={clearAllAnswers}
-              >
-                <Feather name="trash-2" size={20} color="#ef4444" />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={clearAllAnswers}
+            >
+              <Feather name="trash-2" size={20} color="#ef4444" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -305,33 +307,42 @@ export default function ProfileScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* CTA Area */}
-          <TouchableOpacity
-            style={styles.ctaCard}
-            onPress={() => navigation.navigate('QuestionFlowStack')}
-          >
-            <View style={styles.ctaContent}>
-              <Text style={styles.ctaTitle}>
-                {hasAnswers ? 'Continue Building Your Profile' : 'Start Building Your Profile'}
-              </Text>
-              <Text style={styles.ctaSubtitle}>
-                {hasAnswers
-                  ? 'Add more answers to complete your profile'
-                  : 'Answer questions to create your community profile'}
-              </Text>
-            </View>
-            <Feather name="arrow-right" size={24} color="#3b82f6" />
-          </TouchableOpacity>
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
+            <ProfileBadge
+              firstName={auth.user?.firstName}
+              lastName={auth.user?.lastName}
+              totalAnswers={totalAnswers}
+            />
+            <Text style={styles.profileName}>
+              {auth.user?.firstName || auth.user?.lastName
+                ? `${auth.user?.firstName || ''} ${auth.user?.lastName || ''}`.trim()
+                : 'Your Profile'
+              }
+            </Text>
+          </View>
 
           {/* Progress Tracker */}
           <View style={styles.progressCard}>
-            <Text style={styles.progressTitle}>Profile Progress</Text>
+            <Text style={styles.progressHeadline}>
+              {totalAnswers >= 4
+                ? 'Tell us more about yourself:'
+                : `${totalAnswers}/4 questions answered`
+              }
+            </Text>
             <View style={styles.sectionsContainer}>
               {SECTIONS.map((section) => {
                 const answerCount = answerCounts[section.id] || 0;
                 const hasAnswers = answerCount > 0;
                 return (
-                  <View key={section.id} style={styles.sectionIndicator}>
+                  <TouchableOpacity
+                    key={section.id}
+                    style={styles.sectionIndicator}
+                    onPress={() => {
+                      navigation.navigate('QuestionFlowStack');
+                    }}
+                    activeOpacity={1}
+                  >
                     <View
                       style={[
                         styles.sectionFeatherContainer,
@@ -348,7 +359,7 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
                     <Text style={styles.sectionLabel}>{section.name}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -439,40 +450,35 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Generate Button (if no summary yet) */}
-          {!profileSummary && hasAnswers && (
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={handleGenerateSummary}
-              disabled={generatingSummary}
-            >
-              {generatingSummary ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Feather name="cpu" size={20} color="white" />
-                  <Text style={styles.generateButtonText}>Generate AI Profile Summary</Text>
-                </>
+          {/* Profile Action Button - Create Draft or Share Profile */}
+          {!isPublished && totalAnswers >= 4 && (
+            <View style={styles.profileActionContainer}>
+              <TouchableOpacity
+                style={styles.publishButton}
+                onPress={profileSummary ? handlePublishProfile : handleGenerateSummary}
+                disabled={profileSummary ? isPublishing : generatingSummary}
+              >
+                {(profileSummary ? isPublishing : generatingSummary) ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Feather
+                      name={profileSummary ? "share-2" : "file-text"}
+                      size={20}
+                      color="white"
+                    />
+                    <Text style={styles.publishButtonText}>
+                      {profileSummary ? 'Share Profile' : 'Create Profile Draft'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              {!profileSummary && (
+                <Text style={styles.aiCaption}>
+                  Our AI model is trained and secure to create your personalized profile
+                </Text>
               )}
-            </TouchableOpacity>
-          )}
-
-          {/* Publish Profile Button */}
-          {hasAnswers && !isPublished && (
-            <TouchableOpacity
-              style={styles.publishButton}
-              onPress={handlePublishProfile}
-              disabled={isPublishing}
-            >
-              {isPublishing ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Feather name="share-2" size={20} color="white" />
-                  <Text style={styles.publishButtonText}>Publish Profile to Community</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Published Status Badge */}
@@ -561,31 +567,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
   },
-  ctaCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    flexDirection: 'row',
+  profileHeader: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 2,
-    borderColor: '#3b82f6',
+    marginBottom: 24,
+    paddingVertical: 16,
   },
-  ctaContent: {
-    flex: 1,
-    marginRight: 16,
-  },
-  ctaTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e40af',
-    marginBottom: 6,
-  },
-  ctaSubtitle: {
-    fontSize: 15,
-    color: '#3b82f6',
-    lineHeight: 20,
+  profileName: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#111827',
+    marginTop: 12,
+    textAlign: 'center',
   },
   progressCard: {
     backgroundColor: 'white',
@@ -606,6 +598,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     marginBottom: 16,
+  },
+  progressHeadline: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   sectionsContainer: {
     flexDirection: 'row',
@@ -632,6 +631,14 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  emptyStateMessage: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 180,
+    marginBottom: 24,
   },
   summaryCard: {
     backgroundColor: 'white',
@@ -798,6 +805,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
   },
+  profileActionContainer: {
+    marginBottom: 24,
+  },
   publishButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -806,7 +816,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 8,
     gap: 8,
     shadowColor: '#000',
     shadowOffset: {
@@ -817,10 +827,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  aiCaption: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    lineHeight: 16,
+  },
   publishButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  publishButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+  },
+  publishButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   publishedBadge: {
     flexDirection: 'row',

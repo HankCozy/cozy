@@ -2,7 +2,9 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import VennDiagramIcon from '../components/VennDiagramIcon';
 
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
@@ -77,10 +79,29 @@ function TabsNavigator() {
     <AppTabs.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: '#3b82f6',
+        tabBarInactiveTintColor: '#9ca3af',
       }}
     >
-      <AppTabs.Screen name="Profile" component={ProfileScreen} />
-      <AppTabs.Screen name="Community" component={CommunityScreen} />
+      <AppTabs.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="user" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
+        name="Community"
+        component={CommunityScreen}
+        options={{
+          tabBarLabel: 'Your Circles',
+          tabBarIcon: ({ color, size }) => (
+            <VennDiagramIcon size={size} color={color} />
+          ),
+        }}
+      />
     </AppTabs.Navigator>
   );
 }
