@@ -6,6 +6,30 @@ A simple React Native app for iOS and Android providing basic community authenti
 
 **Cozy** is a React Native mobile application that provides basic login and authentication for community-based user management.
 
+## Terminology
+
+**Important:** Throughout the app, "Community" is being rebranded to "Circles":
+- User-facing labels use "Your Circles" or "Your Circle"
+- Internal code, database, and API still use "community" for consistency
+- Example: Bottom tab shows "Your Circles" but routes to `CommunityScreen`
+
+## Icon Library
+
+**All icons use Feather Icons** from `@expo/vector-icons` for consistency:
+- Import: `import { Feather } from '@expo/vector-icons';`
+- Usage: `<Feather name="icon-name" size={24} color="#3b82f6" />`
+- **Do NOT mix icon libraries** - always use Feather for all icons in the app
+
+**Common Icons Used:**
+- `user` - Profile/person icon
+- `radio` - Concentric circles (used for Circles/Community tab)
+- `chevron-right` / `chevron-left` - Navigation arrows
+- `check-circle` - Success/completion indicator
+- `lock` - Locked/restricted content
+- `heart` - Relationships section
+- `coffee` - Lifestyle section
+- `users` - Community section
+
 ## Core Philosophy
 
 **⚠️ CRITICAL: Small, Bite-Size Pieces - NO EXCEPTIONS**

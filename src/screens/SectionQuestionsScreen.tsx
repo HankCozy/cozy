@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Sample questions for each section
 const QUESTIONS_BY_SECTION: Record<string, string[]> = {
@@ -45,6 +46,35 @@ export default function SectionQuestionsScreen() {
 
   const questions = QUESTIONS_BY_SECTION[sectionId] || [];
   const [selectedQuestions, setSelectedQuestions] = useState<number[]>([]);
+  const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
+
+  // Load answered questions from AsyncStorage
+  const loadAnsweredQuestions = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const answerKeys = keys.filter((key) => key.startsWith(`answer_${sectionId}_`));
+      const answerData = await AsyncStorage.multiGet(answerKeys);
+
+      const answeredSet = new Set<string>();
+      answerData.forEach(([_, value]) => {
+        if (value) {
+          const answer = JSON.parse(value);
+          answeredSet.add(answer.question);
+        }
+      });
+
+      setAnsweredQuestions(answeredSet);
+    } catch (error) {
+      console.error('Failed to load answered questions:', error);
+    }
+  };
+
+  // Load answered questions when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAnsweredQuestions();
+    }, [sectionId])
+  );
 
   const toggleQuestion = (index: number) => {
     setSelectedQuestions((prev) =>
@@ -80,6 +110,7 @@ export default function SectionQuestionsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {questions.map((question, index) => {
           const isSelected = selectedQuestions.includes(index);
+          const isAnswered = answeredQuestions.has(question);
           return (
             <TouchableOpacity
               key={index}
@@ -90,7 +121,15 @@ export default function SectionQuestionsScreen() {
               onPress={() => toggleQuestion(index)}
             >
               <View style={styles.questionContent}>
-                <Text style={styles.questionText}>{question}</Text>
+                <View style={styles.questionTextContainer}>
+                  <Text style={styles.questionText}>{question}</Text>
+                  {isAnswered && (
+                    <View style={styles.answeredBadge}>
+                      <Feather name="check-circle" size={14} color="#10b981" />
+                      <Text style={styles.answeredText}>Answered</Text>
+                    </View>
+                  )}
+                </View>
                 <View
                   style={[
                     styles.checkbox,
@@ -178,11 +217,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  questionTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   questionText: {
     fontSize: 16,
     color: '#111827',
-    flex: 1,
-    marginRight: 12,
+    marginBottom: 8,
+  },
+  answeredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  answeredText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '500',
   },
   checkbox: {
     width: 24,
