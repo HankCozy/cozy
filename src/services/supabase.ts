@@ -16,15 +16,24 @@ export async function uploadProfilePicture(
   userId: string,
   imageUri: string
 ): Promise<void> {
-  const response = await fetch(imageUri);
-  const blob = await response.blob();
-
   const fileName = `${userId}.jpg`;
-  const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+  // React Native approach: Create FormData with the image
+  const formData = new FormData();
+  formData.append('file', {
+    uri: imageUri,
+    type: 'image/jpeg',
+    name: fileName,
+  } as any);
+
+  // Use Supabase storage upload with arraybuffer
+  const response = await fetch(imageUri);
+  const arrayBuffer = await response.arrayBuffer();
 
   const { error } = await supabase.storage
     .from(PROFILE_PICTURES_BUCKET)
-    .upload(fileName, file, {
+    .upload(fileName, arrayBuffer, {
+      contentType: 'image/jpeg',
       cacheControl: '3600',
       upsert: true, // Overwrites existing
     });

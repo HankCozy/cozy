@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.CommunityProfileMobile",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app uses the microphone to record audio responses for your profile."
+        "NSMicrophoneUsageDescription": "This app uses the microphone to record audio responses for your profile.",
+        "NSCameraUsageDescription": "This app uses the camera to take profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select profile pictures."
       }
     },
     "android": {
@@ -41,6 +43,13 @@
         "expo-audio",
         {
           "microphonePermission": "This app uses the microphone to record audio responses for your profile."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "This app accesses your photo library to select profile pictures.",
+          "cameraPermission": "This app uses the camera to take profile pictures."
         }
       ]
     ]
