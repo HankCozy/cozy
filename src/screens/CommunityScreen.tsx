@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
+import { getProfilePictureUrl } from '../services/api';
 
 interface CommunityMember {
   id: string;
@@ -21,6 +22,7 @@ interface CommunityMember {
   role: 'MEMBER' | 'MANAGER';
   profileSummary: string | null;
   profileAnswers: any;
+  profilePictureUrl: string | null;
   createdAt: string;
 }
 
@@ -33,6 +35,7 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
   const [answerCount, setAnswerCount] = useState(0);
+  const [userProfilePictureUrl, setUserProfilePictureUrl] = useState<string | null>(null);
 
   const fetchCommunityMembers = async () => {
     try {
@@ -91,7 +94,14 @@ export default function CommunityScreen() {
       setLoading(true);
       determineProfileStatus();
       fetchCommunityMembers();
-    }, [token])
+
+      // Fetch user's profile picture
+      if (user?.id && token) {
+        getProfilePictureUrl(user.id, token).then(url => {
+          setUserProfilePictureUrl(url);
+        });
+      }
+    }, [token, user?.id])
   );
 
   const onRefresh = () => {
@@ -150,6 +160,7 @@ export default function CommunityScreen() {
           firstName={user?.firstName}
           lastName={user?.lastName}
           totalAnswers={answerCount}
+          profilePictureUrl={userProfilePictureUrl}
         />
         <View style={styles.profileStatusInfo}>
           <Text style={styles.profileName}>

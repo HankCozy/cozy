@@ -51,6 +51,7 @@ router.get('/members', authenticateToken, async (req: AuthRequest, res: Response
         role: true,
         profileSummary: true,
         profileAnswers: true,
+        profilePictureUrl: true,
         createdAt: true
       },
       orderBy: {
@@ -88,6 +89,7 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
         role: true,
         profileSummary: true,
         profileAnswers: true,
+        profilePictureUrl: true,
         createdAt: true
       }
     });

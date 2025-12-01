@@ -1,18 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 interface ProfileBadgeProps {
   firstName?: string;
   lastName?: string;
   totalAnswers: number;
+  profilePictureUrl?: string | null;
 }
-
-const getInitials = (firstName?: string, lastName?: string): string => {
-  const first = firstName?.charAt(0).toUpperCase() || '';
-  const last = lastName?.charAt(0).toUpperCase() || '';
-  return first + last;
-};
 
 const getBadgeColor = (totalAnswers: number): string => {
   if (totalAnswers === 0) return '#DC2626'; // Red
@@ -20,14 +15,19 @@ const getBadgeColor = (totalAnswers: number): string => {
   return '#10B981'; // Green
 };
 
-export default function ProfileBadge({ firstName, lastName, totalAnswers }: ProfileBadgeProps) {
-  const initials = getInitials(firstName, lastName);
+export default function ProfileBadge({
+  totalAnswers,
+  profilePictureUrl
+}: ProfileBadgeProps) {
   const badgeColor = getBadgeColor(totalAnswers);
 
   return (
     <View style={[styles.badge, { backgroundColor: badgeColor }]}>
-      {initials ? (
-        <Text style={styles.initials}>{initials}</Text>
+      {profilePictureUrl ? (
+        <Image
+          source={{ uri: profilePictureUrl }}
+          style={styles.profileImage}
+        />
       ) : (
         <Feather name="user" size={28} color="white" />
       )}
@@ -51,9 +51,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  initials: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
 });

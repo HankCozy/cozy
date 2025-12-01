@@ -7,6 +7,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   role: 'MEMBER' | 'MANAGER';
+  profilePictureUrl?: string;
   community: {
     id: string;
     organization: string;

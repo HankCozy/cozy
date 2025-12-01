@@ -1,11 +1,18 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '../generated/prisma';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+
+// Initialize Supabase client for signed URL generation
+const supabase = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_ANON_KEY || ''
+);
 
 // Middleware to authenticate JWT token
 interface AuthRequest extends Request {
@@ -37,7 +44,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
 // Update user's profile (name, summary, answers, published status)
 router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, profileSummary, profileAnswers, profilePublished } = req.body;
+    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, profilePictureUrl } = req.body;
     const userId = req.userId;
 
     // Build update data object with only provided fields
@@ -77,6 +84,10 @@ router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Respon
       updateData.profilePublished = profilePublished;
     }
 
+    if (profilePictureUrl !== undefined) {
+      updateData.profilePictureUrl = profilePictureUrl;
+    }
+
     // Update user profile
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -92,6 +103,7 @@ router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Respon
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
         role: updatedUser.role,
+        profilePictureUrl: updatedUser.profilePictureUrl,
         community: {
           id: updatedUser.community.id,
           organization: updatedUser.community.organization,
@@ -103,6 +115,59 @@ router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Respon
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ success: false, error: 'Failed to update profile' });
+  }
+});
+
+// GET /api/users/profile-picture/:userId
+// Get signed URL for user's profile picture (community-scoped access)
+router.get('/profile-picture/:userId', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { userId: targetUserId } = req.params;
+    const requestingUserId = req.userId;
+    const requestingUserCommunityId = req.communityId;
+
+    // Fetch target user to verify they exist and get their community
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, communityId: true, profilePictureUrl: true }
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    // Verify users are in the same community
+    if (targetUser.communityId !== requestingUserCommunityId) {
+      res.status(403).json({ success: false, error: 'Access denied: different community' });
+      return;
+    }
+
+    // Check if user has a profile picture
+    if (!targetUser.profilePictureUrl) {
+      res.json({ success: true, signedUrl: null });
+      return;
+    }
+
+    // Generate signed URL (valid for 1 hour)
+    const fileName = `${targetUserId}.jpg`;
+    const { data, error } = await supabase.storage
+      .from('profile-pictures')
+      .createSignedUrl(fileName, 3600); // 3600 seconds = 1 hour
+
+    if (error) {
+      console.error('Failed to generate signed URL:', error);
+      res.status(500).json({ success: false, error: 'Failed to generate image URL' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      signedUrl: data.signedUrl
+    });
+  } catch (error) {
+    console.error('Profile picture URL error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get profile picture' });
   }
 });
 

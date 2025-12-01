@@ -70,6 +70,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        profilePictureUrl: user.profilePictureUrl,
         community: {
           id: user.community.id,
           organization: user.community.organization,
@@ -183,6 +184,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        profilePictureUrl: user.profilePictureUrl,
         community: {
           id: user.community.id,
           organization: user.community.organization,
