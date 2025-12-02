@@ -12,10 +12,12 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
-import { generateProfile, QuestionAnswer } from '../services/api';
+import * as ImagePicker from 'expo-image-picker';
+import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../services/api';
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
+import { compressProfilePicture } from '../utils/imageCompression';
 
 interface Answer {
   sectionId: string;
@@ -34,7 +36,7 @@ const SECTIONS = [
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
-  const { auth, logout } = useAuth();
+  const { auth, logout, dispatch } = useAuth();
   const token = auth.token;
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,8 @@ export default function ProfileScreen() {
   const [editedSummary, setEditedSummary] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -92,7 +96,14 @@ export default function ProfileScreen() {
     React.useCallback(() => {
       loadAnswers();
       loadProfileSummary();
-    }, [])
+
+      // Load profile picture signed URL
+      if (auth.user?.id && token) {
+        getProfilePictureUrl(auth.user.id, token).then(url => {
+          setProfilePictureUrl(url);
+        });
+      }
+    }, [auth.user?.id, token])
   );
 
   const loadProfileSummary = async () => {
@@ -260,6 +271,101 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleUploadPhoto = async () => {
+    Alert.alert(
+      'Upload Photo',
+      'Choose a photo for your profile',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (!permission.granted) {
+              Alert.alert('Permission Required', 'Please allow camera access.');
+              return;
+            }
+            await pickImage('camera');
+          },
+        },
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+              Alert.alert('Permission Required', 'Please allow photo library access.');
+              return;
+            }
+            await pickImage('library');
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const pickImage = async (source: 'camera' | 'library') => {
+    try {
+      setUploadingPhoto(true);
+
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+          });
+
+      if (result.canceled) {
+        setUploadingPhoto(false);
+        return;
+      }
+
+      // Compress the image
+      const compressedUri = await compressProfilePicture(result.assets[0].uri);
+
+      // Create FormData to send image to backend
+      const formData = new FormData();
+      formData.append('image', {
+        uri: compressedUri,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      } as any);
+
+      // Upload via backend endpoint (backend handles Supabase upload with service role key)
+      const uploadResponse = await fetch('http://localhost:3001/api/users/profile-picture', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const uploadData = await uploadResponse.json();
+
+      if (!uploadData.success) {
+        throw new Error(uploadData.error || 'Failed to upload');
+      }
+
+      // Fetch signed URL to display the new image
+      if (!auth.user?.id) throw new Error('User not authenticated');
+      const signedUrl = await getProfilePictureUrl(auth.user.id, token);
+      setProfilePictureUrl(signedUrl);
+      dispatch({ type: 'UPDATE_USER', payload: { profilePictureUrl: 'uploaded' } });
+
+      Alert.alert('Success', 'Profile picture updated!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -309,17 +415,34 @@ export default function ProfileScreen() {
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {/* Profile Header */}
           <View style={styles.profileHeader}>
-            <ProfileBadge
-              firstName={auth.user?.firstName}
-              lastName={auth.user?.lastName}
-              totalAnswers={totalAnswers}
-            />
+            <TouchableOpacity
+              onPress={handleUploadPhoto}
+              disabled={uploadingPhoto}
+              style={styles.profileBadgeContainer}
+            >
+              <ProfileBadge
+                firstName={auth.user?.firstName}
+                lastName={auth.user?.lastName}
+                totalAnswers={totalAnswers}
+                profilePictureUrl={profilePictureUrl}
+                size={120}
+              />
+              {uploadingPhoto && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              )}
+              <View style={styles.cameraIconBadge}>
+                <Feather name="camera" size={18} color="#3b82f6" />
+              </View>
+            </TouchableOpacity>
             <Text style={styles.profileName}>
               {auth.user?.firstName || auth.user?.lastName
                 ? `${auth.user?.firstName || ''} ${auth.user?.lastName || ''}`.trim()
                 : 'Your Profile'
               }
             </Text>
+            <Text style={styles.uploadPhotoHint}>Tap photo to change</Text>
           </View>
 
           {/* Progress Tracker */}
@@ -861,5 +984,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#10b981',
+  },
+  profileBadgeContainer: {
+    position: 'relative',
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadPhotoHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
   },
 });

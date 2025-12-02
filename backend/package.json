@@ -22,11 +22,14 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
     "@prisma/client": "^6.16.2",
+    "@supabase/supabase-js": "^2.86.0",
     "@types/multer": "^2.0.0",
     "assemblyai": "^4.16.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
+    "expo-image-manipulator": "~14.0.7",
+    "expo-image-picker": "~17.0.8",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2"

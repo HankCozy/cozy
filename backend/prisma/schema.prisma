@@ -38,6 +38,7 @@ model User {
   profileSummary   String?
   profilePublished Boolean  @default(false)
   profileAnswers   Json?
+  profilePictureUrl String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

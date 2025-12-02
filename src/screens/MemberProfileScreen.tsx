@@ -6,10 +6,12 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { getProfilePictureUrl } from '../services/api';
 
 interface MemberProfile {
   id: string;
@@ -17,6 +19,7 @@ interface MemberProfile {
   lastName: string | null;
   role: 'MEMBER' | 'MANAGER';
   profileSummary: string | null;
+  profilePictureUrl: string | null;
   profileAnswers: Array<{
     sectionId: string;
     question: string;
@@ -36,6 +39,7 @@ export default function MemberProfileScreen() {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profilePictureSignedUrl, setProfilePictureSignedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMemberProfile();
@@ -56,6 +60,12 @@ export default function MemberProfileScreen() {
 
       if (data.success) {
         setMember(data.user);
+
+        // Fetch signed URL for profile picture if user has one
+        if (data.user.profilePictureUrl && token) {
+          const signedUrl = await getProfilePictureUrl(userId, token);
+          setProfilePictureSignedUrl(signedUrl);
+        }
       } else {
         setError(data.error || 'Failed to load profile');
       }
@@ -106,14 +116,18 @@ export default function MemberProfileScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Member Info Card */}
+        {/* Member Info Header */}
         <View style={styles.memberInfoCard}>
-          <View style={styles.memberAvatar}>
-            <Text style={styles.memberAvatarText}>
-              {member.firstName?.[0]?.toUpperCase() || '?'}
-              {member.lastName?.[0]?.toUpperCase() || ''}
-            </Text>
-          </View>
+          {profilePictureSignedUrl ? (
+            <Image
+              source={{ uri: profilePictureSignedUrl }}
+              style={styles.memberAvatarImage}
+            />
+          ) : (
+            <View style={styles.memberAvatar}>
+              <Feather name="user" size={56} color="white" />
+            </View>
+          )}
           <Text style={styles.memberName}>
             {member.firstName} {member.lastName}
           </Text>
@@ -244,27 +258,45 @@ const styles = StyleSheet.create({
   },
   memberInfoCard: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     marginHorizontal: 20,
     marginTop: 20,
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingVertical: 24,
   },
   memberAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   memberAvatarText: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#ffffff',
+  },
+  memberAvatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   memberName: {
     fontSize: 24,

@@ -97,3 +97,34 @@ export async function generateProfile(
     throw error;
   }
 }
+
+/**
+ * Get signed URL for a user's profile picture (community-scoped)
+ * Returns null if user has no profile picture
+ */
+export async function getProfilePictureUrl(
+  userId: string,
+  token: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/profile-picture/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      console.error('[API] Failed to get profile picture URL:', data.error);
+      return null;
+    }
+
+    return data.signedUrl || null;
+  } catch (error) {
+    console.error('[API] Profile picture URL error:', error);
+    return null;
+  }
+}

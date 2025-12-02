@@ -14,7 +14,7 @@ A simple React Native app for iOS and Android providing basic community authenti
 - Example: Bottom tab shows "Your Circles" but routes to `CommunityScreen`
 
 ## Icon Library
-
+$$
 **All icons use Feather Icons** from `@expo/vector-icons` for consistency:
 - Import: `import { Feather } from '@expo/vector-icons';`
 - Usage: `<Feather name="icon-name" size={24} color="#3b82f6" />`
