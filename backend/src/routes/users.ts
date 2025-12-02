@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { PrismaClient } from '../generated/prisma';
 import { createClient } from '@supabase/supabase-js';
 
@@ -8,11 +9,30 @@ const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 
-// Initialize Supabase client for signed URL generation
+// Initialize Supabase client for signed URL generation (uses anon key)
 const supabase = createClient(
   process.env.SUPABASE_URL || '',
   process.env.SUPABASE_ANON_KEY || ''
 );
+
+// Initialize Supabase storage client with service role key (bypasses RLS)
+const supabaseStorage = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Middleware to authenticate JWT token
 interface AuthRequest extends Request {
@@ -24,7 +44,11 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+  console.log('Auth header:', authHeader);
+  console.log('Token:', token ? `${token.substring(0, 20)}...` : 'none');
+
   if (!token) {
+    console.log('No token provided');
     res.status(401).json({ success: false, error: 'Authentication required' });
     return;
   }
@@ -33,8 +57,10 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; communityId: string };
     req.userId = decoded.userId;
     req.communityId = decoded.communityId;
+    console.log('Token verified for user:', req.userId);
     next();
   } catch (error) {
+    console.log('Token verification failed:', error);
     res.status(403).json({ success: false, error: 'Invalid or expired token' });
     return;
   }
@@ -118,6 +144,58 @@ router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Respon
   }
 });
 
+// POST /api/users/profile-picture
+// Upload profile picture (authenticated users only)
+router.post('/profile-picture', authenticateToken, upload.single('image'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId;
+
+    console.log('Upload attempt for user:', userId);
+    console.log('File received:', req.file ? `${req.file.size} bytes, ${req.file.mimetype}` : 'none');
+
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No image file provided' });
+      return;
+    }
+
+    // Upload to Supabase Storage using service role key (bypasses RLS)
+    const fileName = `${userId}.jpg`;
+    console.log('Uploading to Supabase Storage:', fileName);
+
+    const { data: uploadData, error: uploadError } = await supabaseStorage.storage
+      .from('profile-pictures')
+      .upload(fileName, req.file.buffer, {
+        contentType: 'image/jpeg',
+        cacheControl: '3600',
+        upsert: true, // Overwrite existing
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      res.status(500).json({ success: false, error: `Upload failed: ${uploadError.message}` });
+      return;
+    }
+
+    console.log('Upload successful:', uploadData);
+
+    // Update user's profilePictureUrl in database
+    await prisma.user.update({
+      where: { id: userId },
+      data: { profilePictureUrl: 'uploaded' } // Flag that indicates picture exists
+    });
+
+    console.log('Database updated for user:', userId);
+
+    res.json({
+      success: true,
+      message: 'Profile picture uploaded successfully'
+    });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload profile picture' });
+  }
+});
+
 // GET /api/users/profile-picture/:userId
 // Get signed URL for user's profile picture (community-scoped access)
 router.get('/profile-picture/:userId', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -125,6 +203,8 @@ router.get('/profile-picture/:userId', authenticateToken, async (req: AuthReques
     const { userId: targetUserId } = req.params;
     const requestingUserId = req.userId;
     const requestingUserCommunityId = req.communityId;
+
+    console.log('Fetching profile picture for:', targetUserId);
 
     // Fetch target user to verify they exist and get their community
     const targetUser = await prisma.user.findUnique({
@@ -137,6 +217,8 @@ router.get('/profile-picture/:userId', authenticateToken, async (req: AuthReques
       return;
     }
 
+    console.log('Target user profilePictureUrl:', targetUser.profilePictureUrl);
+
     // Verify users are in the same community
     if (targetUser.communityId !== requestingUserCommunityId) {
       res.status(403).json({ success: false, error: 'Access denied: different community' });
@@ -145,13 +227,16 @@ router.get('/profile-picture/:userId', authenticateToken, async (req: AuthReques
 
     // Check if user has a profile picture
     if (!targetUser.profilePictureUrl) {
+      console.log('No profile picture URL set for user');
       res.json({ success: true, signedUrl: null });
       return;
     }
 
     // Generate signed URL (valid for 1 hour)
     const fileName = `${targetUserId}.jpg`;
-    const { data, error } = await supabase.storage
+    console.log('Requesting signed URL for file:', fileName);
+
+    const { data, error } = await supabaseStorage.storage
       .from('profile-pictures')
       .createSignedUrl(fileName, 3600); // 3600 seconds = 1 hour
 
@@ -160,6 +245,8 @@ router.get('/profile-picture/:userId', authenticateToken, async (req: AuthReques
       res.status(500).json({ success: false, error: 'Failed to generate image URL' });
       return;
     }
+
+    console.log('Signed URL generated successfully');
 
     res.json({
       success: true,

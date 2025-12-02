@@ -7,6 +7,7 @@ interface ProfileBadgeProps {
   lastName?: string;
   totalAnswers: number;
   profilePictureUrl?: string | null;
+  size?: number; // Optional size, defaults to 60
 }
 
 const getBadgeColor = (totalAnswers: number): string => {
@@ -17,19 +18,33 @@ const getBadgeColor = (totalAnswers: number): string => {
 
 export default function ProfileBadge({
   totalAnswers,
-  profilePictureUrl
+  profilePictureUrl,
+  size = 60
 }: ProfileBadgeProps) {
   const badgeColor = getBadgeColor(totalAnswers);
+  const radius = size / 2;
+  const iconSize = size * 0.47; // Scale icon proportionally
 
   return (
-    <View style={[styles.badge, { backgroundColor: badgeColor }]}>
+    <View style={[
+      styles.badge,
+      {
+        backgroundColor: badgeColor,
+        width: size,
+        height: size,
+        borderRadius: radius
+      }
+    ]}>
       {profilePictureUrl ? (
         <Image
           source={{ uri: profilePictureUrl }}
-          style={styles.profileImage}
+          style={[
+            styles.profileImage,
+            { width: size, height: size, borderRadius: radius }
+          ]}
         />
       ) : (
-        <Feather name="user" size={28} color="white" />
+        <Feather name="user" size={iconSize} color="white" />
       )}
     </View>
   );
@@ -37,9 +52,6 @@ export default function ProfileBadge({
 
 const styles = StyleSheet.create({
   badge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -52,8 +64,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    // Size set dynamically via inline styles
   },
 });

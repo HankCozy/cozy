@@ -116,7 +116,7 @@ export default function MemberProfileScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Member Info Card */}
+        {/* Member Info Header */}
         <View style={styles.memberInfoCard}>
           {profilePictureSignedUrl ? (
             <Image
@@ -125,7 +125,7 @@ export default function MemberProfileScreen() {
             />
           ) : (
             <View style={styles.memberAvatar}>
-              <Feather name="user" size={32} color="white" />
+              <Feather name="user" size={56} color="white" />
             </View>
           )}
           <Text style={styles.memberName}>
@@ -258,22 +258,26 @@ const styles = StyleSheet.create({
   },
   memberInfoCard: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     marginHorizontal: 20,
     marginTop: 20,
-    padding: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingVertical: 24,
   },
   memberAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   memberAvatarText: {
     fontSize: 32,
@@ -281,10 +285,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   memberAvatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   memberName: {
     fontSize: 24,

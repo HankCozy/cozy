@@ -17,7 +17,6 @@ import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../servic
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
-import { uploadProfilePicture } from '../services/supabase';
 import { compressProfilePicture } from '../utils/imageCompression';
 
 interface Answer {
@@ -326,34 +325,39 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Compress
+      // Compress the image
       const compressedUri = await compressProfilePicture(result.assets[0].uri);
 
-      // Upload to Supabase Storage
-      if (!auth.user?.id) throw new Error('User not authenticated');
-      await uploadProfilePicture(auth.user.id, compressedUri);
+      // Create FormData to send image to backend
+      const formData = new FormData();
+      formData.append('image', {
+        uri: compressedUri,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      } as any);
 
-      // Update backend to mark that user has a profile picture
-      const response = await fetch('http://localhost:3001/api/users/profile', {
-        method: 'PATCH',
+      // Upload via backend endpoint (backend handles Supabase upload with service role key)
+      const uploadResponse = await fetch('http://localhost:3001/api/users/profile-picture', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ profilePictureUrl: 'uploaded' }), // Just a marker
+        body: formData,
       });
 
-      const data = await response.json();
+      const uploadData = await uploadResponse.json();
 
-      if (data.success) {
-        // Fetch new signed URL
-        const signedUrl = await getProfilePictureUrl(auth.user.id, token);
-        setProfilePictureUrl(signedUrl);
-        dispatch({ type: 'UPDATE_USER', payload: { profilePictureUrl: 'uploaded' } });
-        Alert.alert('Success', 'Profile picture updated!');
-      } else {
-        throw new Error(data.error || 'Failed to update profile');
+      if (!uploadData.success) {
+        throw new Error(uploadData.error || 'Failed to upload');
       }
+
+      // Fetch signed URL to display the new image
+      if (!auth.user?.id) throw new Error('User not authenticated');
+      const signedUrl = await getProfilePictureUrl(auth.user.id, token);
+      setProfilePictureUrl(signedUrl);
+      dispatch({ type: 'UPDATE_USER', payload: { profilePictureUrl: 'uploaded' } });
+
+      Alert.alert('Success', 'Profile picture updated!');
     } catch (error) {
       console.error('Upload error:', error);
       Alert.alert('Error', 'Failed to upload photo. Please try again.');
@@ -421,6 +425,7 @@ export default function ProfileScreen() {
                 lastName={auth.user?.lastName}
                 totalAnswers={totalAnswers}
                 profilePictureUrl={profilePictureUrl}
+                size={120}
               />
               {uploadingPhoto && (
                 <View style={styles.uploadingOverlay}>
@@ -428,7 +433,7 @@ export default function ProfileScreen() {
                 </View>
               )}
               <View style={styles.cameraIconBadge}>
-                <Feather name="camera" size={16} color="#3b82f6" />
+                <Feather name="camera" size={18} color="#3b82f6" />
               </View>
             </TouchableOpacity>
             <Text style={styles.profileName}>
@@ -988,9 +993,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: 'white',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -1003,7 +1008,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 30,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
   },
