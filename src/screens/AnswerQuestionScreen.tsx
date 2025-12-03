@@ -267,25 +267,21 @@ export default function AnswerQuestionScreen() {
       </View>
 
       <View style={styles.content}>
+        {/* Question at top */}
         <Text style={styles.question}>{currentQuestion}</Text>
 
-        <View style={styles.controlsContainer}>
-          {/* State 1: Initial (idle, no recording, no transcript) */}
-          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && (
-            <View style={styles.initialControls}>
-              <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
-                <Feather name="mic" size={32} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.typeLink} onPress={handleTypeInstead}>
-                <Text style={styles.typeLinkText}>I'd rather type</Text>
-              </TouchableOpacity>
-              <Text style={styles.statusText}>Tap to start recording</Text>
-            </View>
+        {/* Center area - Record/Stop button */}
+        <View style={styles.centerButtonArea}>
+          {/* Initial state - show record button */}
+          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
+            <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
+              <Feather name="mic" size={32} color="white" />
+            </TouchableOpacity>
           )}
 
-          {/* State 2: Recording */}
+          {/* Recording state - show waveform + stop button */}
           {isRecording && (
-            <View style={styles.recordingControls}>
+            <>
               <Waveform isRecording={isRecording} />
               <TouchableOpacity
                 style={[styles.recordButton, styles.recordingButton]}
@@ -293,105 +289,149 @@ export default function AnswerQuestionScreen() {
               >
                 <Feather name="square" size={32} color="white" />
               </TouchableOpacity>
-              <Text style={styles.statusText}>Recording... Tap to stop</Text>
-            </View>
+            </>
           )}
 
-          {/* State 3: Transcribing */}
+          {/* After recording stopped - show play button */}
+          {recordingUri && !isTranscribing && !transcript && (
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={player.playing ? stopPlayback : playRecording}
+            >
+              <Feather
+                name={player.playing ? 'pause' : 'play'}
+                size={32}
+                color="white"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Text area - fixed height with scroll */}
+        <View style={styles.textDisplayArea}>
+          {/* Transcribing loader */}
           {isTranscribing && (
-            <View style={styles.transcribingControls}>
+            <View style={styles.loaderContainer}>
               <ActivityIndicator size="large" color="#3b82f6" />
-              <Text style={styles.statusText}>Transcribing your answer...</Text>
+              <Text style={styles.loaderText}>Transcribing your answer...</Text>
             </View>
           )}
 
-          {/* State 4: Transcript Display (with edit and done) */}
-          {transcript && !isTranscribing && !isEditingTranscript && inputMode === 'idle' && (
-            <View style={styles.transcriptControls}>
-              <View style={styles.transcriptBox}>
-                <Text style={styles.transcriptText}>{transcript}</Text>
-                <TouchableOpacity style={styles.editLink} onPress={handleStartEditing}>
-                  <Text style={styles.editLinkText}>edit</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Transcript display */}
+          {transcript && !isEditingTranscript && inputMode === 'idle' && (
+            <ScrollView style={styles.scrollableTextBox}>
+              <Text style={styles.transcriptText}>{transcript}</Text>
+            </ScrollView>
+          )}
 
-              {recordingUri && (
-                <View style={styles.playbackControls}>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={player.playing ? stopPlayback : playRecording}
-                  >
-                    <Feather name={player.playing ? 'pause' : 'play'} size={32} color="white" />
-                  </TouchableOpacity>
-                </View>
-              )}
+          {/* Editing transcript */}
+          {isEditingTranscript && (
+            <TextInput
+              style={styles.scrollableTextInput}
+              value={editedTranscript}
+              onChangeText={setEditedTranscript}
+              multiline
+              autoFocus
+              placeholder="Edit your answer..."
+            />
+          )}
 
+          {/* Typing mode */}
+          {inputMode === 'typing' && !transcript && (
+            <TextInput
+              style={styles.scrollableTextInput}
+              value={typedAnswer}
+              onChangeText={setTypedAnswer}
+              multiline
+              autoFocus
+              placeholder="Type your answer here..."
+            />
+          )}
+        </View>
+
+        {/* Bottom actions */}
+        <View style={styles.bottomActions}>
+          {/* Initial state - "I'd rather type" link */}
+          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
+            <TouchableOpacity style={styles.typeLink} onPress={handleTypeInstead}>
+              <Text style={styles.typeLinkText}>I'd rather type</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* After recording stopped - re-record option */}
+          {recordingUri && !isTranscribing && !transcript && (
+            <TouchableOpacity style={styles.rerecordLink} onPress={startRecording}>
+              <Feather name="rotate-ccw" size={18} color="#3b82f6" />
+              <Text style={styles.rerecordLinkText}>Re-record</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Transcript display - edit link and done button */}
+          {transcript && !isEditingTranscript && inputMode === 'idle' && (
+            <>
+              <TouchableOpacity style={styles.editActionLink} onPress={handleStartEditing}>
+                <Text style={styles.editActionLinkText}>edit transcript</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
                 <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Editing mode - save/cancel buttons */}
+          {isEditingTranscript && (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setIsEditingTranscript(false);
+                  setEditedTranscript('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveEditedTranscript}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* State 5: Editing Transcript */}
-          {isEditingTranscript && (
-            <View style={styles.editTranscriptControls}>
-              <TextInput
-                style={styles.textInput}
-                value={editedTranscript}
-                onChangeText={setEditedTranscript}
-                multiline
-                autoFocus
-                placeholder="Edit your answer..."
-              />
-              <View style={styles.editButtonsRow}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setIsEditingTranscript(false);
-                    setEditedTranscript('');
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleSaveEditedTranscript}
-                >
-                  <Text style={styles.saveButtonText}>Save</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Typing mode - continue/cancel buttons */}
+          {inputMode === 'typing' && !transcript && (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setInputMode('idle');
+                  setTypedAnswer('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={handleSaveTypedAnswer}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          {/* State 6: Typing Mode */}
-          {inputMode === 'typing' && !transcript && (
-            <View style={styles.typingControls}>
-              <TextInput
-                style={styles.textInput}
-                value={typedAnswer}
-                onChangeText={setTypedAnswer}
-                multiline
-                autoFocus
-                placeholder="Type your answer here..."
-              />
-              <View style={styles.editButtonsRow}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setInputMode('idle');
-                    setTypedAnswer('');
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.doneButton}
-                  onPress={handleSaveTypedAnswer}
-                >
-                  <Text style={styles.doneButtonText}>Continue</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          {/* Recording state - Tap to stop message */}
+          {isRecording && (
+            <Text style={styles.recordingHint}>Tap to stop recording</Text>
+          )}
+
+          {/* After recording - Next Question button */}
+          {recordingUri && !isTranscribing && !transcript && (
+            <TouchableOpacity style={styles.nextButton} onPress={saveAnswer}>
+              <Text style={styles.nextButtonText}>
+                {isLastQuestion ? 'Finish' : 'Next Question'}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -425,18 +465,29 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    justifyContent: 'center',
+    paddingTop: 20,
   },
   question: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
-    marginBottom: 60,
+    marginBottom: 32,
   },
-  controlsContainer: {
+  centerButtonArea: {
     alignItems: 'center',
-    marginBottom: 40,
+    justifyContent: 'center',
+    minHeight: 120,
+    marginBottom: 24,
+  },
+  textDisplayArea: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  bottomActions: {
+    paddingBottom: 20,
+    alignItems: 'center',
+    gap: 12,
   },
   recordButton: {
     width: 80,
@@ -457,11 +508,6 @@ const styles = StyleSheet.create({
   recordingButton: {
     backgroundColor: '#ef4444',
   },
-  playbackControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
   playButton: {
     width: 80,
     height: 80,
@@ -478,35 +524,48 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
-  rerecordButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#e5e7eb',
+  loaderContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 24,
   },
-  statusText: {
-    fontSize: 16,
+  loaderText: {
+    fontSize: 14,
     color: '#6b7280',
-    marginTop: 20,
+    marginTop: 16,
     textAlign: 'center',
   },
-  nextButton: {
-    backgroundColor: '#3b82f6',
+  scrollableTextBox: {
+    flex: 1,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
     borderRadius: 8,
     padding: 16,
-    alignItems: 'center',
   },
-  nextButtonText: {
-    color: 'white',
+  scrollableTextInput: {
+    flex: 1,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 16,
     fontSize: 16,
-    fontWeight: '600',
+    color: '#111827',
+    textAlignVertical: 'top',
   },
-  // Type link
+  transcriptText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#111827',
+  },
   typeLink: {
-    marginTop: 20,
-    padding: 8,
+    padding: 12,
   },
   typeLinkText: {
     fontSize: 14,
@@ -514,54 +573,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  // Text input (typing and editing)
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#f0f9ff',
-    minHeight: 120,
-    textAlignVertical: 'top',
-    marginBottom: 20,
-  },
-  // Transcript display
-  transcriptControls: {
-    width: '100%',
+  rerecordLink: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    padding: 8,
   },
-  transcriptBox: {
-    backgroundColor: '#f0f9ff',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-    width: '100%',
-  },
-  transcriptText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#111827',
-    marginBottom: 8,
-  },
-  editLink: {
-    alignSelf: 'flex-end',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  editLinkText: {
+  rerecordLinkText: {
     fontSize: 14,
     color: '#3b82f6',
     fontWeight: '600',
   },
-  // Button rows
-  editButtonsRow: {
+  editActionLink: {
+    padding: 8,
+  },
+  editActionLinkText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  recordingHint: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  buttonRow: {
     flexDirection: 'row',
     gap: 12,
     width: '100%',
+    paddingHorizontal: 20,
+  },
+  nextButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  doneButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  continueButton: {
+    flex: 1,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   cancelButton: {
     flex: 1,
@@ -585,35 +662,5 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: 'white',
     fontWeight: '600',
-  },
-  // Done button (replaces nextButton)
-  doneButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 20,
-  },
-  doneButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Container styles
-  initialControls: {
-    alignItems: 'center',
-  },
-  recordingControls: {
-    alignItems: 'center',
-  },
-  transcribingControls: {
-    alignItems: 'center',
-  },
-  typingControls: {
-    width: '100%',
-  },
-  editTranscriptControls: {
-    width: '100%',
   },
 });
