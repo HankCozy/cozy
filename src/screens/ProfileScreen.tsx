@@ -23,7 +23,7 @@ import { API_BASE_URL } from '../config/api';
 interface Answer {
   sectionId: string;
   question: string;
-  audioUri: string;
+  audioUri?: string;
   transcript?: string;
   timestamp: string;
 }
@@ -51,6 +51,7 @@ export default function ProfileScreen() {
   const [isPublished, setIsPublished] = useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showResponses, setShowResponses] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -373,12 +374,13 @@ export default function ProfileScreen() {
         <View style={styles.headerContent}>
           <Text style={styles.title}>Your Profile</Text>
           <View style={styles.headerButtons}>
-            <TouchableOpacity
+            {/* Debug button - disabled for production */}
+            {/* <TouchableOpacity
               style={styles.debugButton}
               onPress={handleResetOnboarding}
             >
               <Feather name="refresh-cw" size={18} color="#3b82f6" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={() => {
@@ -630,11 +632,23 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Answers List */}
+          {/* Responses List */}
           {hasAnswers && (
             <>
-              <Text style={styles.answersHeader}>Your Answers</Text>
-              {answers.map((answer, index) => (
+              <TouchableOpacity
+                style={styles.responsesHeader}
+                onPress={() => setShowResponses(!showResponses)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.responsesHeaderText}>Your Responses</Text>
+                <Feather
+                  name={showResponses ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+
+              {showResponses && answers.map((answer, index) => (
                 <View key={index} style={styles.answerCard}>
                   <Text style={styles.question}>{answer.question}</Text>
                   {answer.transcript ? (
@@ -904,11 +918,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
-  answersHeader: {
+  responsesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  responsesHeaderText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 12,
   },
   answerCard: {
     backgroundColor: 'white',

@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  TextInput,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -28,11 +29,25 @@ export default function AnswerQuestionScreen() {
   const route = useRoute<any>();
   const { sectionId, questions } = route.params;
 
+  // Safety check
+  if (!questions || questions.length === 0) {
+    console.error('[AnswerScreen] No questions provided');
+    navigation.goBack();
+    return null;
+  }
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+
+  // NEW STATE - Input mode and transcript
+  const [inputMode, setInputMode] = useState<'idle' | 'recording' | 'typing'>('idle');
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState('');
+  const [typedAnswer, setTypedAnswer] = useState('');
 
   // Use platform-specific recording presets
   // LOW_QUALITY may work better on Android emulator
@@ -114,6 +129,11 @@ export default function AnswerQuestionScreen() {
       const uri = recorder.uri;
       setRecordingUri(uri || null);
       setIsRecording(false);
+
+      // Immediately start transcribing after recording stops
+      if (uri) {
+        saveAnswer(uri);
+      }
     } catch (err) {
       console.error('Failed to stop recording', err);
       Alert.alert('Error', 'Failed to stop recording');
@@ -131,8 +151,82 @@ export default function AnswerQuestionScreen() {
     player.pause();
   };
 
-  const saveAnswer = async () => {
-    if (!recordingUri) {
+  const handleTypeInstead = () => {
+    setInputMode('typing');
+    setRecordingUri(null);
+    setTranscript(null);
+  };
+
+  const handleStartEditing = () => {
+    if (!transcript) return;
+    setIsEditingTranscript(true);
+    setEditedTranscript(transcript);
+  };
+
+  const handleSaveEditedTranscript = () => {
+    if (!editedTranscript.trim()) {
+      Alert.alert('Empty Text', 'Please type something before saving');
+      return;
+    }
+    setTranscript(editedTranscript.trim());
+    setIsEditingTranscript(false);
+    setEditedTranscript('');
+  };
+
+  const handleSaveTypedAnswer = async () => {
+    if (!typedAnswer.trim()) {
+      Alert.alert('Empty Answer', 'Please type an answer before continuing');
+      return;
+    }
+
+    // Set transcript and proceed to Done flow
+    setTranscript(typedAnswer.trim());
+    setInputMode('idle');
+  };
+
+  const handleDone = async () => {
+    if (!transcript) {
+      Alert.alert('No Content', 'Please provide an answer before continuing');
+      return;
+    }
+
+    try {
+      const key = `answer_${sectionId}_${Date.now()}`;
+      const answerData = {
+        sectionId,
+        question: currentQuestion,
+        ...(recordingUri && { audioUri: recordingUri }), // Only if recorded
+        transcript: transcript.trim(),
+        timestamp: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(key, JSON.stringify(answerData));
+
+      // Advance to next question or finish
+      if (isLastQuestion) {
+        await AsyncStorage.setItem(`section_${sectionId}_completed`, 'true');
+        // Navigate back without alert popup
+        navigation.navigate('QuestionFlow');
+      } else {
+        // Reset for next question
+        setCurrentQuestionIndex((prev) => prev + 1);
+        setRecordingUri(null);
+        setTranscript(null);
+        setInputMode('idle');
+        setIsEditingTranscript(false);
+        setEditedTranscript('');
+        setTypedAnswer('');
+      }
+    } catch (err) {
+      console.error('[AnswerScreen] Failed to save answer', err);
+      Alert.alert('Error', 'Failed to save your answer');
+    }
+  };
+
+  const saveAnswer = async (uri?: string) => {
+    const audioUri = uri || recordingUri;
+
+    if (!audioUri) {
       Alert.alert('No Recording', 'Please record your answer first');
       return;
     }
@@ -141,7 +235,7 @@ export default function AnswerQuestionScreen() {
       console.log('[AnswerScreen] Starting save process...');
 
       // Validate file before transcription
-      const fileInfo = await FileSystem.getInfoAsync(recordingUri);
+      const fileInfo = await FileSystem.getInfoAsync(audioUri);
       console.log('[AnswerScreen] File info:', fileInfo);
 
       if (!fileInfo.exists) {
@@ -157,47 +251,17 @@ export default function AnswerQuestionScreen() {
       // Start transcription
       setIsTranscribing(true);
       console.log('[AnswerScreen] Calling transcribeAudio...');
-      const transcript = await transcribeAudio(recordingUri);
-      console.log('[AnswerScreen] Transcript received:', transcript);
+      const transcriptText = await transcribeAudio(audioUri);
+      console.log('[AnswerScreen] Transcript received:', transcriptText);
 
-      // Save to AsyncStorage with transcript
-      const key = `answer_${sectionId}_${Date.now()}`;
-      const answerData = {
-        sectionId,
-        question: currentQuestion,
-        audioUri: recordingUri,
-        transcript,
-        timestamp: new Date().toISOString(),
-      };
-      console.log('[AnswerScreen] Saving to AsyncStorage:', key, answerData);
-      await AsyncStorage.setItem(key, JSON.stringify(answerData));
-      console.log('[AnswerScreen] Saved successfully');
-
+      // NEW: Show transcript instead of auto-advancing
+      setTranscript(transcriptText);
       setIsTranscribing(false);
-
-      // Move to next question or finish
-      if (isLastQuestion) {
-        // Mark section as completed
-        await AsyncStorage.setItem(`section_${sectionId}_completed`, 'true');
-
-        Alert.alert(
-          'Complete!',
-          'You have answered all questions in this section',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.navigate('QuestionFlow'),
-            },
-          ]
-        );
-      } else {
-        setCurrentQuestionIndex((prev) => prev + 1);
-        setRecordingUri(null);
-      }
+      // User will now see transcript with "edit" link and "Done" button
     } catch (err) {
-      console.error('[AnswerScreen] Failed to save answer', err);
+      console.error('[AnswerScreen] Failed to transcribe', err);
       setIsTranscribing(false);
-      Alert.alert('Error', 'Failed to transcribe or save your answer');
+      Alert.alert('Error', 'Failed to transcribe your answer');
     }
   };
 
@@ -216,20 +280,24 @@ export default function AnswerQuestionScreen() {
       </View>
 
       <View style={styles.content}>
+        {/* Question at top */}
         <Text style={styles.question}>{currentQuestion}</Text>
 
-        <View style={styles.controlsContainer}>
-          {!isRecording && !recordingUri && !isTranscribing && (
-            <TouchableOpacity
-              style={styles.recordButton}
-              onPress={startRecording}
-            >
-              <Feather name="mic" size={32} color="white" />
-            </TouchableOpacity>
+        {/* Center content area - scrollable */}
+        <View style={styles.centerContent}>
+          {/* Initial state - show record button */}
+          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
+            <View style={styles.recordButtonContainer}>
+              <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
+                <Feather name="mic" size={32} color="white" />
+              </TouchableOpacity>
+              <Text style={styles.buttonHintText}>Tap to start recording</Text>
+            </View>
           )}
 
+          {/* Recording state - waveform + stop button */}
           {isRecording && (
-            <>
+            <View style={styles.recordingContainer}>
               <Waveform isRecording={isRecording} />
               <TouchableOpacity
                 style={[styles.recordButton, styles.recordingButton]}
@@ -237,52 +305,119 @@ export default function AnswerQuestionScreen() {
               >
                 <Feather name="square" size={32} color="white" />
               </TouchableOpacity>
-            </>
+              <Text style={styles.centerHintText}>Recording... Tap to stop</Text>
+            </View>
           )}
 
-          {recordingUri && !isTranscribing && (
-            <View style={styles.playbackControls}>
+          {/* Transcribing - loader in center */}
+          {isTranscribing && (
+            <View style={styles.transcribingContainer}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.centerHintText}>Transcribing your answer...</Text>
+            </View>
+          )}
+
+          {/* Transcript display - scrollable text */}
+          {transcript && !isEditingTranscript && inputMode === 'idle' && (
+            <View style={styles.transcriptContainer}>
+              <Text style={styles.transcriptText}>{transcript}</Text>
               <TouchableOpacity
-                style={styles.playButton}
-                onPress={player.playing ? stopPlayback : playRecording}
+                style={styles.editLinkCenter}
+                onPress={handleStartEditing}
               >
-                <Feather
-                  name={player.playing ? 'pause' : 'play'}
-                  size={32}
-                  color="white"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.rerecordButton}
-                onPress={startRecording}
-              >
-                <Feather name="rotate-ccw" size={24} color="#374151" />
+                <Text style={styles.editLinkText}>edit</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {isTranscribing && (
-            <ActivityIndicator size="large" color="#3b82f6" />
+          {/* Editing transcript - text input */}
+          {isEditingTranscript && (
+            <TextInput
+              style={styles.editTextInput}
+              value={editedTranscript}
+              onChangeText={setEditedTranscript}
+              multiline
+              autoFocus
+              placeholder="Edit your answer..."
+            />
           )}
 
-          <Text style={styles.statusText}>
-            {isTranscribing
-              ? 'Transcribing your answer...'
-              : isRecording
-              ? 'Recording... Tap to stop'
-              : recordingUri
-              ? 'Tap play to review'
-              : 'Tap to start recording'}
-          </Text>
+          {/* Typing mode - text input */}
+          {inputMode === 'typing' && !transcript && (
+            <TextInput
+              style={styles.typeTextInput}
+              value={typedAnswer}
+              onChangeText={setTypedAnswer}
+              multiline
+              autoFocus
+              placeholder="Type your answer here..."
+            />
+          )}
         </View>
 
-        {recordingUri && !isTranscribing && (
-          <TouchableOpacity style={styles.nextButton} onPress={saveAnswer}>
-            <Text style={styles.nextButtonText}>
-              {isLastQuestion ? 'Finish' : 'Next Question'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* Bottom area - status, links, buttons */}
+        <View style={styles.bottomArea}>
+          {/* Initial state - "I'd rather type" */}
+          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
+            <TouchableOpacity onPress={handleTypeInstead}>
+              <Text style={styles.bottomLinkText}>I'd rather type</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Transcript shown - message + Done button */}
+          {transcript && !isEditingTranscript && inputMode === 'idle' && (
+            <>
+              <Text style={styles.fineTuneMessage}>
+                You'll have a chance to fine-tune your profile later.
+              </Text>
+              <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Editing mode - Save/Cancel buttons */}
+          {isEditingTranscript && (
+            <View style={styles.editButtonRow}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setIsEditingTranscript(false);
+                  setEditedTranscript('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveEditedTranscript}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Typing mode - Continue/Cancel buttons */}
+          {inputMode === 'typing' && !transcript && (
+            <View style={styles.editButtonRow}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setInputMode('idle');
+                  setTypedAnswer('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={handleSaveTypedAnswer}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -314,19 +449,47 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    justifyContent: 'center',
   },
   question: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
+    marginTop: 40,
     marginBottom: 60,
+    paddingHorizontal: 20,
   },
-  controlsContainer: {
+  centerContent: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: 40,
+    justifyContent: 'center',
   },
+  bottomArea: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 16,
+    minHeight: 100,
+  },
+  // Containers
+  recordButtonContainer: {
+    alignItems: 'center',
+  },
+  recordingContainer: {
+    alignItems: 'center',
+  },
+  playbackContainer: {
+    alignItems: 'center',
+  },
+  transcribingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transcriptContainer: {
+    paddingHorizontal: 20,
+    maxWidth: '100%',
+  },
+
+  // Buttons
   recordButton: {
     width: 80,
     height: 80,
@@ -346,11 +509,6 @@ const styles = StyleSheet.create({
   recordingButton: {
     backgroundColor: '#ef4444',
   },
-  playbackControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
   playButton: {
     width: 80,
     height: 80,
@@ -367,29 +525,144 @@ const styles = StyleSheet.create({
     shadowRadius: 4.65,
     elevation: 8,
   },
-  rerecordButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 16,
+
+  // Text elements
+  buttonHintText: {
+    fontSize: 14,
     color: '#6b7280',
-    marginTop: 20,
+    marginTop: 16,
     textAlign: 'center',
   },
-  nextButton: {
-    backgroundColor: '#3b82f6',
+  centerHintText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  transcriptText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#111827',
+    textAlign: 'left',
+    marginBottom: 12,
+  },
+  editLinkCenter: {
+    alignSelf: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  editLinkText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  bottomLinkText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  fineTuneMessage: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+
+  // Text inputs
+  editTextInput: {
+    width: '100%',
+    minHeight: 200,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 16,
-    alignItems: 'center',
+    fontSize: 16,
+    color: '#111827',
+    textAlignVertical: 'top',
   },
-  nextButtonText: {
+  typeTextInput: {
+    width: '100%',
+    minHeight: 200,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: '#111827',
+    textAlignVertical: 'top',
+  },
+
+  // Bottom buttons
+  finishButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  finishButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  doneButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  doneButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  editButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#6b7280',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  saveButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  continueButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
