@@ -23,7 +23,7 @@ import { API_BASE_URL } from '../config/api';
 interface Answer {
   sectionId: string;
   question: string;
-  audioUri: string;
+  audioUri?: string;
   transcript?: string;
   timestamp: string;
 }
