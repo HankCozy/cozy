@@ -129,6 +129,11 @@ export default function AnswerQuestionScreen() {
       const uri = recorder.uri;
       setRecordingUri(uri || null);
       setIsRecording(false);
+
+      // Immediately start transcribing after recording stops
+      if (uri) {
+        saveAnswer(uri);
+      }
     } catch (err) {
       console.error('Failed to stop recording', err);
       Alert.alert('Error', 'Failed to stop recording');
@@ -219,8 +224,10 @@ export default function AnswerQuestionScreen() {
     }
   };
 
-  const saveAnswer = async () => {
-    if (!recordingUri) {
+  const saveAnswer = async (uri?: string) => {
+    const audioUri = uri || recordingUri;
+
+    if (!audioUri) {
       Alert.alert('No Recording', 'Please record your answer first');
       return;
     }
@@ -229,7 +236,7 @@ export default function AnswerQuestionScreen() {
       console.log('[AnswerScreen] Starting save process...');
 
       // Validate file before transcription
-      const fileInfo = await FileSystem.getInfoAsync(recordingUri);
+      const fileInfo = await FileSystem.getInfoAsync(audioUri);
       console.log('[AnswerScreen] File info:', fileInfo);
 
       if (!fileInfo.exists) {
@@ -245,7 +252,7 @@ export default function AnswerQuestionScreen() {
       // Start transcription
       setIsTranscribing(true);
       console.log('[AnswerScreen] Calling transcribeAudio...');
-      const transcriptText = await transcribeAudio(recordingUri);
+      const transcriptText = await transcribeAudio(audioUri);
       console.log('[AnswerScreen] Transcript received:', transcriptText);
 
       // NEW: Show transcript instead of auto-advancing
@@ -302,22 +309,6 @@ export default function AnswerQuestionScreen() {
             </View>
           )}
 
-          {/* After recording - play button */}
-          {recordingUri && !isTranscribing && !transcript && (
-            <View style={styles.playbackContainer}>
-              <TouchableOpacity
-                style={styles.playButton}
-                onPress={player.playing ? stopPlayback : playRecording}
-              >
-                <Feather
-                  name={player.playing ? 'pause' : 'play'}
-                  size={32}
-                  color="white"
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Transcribing - loader in center */}
           {isTranscribing && (
             <View style={styles.transcribingContainer}>
@@ -369,13 +360,6 @@ export default function AnswerQuestionScreen() {
           {/* Recording state - hint text */}
           {isRecording && (
             <Text style={styles.bottomStatusText}>Recording... Tap to stop</Text>
-          )}
-
-          {/* After recording - Finish button */}
-          {recordingUri && !isTranscribing && !transcript && (
-            <TouchableOpacity style={styles.finishButton} onPress={saveAnswer}>
-              <Text style={styles.finishButtonText}>Finish</Text>
-            </TouchableOpacity>
           )}
 
           {/* Transcribing - status text */}
