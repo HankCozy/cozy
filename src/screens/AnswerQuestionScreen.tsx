@@ -205,9 +205,8 @@ export default function AnswerQuestionScreen() {
       // Advance to next question or finish
       if (isLastQuestion) {
         await AsyncStorage.setItem(`section_${sectionId}_completed`, 'true');
-        Alert.alert('Complete!', 'You have answered all questions in this section', [
-          { text: 'OK', onPress: () => navigation.navigate('QuestionFlow') },
-        ]);
+        // Navigate back without alert popup
+        navigation.navigate('QuestionFlow');
       } else {
         // Reset for next question
         setCurrentQuestionIndex((prev) => prev + 1);
