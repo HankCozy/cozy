@@ -373,12 +373,13 @@ export default function ProfileScreen() {
         <View style={styles.headerContent}>
           <Text style={styles.title}>Your Profile</Text>
           <View style={styles.headerButtons}>
-            <TouchableOpacity
+            {/* Debug button - disabled for production */}
+            {/* <TouchableOpacity
               style={styles.debugButton}
               onPress={handleResetOnboarding}
             >
               <Feather name="refresh-cw" size={18} color="#3b82f6" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={() => {
