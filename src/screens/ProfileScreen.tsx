@@ -448,12 +448,20 @@ export default function ProfileScreen() {
 
           {/* Progress Tracker */}
           <View style={styles.progressCard}>
-            <Text style={styles.progressHeadline}>
-              {totalAnswers >= 4
-                ? 'Tell us more about yourself:'
-                : `${totalAnswers}/4 questions answered`
-              }
-            </Text>
+            {/* Tappable headline area - goes to question category page */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('QuestionFlowStack')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.progressHeadline}>
+                {totalAnswers >= 4
+                  ? 'Tell us more about yourself:'
+                  : `${totalAnswers}/4 questions answered`
+                }
+              </Text>
+            </TouchableOpacity>
+
+            {/* Individual category circles - go directly to that category's questions */}
             <View style={styles.sectionsContainer}>
               {SECTIONS.map((section) => {
                 const answerCount = answerCounts[section.id] || 0;
@@ -463,9 +471,18 @@ export default function ProfileScreen() {
                     key={section.id}
                     style={styles.sectionIndicator}
                     onPress={() => {
-                      navigation.navigate('QuestionFlowStack');
+                      // Navigate to the nested screen inside QuestionFlowStack
+                      navigation.navigate('QuestionFlowStack', {
+                        screen: 'SectionQuestions',
+                        params: {
+                          sectionId: section.id,
+                          sectionName: section.name,
+                          sectionIcon: section.icon,
+                          sectionColor: section.color,
+                        },
+                      });
                     }}
-                    activeOpacity={1}
+                    activeOpacity={0.6}
                   >
                     <View
                       style={[

@@ -116,13 +116,13 @@ export default function QuestionFlowScreen() {
       {hasAnyAnswers && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.generateButton}
+            style={styles.returnButton}
             onPress={() => {
               // Navigate back to Profile tab in main tabs
               navigation.navigate('MainTabs', { screen: 'Profile' });
             }}
           >
-            <Text style={styles.generateButtonText}>View Profile</Text>
+            <Text style={styles.returnButtonText}>Return to Profile</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -226,13 +226,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
-  generateButton: {
+  returnButton: {
     backgroundColor: '#3b82f6',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
   },
-  generateButtonText: {
+  returnButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
