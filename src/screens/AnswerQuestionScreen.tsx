@@ -29,6 +29,13 @@ export default function AnswerQuestionScreen() {
   const route = useRoute<any>();
   const { sectionId, questions } = route.params;
 
+  // Safety check
+  if (!questions || questions.length === 0) {
+    console.error('[AnswerScreen] No questions provided');
+    navigation.goBack();
+    return null;
+  }
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
