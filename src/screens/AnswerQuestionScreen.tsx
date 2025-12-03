@@ -305,6 +305,7 @@ export default function AnswerQuestionScreen() {
               >
                 <Feather name="square" size={32} color="white" />
               </TouchableOpacity>
+              <Text style={styles.centerHintText}>Recording... Tap to stop</Text>
             </View>
           )}
 
@@ -312,6 +313,7 @@ export default function AnswerQuestionScreen() {
           {isTranscribing && (
             <View style={styles.transcribingContainer}>
               <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={styles.centerHintText}>Transcribing your answer...</Text>
             </View>
           )}
 
@@ -319,6 +321,12 @@ export default function AnswerQuestionScreen() {
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
             <View style={styles.transcriptContainer}>
               <Text style={styles.transcriptText}>{transcript}</Text>
+              <TouchableOpacity
+                style={styles.editLinkCenter}
+                onPress={handleStartEditing}
+              >
+                <Text style={styles.editLinkText}>edit</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -356,22 +364,9 @@ export default function AnswerQuestionScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Recording state - hint text */}
-          {isRecording && (
-            <Text style={styles.bottomStatusText}>Recording... Tap to stop</Text>
-          )}
-
-          {/* Transcribing - status text */}
-          {isTranscribing && (
-            <Text style={styles.bottomStatusText}>Transcribing your answer...</Text>
-          )}
-
-          {/* Transcript shown - edit link + message + Done button */}
+          {/* Transcript shown - message + Done button */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
             <>
-              <TouchableOpacity onPress={handleStartEditing}>
-                <Text style={styles.bottomLinkText}>edit</Text>
-              </TouchableOpacity>
               <Text style={styles.fineTuneMessage}>
                 You'll have a chance to fine-tune your profile later.
               </Text>
@@ -538,21 +533,35 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
+  centerHintText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 16,
+    textAlign: 'center',
+  },
   transcriptText: {
     fontSize: 16,
     lineHeight: 24,
     color: '#111827',
     textAlign: 'left',
+    marginBottom: 12,
+  },
+  editLinkCenter: {
+    alignSelf: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  editLinkText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   bottomLinkText: {
     fontSize: 14,
     color: '#3b82f6',
     fontWeight: '600',
     textDecorationLine: 'underline',
-  },
-  bottomStatusText: {
-    fontSize: 14,
-    color: '#6b7280',
   },
   fineTuneMessage: {
     fontSize: 12,
