@@ -19,7 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 interface Answer {
   sectionId: string;
   question: string;
-  audioUri: string;
+  audioUri?: string;
   transcript?: string;
   timestamp: string;
 }
