@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,6 +19,7 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
 import { transcribeAudio } from '../services/api';
 
@@ -32,7 +34,12 @@ export default function AnswerQuestionScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  // Use platform-specific recording presets
+  // LOW_QUALITY may work better on Android emulator
+  const recordingPreset = Platform.OS === 'android'
+    ? RecordingPresets.LOW_QUALITY
+    : RecordingPresets.HIGH_QUALITY;
+  const recorder = useAudioRecorder(recordingPreset);
   const player = useAudioPlayer(recordingUri || '');
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -45,11 +52,36 @@ export default function AnswerQuestionScreen() {
         await setAudioModeAsync({
           playsInSilentMode: true,
           allowsRecording: true,
+          shouldPlayInBackground: false,
+          interruptionModeAndroid: 'duckOthers', // Android-specific audio handling
+          interruptionMode: 'mixWithOthers', // iOS behavior
         });
 
         // Request permissions
         const { granted } = await requestRecordingPermissionsAsync();
         setPermissionGranted(granted);
+
+        // Select microphone input on Android
+        if (granted && Platform.OS === 'android') {
+          try {
+            const inputs = await recorder.getAvailableInputs();
+            console.log('[AnswerScreen] Available audio inputs:', inputs);
+
+            const micInput = inputs.find(input =>
+              input.name.toLowerCase().includes('mic') ||
+              input.name.toLowerCase().includes('phone')
+            );
+
+            if (micInput) {
+              await recorder.setInput(micInput);
+              console.log('[AnswerScreen] Selected microphone input:', micInput.name);
+            } else {
+              console.warn('[AnswerScreen] No microphone input found, using default');
+            }
+          } catch (err) {
+            console.warn('[AnswerScreen] Could not set audio input:', err);
+          }
+        }
       } catch (err) {
         console.error('Failed to setup audio', err);
       }
@@ -107,6 +139,21 @@ export default function AnswerQuestionScreen() {
 
     try {
       console.log('[AnswerScreen] Starting save process...');
+
+      // Validate file before transcription
+      const fileInfo = await FileSystem.getInfoAsync(recordingUri);
+      console.log('[AnswerScreen] File info:', fileInfo);
+
+      if (!fileInfo.exists) {
+        throw new Error('Recording file does not exist');
+      }
+
+      if (fileInfo.size === 0 || fileInfo.size < 1000) {
+        throw new Error(`Recording file is invalid (size: ${fileInfo.size} bytes)`);
+      }
+
+      console.log('[AnswerScreen] File validation passed - size:', fileInfo.size, 'bytes');
+
       // Start transcription
       setIsTranscribing(true);
       console.log('[AnswerScreen] Calling transcribeAudio...');

@@ -18,6 +18,7 @@ import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import { compressProfilePicture } from '../utils/imageCompression';
+import { API_BASE_URL } from '../config/api';
 
 interface Answer {
   sectionId: string;
@@ -244,7 +245,7 @@ export default function ProfileScreen() {
       };
 
       // Send to backend
-      const response = await fetch('http://localhost:3001/api/users/profile', {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -337,7 +338,7 @@ export default function ProfileScreen() {
       } as any);
 
       // Upload via backend endpoint (backend handles Supabase upload with service role key)
-      const uploadResponse = await fetch('http://localhost:3001/api/users/profile-picture', {
+      const uploadResponse = await fetch(`${API_BASE_URL}/api/users/profile-picture`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

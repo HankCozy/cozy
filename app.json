@@ -51,7 +51,8 @@
           "photosPermission": "This app accesses your photo library to select profile pictures.",
           "cameraPermission": "This app uses the camera to take profile pictures."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
