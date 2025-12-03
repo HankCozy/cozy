@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import { getProfilePictureUrl } from '../services/api';
+import { API_BASE_URL } from '../config/api';
 
 interface CommunityMember {
   id: string;
@@ -39,7 +40,7 @@ export default function CommunityScreen() {
 
   const fetchCommunityMembers = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/communities/members', {
+      const response = await fetch(`${API_BASE_URL}/api/communities/members`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL as BASE_URL } from '../config/api';
 
 export interface User {
   id: string;
@@ -107,8 +108,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Configuration - Update this to match your backend URL
-const API_BASE_URL = __DEV__ ? 'http://localhost:3001' : 'https://your-production-api.com';
+// Configuration - API base URL (auto-detects iOS/Android)
+const API_BASE_URL = BASE_URL;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, dispatch] = useReducer(authReducer, initialState);

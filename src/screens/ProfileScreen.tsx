@@ -18,6 +18,7 @@ import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import { compressProfilePicture } from '../utils/imageCompression';
+import { API_BASE_URL } from '../config/api';
 
 interface Answer {
   sectionId: string;
@@ -244,7 +245,7 @@ export default function ProfileScreen() {
       };
 
       // Send to backend
-      const response = await fetch('http://localhost:3001/api/users/profile', {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -337,7 +338,7 @@ export default function ProfileScreen() {
       } as any);
 
       // Upload via backend endpoint (backend handles Supabase upload with service role key)
-      const uploadResponse = await fetch('http://localhost:3001/api/users/profile-picture', {
+      const uploadResponse = await fetch(`${API_BASE_URL}/api/users/profile-picture`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -447,12 +448,20 @@ export default function ProfileScreen() {
 
           {/* Progress Tracker */}
           <View style={styles.progressCard}>
-            <Text style={styles.progressHeadline}>
-              {totalAnswers >= 4
-                ? 'Tell us more about yourself:'
-                : `${totalAnswers}/4 questions answered`
-              }
-            </Text>
+            {/* Tappable headline area - goes to question category page */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('QuestionFlowStack')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.progressHeadline}>
+                {totalAnswers >= 4
+                  ? 'Tell us more about yourself:'
+                  : `${totalAnswers}/4 questions answered`
+                }
+              </Text>
+            </TouchableOpacity>
+
+            {/* Individual category circles - go directly to that category's questions */}
             <View style={styles.sectionsContainer}>
               {SECTIONS.map((section) => {
                 const answerCount = answerCounts[section.id] || 0;
@@ -462,9 +471,18 @@ export default function ProfileScreen() {
                     key={section.id}
                     style={styles.sectionIndicator}
                     onPress={() => {
-                      navigation.navigate('QuestionFlowStack');
+                      // Navigate to the nested screen inside QuestionFlowStack
+                      navigation.navigate('QuestionFlowStack', {
+                        screen: 'SectionQuestions',
+                        params: {
+                          sectionId: section.id,
+                          sectionName: section.name,
+                          sectionIcon: section.icon,
+                          sectionColor: section.color,
+                        },
+                      });
                     }}
-                    activeOpacity={1}
+                    activeOpacity={0.6}
                   >
                     <View
                       style={[

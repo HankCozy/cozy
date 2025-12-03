@@ -12,6 +12,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfilePictureUrl } from '../services/api';
+import { API_BASE_URL } from '../config/api';
 
 interface MemberProfile {
   id: string;
@@ -48,7 +49,7 @@ export default function MemberProfileScreen() {
   const fetchMemberProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3001/api/communities/members/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/communities/members/${userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

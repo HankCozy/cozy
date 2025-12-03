@@ -26,7 +26,13 @@ export async function transcribeAudioBuffer(
       throw new Error(`Transcription failed: ${transcript.error}`);
     }
 
-    return transcript.text || '';
+    if (!transcript.text || transcript.text.trim() === '') {
+      console.error('Empty transcript received from AssemblyAI');
+      console.error('Transcript object:', JSON.stringify(transcript, null, 2));
+      throw new Error('Transcription returned empty text - audio may be silent or too short');
+    }
+
+    return transcript.text;
   } catch (error) {
     console.error('Transcription error:', error);
     throw error;

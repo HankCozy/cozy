@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+import { API_BASE_URL as BASE_URL } from '../config/api';
+
+const API_BASE_URL = `${BASE_URL}/api`;
 
 export interface TranscriptionResponse {
   success: boolean;
@@ -51,7 +53,12 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     });
 
     console.log('[API] Response status:', response.status);
-    const data: TranscriptionResponse = await response.json();
+    console.log('[API] Response ok:', response.ok);
+
+    const responseText = await response.text();
+    console.log('[API] Response text:', responseText);
+
+    const data: TranscriptionResponse = JSON.parse(responseText);
     console.log('[API] Response data:', data);
 
     if (!data.success || !data.transcript) {
