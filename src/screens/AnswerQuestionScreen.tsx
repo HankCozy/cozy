@@ -118,8 +118,12 @@ export default function AnswerQuestionScreen() {
       setIsRecording(true);
     } catch (err) {
       console.error('Failed to start recording', err);
-      Alert.alert('Error', 'Failed to start recording');
+      // Reset to initial state on error
       setIsRecording(false);
+      setRecordingUri(null);
+      setTranscript(null);
+      setInputMode('idle');
+      Alert.alert('Error', 'Failed to start recording. Please try again.');
     }
   };
 
@@ -136,8 +140,12 @@ export default function AnswerQuestionScreen() {
       }
     } catch (err) {
       console.error('Failed to stop recording', err);
-      Alert.alert('Error', 'Failed to stop recording');
+      // Reset to initial state on error
       setIsRecording(false);
+      setRecordingUri(null);
+      setTranscript(null);
+      setInputMode('idle');
+      Alert.alert('Error', 'Failed to stop recording. Please try again.');
     }
   };
 
@@ -260,8 +268,13 @@ export default function AnswerQuestionScreen() {
       // User will now see transcript with "edit" link and "Done" button
     } catch (err) {
       console.error('[AnswerScreen] Failed to transcribe', err);
+      // Reset to initial state on error
       setIsTranscribing(false);
-      Alert.alert('Error', 'Failed to transcribe your answer');
+      setRecordingUri(null);
+      setTranscript(null);
+      setInputMode('idle');
+      setIsRecording(false);
+      Alert.alert('Error', 'Failed to transcribe your answer. Please try again.');
     }
   };
 
@@ -305,7 +318,7 @@ export default function AnswerQuestionScreen() {
               >
                 <Feather name="square" size={32} color="white" />
               </TouchableOpacity>
-              <Text style={styles.centerHintText}>Recording... Tap to stop</Text>
+              <Text style={styles.centerHintText}>Recording</Text>
             </View>
           )}
 
@@ -319,27 +332,27 @@ export default function AnswerQuestionScreen() {
 
           {/* Transcript display - scrollable text */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
-            <View style={styles.transcriptContainer}>
-              <Text style={styles.transcriptText}>{transcript}</Text>
-              <TouchableOpacity
-                style={styles.editLinkCenter}
-                onPress={handleStartEditing}
-              >
-                <Text style={styles.editLinkText}>edit</Text>
-              </TouchableOpacity>
+            <View style={styles.transcriptWrapper}>
+              <Text style={styles.transcriptLabel}>Your response:</Text>
+              <View style={styles.transcriptBox}>
+                <Text style={styles.transcriptText}>{transcript}</Text>
+              </View>
             </View>
           )}
 
           {/* Editing transcript - text input */}
           {isEditingTranscript && (
-            <TextInput
-              style={styles.editTextInput}
-              value={editedTranscript}
-              onChangeText={setEditedTranscript}
-              multiline
-              autoFocus
-              placeholder="Edit your answer..."
-            />
+            <View style={styles.editWrapper}>
+              <Text style={styles.transcriptLabel}>Your response:</Text>
+              <TextInput
+                style={styles.editTextInput}
+                value={editedTranscript}
+                onChangeText={setEditedTranscript}
+                multiline
+                autoFocus
+                placeholder="Edit your answer..."
+              />
+            </View>
           )}
 
           {/* Typing mode - text input */}
@@ -364,16 +377,19 @@ export default function AnswerQuestionScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Transcript shown - message + Done button */}
+          {/* Transcript shown - Edit and Done buttons */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
-            <>
-              <Text style={styles.fineTuneMessage}>
-                You'll have a chance to fine-tune your profile later.
-              </Text>
+            <View style={styles.editButtonRow}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={handleStartEditing}
+              >
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
 
           {/* Editing mode - Save/Cancel buttons */}
@@ -451,7 +467,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   question: {
-    fontSize: 18,
+    fontSize: 36,
     fontWeight: '600',
     color: '#111827',
     textAlign: 'center',
@@ -462,7 +478,8 @@ const styles = StyleSheet.create({
   centerContent: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 40,
   },
   bottomArea: {
     paddingVertical: 20,
@@ -484,9 +501,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  transcriptContainer: {
+  transcriptWrapper: {
+    width: '100%',
     paddingHorizontal: 20,
-    maxWidth: '100%',
+  },
+  transcriptBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 8,
+  },
+  editWrapper: {
+    width: '100%',
+    paddingHorizontal: 20,
   },
 
   // Buttons
@@ -539,6 +566,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
+  transcriptLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#111827',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   transcriptText: {
     fontSize: 16,
     lineHeight: 24,
@@ -553,14 +587,12 @@ const styles = StyleSheet.create({
   },
   editLinkText: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: '#9ca3af',
     textDecorationLine: 'underline',
   },
   bottomLinkText: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '600',
+    color: '#9ca3af',
     textDecorationLine: 'underline',
   },
   fineTuneMessage: {
@@ -577,11 +609,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
     fontSize: 16,
     color: '#111827',
     textAlignVertical: 'top',
+    marginTop: 8,
   },
   typeTextInput: {
     width: '100%',
@@ -610,13 +643,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  doneButton: {
-    backgroundColor: '#3b82f6',
+  editButton: {
+    flex: 1,
+    padding: 14,
     borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 48,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
     alignItems: 'center',
-    minWidth: 200,
+  },
+  editButtonText: {
+    color: '#6b7280',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  doneButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
   },
   doneButtonText: {
     color: 'white',
