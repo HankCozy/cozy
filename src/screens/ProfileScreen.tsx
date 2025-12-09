@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -52,6 +53,7 @@ export default function ProfileScreen() {
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showResponses, setShowResponses] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -101,9 +103,19 @@ export default function ProfileScreen() {
 
       // Load profile picture signed URL
       if (auth.user?.id && token) {
-        getProfilePictureUrl(auth.user.id, token).then(url => {
-          setProfilePictureUrl(url);
-        });
+        getProfilePictureUrl(auth.user.id, token)
+          .then(url => {
+            setProfilePictureUrl(url);
+          })
+          .catch(error => {
+            if (error.message === 'TOKEN_EXPIRED') {
+              Alert.alert(
+                'Session Expired',
+                'Your session has expired. Please login again.',
+                [{ text: 'OK', onPress: () => logout() }]
+              );
+            }
+          });
       }
     }, [auth.user?.id, token])
   );
@@ -214,6 +226,45 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete My Account',
+      'This will permanently delete your account and all associated data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              const data = await response.json();
+
+              if (data.success) {
+                Alert.alert(
+                  'Account Deleted',
+                  'Your account has been permanently deleted.',
+                  [{ text: 'OK', onPress: () => logout() }]
+                );
+              } else {
+                Alert.alert('Error', data.error || 'Failed to delete account');
+              }
+            } catch (error) {
+              console.error('Delete account error:', error);
+              Alert.alert('Error', 'Network error. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const hasAnswers = answers.length > 0;
 
   const handleResetOnboarding = async () => {
@@ -254,6 +305,16 @@ export default function ProfileScreen() {
         },
         body: JSON.stringify(profileData),
       });
+
+      // Check for authentication errors
+      if (response.status === 401 || response.status === 403) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => logout() }]
+        );
+        return;
+      }
 
       const data = await response.json();
 
@@ -347,6 +408,11 @@ export default function ProfileScreen() {
         body: formData,
       });
 
+      // Check for authentication errors
+      if (uploadResponse.status === 401 || uploadResponse.status === 403) {
+        throw new Error('TOKEN_EXPIRED');
+      }
+
       const uploadData = await uploadResponse.json();
 
       if (!uploadData.success) {
@@ -362,7 +428,15 @@ export default function ProfileScreen() {
       Alert.alert('Success', 'Profile picture updated!');
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      if (error instanceof Error && error.message === 'TOKEN_EXPIRED') {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => logout() }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      }
     } finally {
       setUploadingPhoto(false);
     }
@@ -374,16 +448,45 @@ export default function ProfileScreen() {
         <View style={styles.headerContent}>
           <Text style={styles.title}>Your Profile</Text>
           <View style={styles.headerButtons}>
-            {/* Debug button - disabled for production */}
-            {/* <TouchableOpacity
-              style={styles.debugButton}
-              onPress={handleResetOnboarding}
-            >
-              <Feather name="refresh-cw" size={18} color="#3b82f6" />
-            </TouchableOpacity> */}
             <TouchableOpacity
-              style={styles.logoutButton}
+              style={styles.menuButton}
+              onPress={() => setShowSettingsMenu(true)}
+            >
+              <Feather name="menu" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Settings Menu Modal */}
+      <Modal
+        visible={showSettingsMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSettingsMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSettingsMenu(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowSettingsMenu(false)}
+            >
+              <Feather name="x" size={24} color="#6b7280" />
+            </TouchableOpacity>
+
+            {/* Menu title */}
+            <Text style={styles.modalTitle}>Settings</Text>
+
+            {/* Menu items */}
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => {
+                setShowSettingsMenu(false);
                 Alert.alert(
                   'Logout',
                   'Are you sure you want to logout?',
@@ -398,17 +501,34 @@ export default function ProfileScreen() {
                 );
               }}
             >
-              <Feather name="log-out" size={18} color="#f59e0b" />
+              <Feather name="log-out" size={24} color="#f59e0b" />
+              <Text style={styles.menuItemText}>Logout</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.clearButton}
-              onPress={clearAllAnswers}
+              style={styles.menuItem}
+              onPress={() => {
+                setShowSettingsMenu(false);
+                clearAllAnswers();
+              }}
             >
-              <Feather name="trash-2" size={20} color="#ef4444" />
+              <Feather name="trash-2" size={24} color="#ef4444" />
+              <Text style={styles.menuItemText}>Clear Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemLast]}
+              onPress={() => {
+                setShowSettingsMenu(false);
+                handleDeleteAccount();
+              }}
+            >
+              <Feather name="user-x" size={24} color="#dc2626" />
+              <Text style={styles.menuItemText}>Delete My Account</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </Modal>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -701,15 +821,61 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#eff6ff',
   },
-  logoutButton: {
+  menuButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#f9fafb',
   },
-  clearButton: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
     padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#fef2f2',
+    zIndex: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    gap: 16,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -33,7 +34,7 @@ interface MemberProfile {
 export default function MemberProfileScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const { auth } = useAuth();
+  const { auth, logout } = useAuth();
   const token = auth.token;
   const { userId } = route.params;
 
@@ -57,6 +58,16 @@ export default function MemberProfileScreen() {
         },
       });
 
+      // Check for authentication errors
+      if (response.status === 401 || response.status === 403) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => logout() }]
+        );
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -72,7 +83,15 @@ export default function MemberProfileScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch member profile:', error);
-      setError('Failed to load profile. Please try again.');
+      if (error instanceof Error && error.message === 'TOKEN_EXPIRED') {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => logout() }]
+        );
+      } else {
+        setError('Failed to load profile. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -108,6 +108,7 @@ export async function generateProfile(
 /**
  * Get signed URL for a user's profile picture (community-scoped)
  * Returns null if user has no profile picture
+ * Throws 'TOKEN_EXPIRED' error if token is invalid/expired
  */
 export async function getProfilePictureUrl(
   userId: string,
@@ -122,6 +123,13 @@ export async function getProfilePictureUrl(
       },
     });
 
+    // Check for authentication errors (401 Unauthorized, 403 Forbidden)
+    if (response.status === 401 || response.status === 403) {
+      const data = await response.json();
+      console.error('[API] Token expired or invalid:', data.error);
+      throw new Error('TOKEN_EXPIRED');
+    }
+
     const data = await response.json();
 
     if (!data.success) {
@@ -131,6 +139,10 @@ export async function getProfilePictureUrl(
 
     return data.signedUrl || null;
   } catch (error) {
+    // Re-throw TOKEN_EXPIRED errors
+    if (error instanceof Error && error.message === 'TOKEN_EXPIRED') {
+      throw error;
+    }
     console.error('[API] Profile picture URL error:', error);
     return null;
   }
