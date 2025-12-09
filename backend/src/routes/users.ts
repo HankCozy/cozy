@@ -229,4 +229,41 @@ router.get('/profile-picture/:userId', authenticateToken, async (req: AuthReques
   }
 });
 
+// DELETE /api/users/account
+// Delete user account (authenticated user can only delete their own account)
+router.delete('/account', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    // Delete profile picture from Supabase storage (if exists)
+    const fileName = `${userId}.jpg`;
+    const { error: deleteError } = await supabaseStorage.storage
+      .from('profile-pictures')
+      .remove([fileName]);
+
+    if (deleteError) {
+      console.error('Profile picture deletion error:', deleteError);
+      // Continue even if picture deletion fails (might not exist)
+    }
+
+    // Delete user from database
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Account deletion error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete account' });
+  }
+});
+
 export default router;

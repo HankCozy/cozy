@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -29,7 +30,7 @@ interface CommunityMember {
 
 export default function CommunityScreen() {
   const navigation = useNavigation<any>();
-  const { auth } = useAuth();
+  const { auth, logout } = useAuth();
   const { user, token } = auth;
   const [members, setMembers] = useState<CommunityMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,16 @@ export default function CommunityScreen() {
           'Content-Type': 'application/json',
         },
       });
+
+      // Check for authentication errors
+      if (response.status === 401 || response.status === 403) {
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => logout() }]
+        );
+        return;
+      }
 
       const data = await response.json();
 
@@ -98,9 +109,19 @@ export default function CommunityScreen() {
 
       // Fetch user's profile picture
       if (user?.id && token) {
-        getProfilePictureUrl(user.id, token).then(url => {
-          setUserProfilePictureUrl(url);
-        });
+        getProfilePictureUrl(user.id, token)
+          .then(url => {
+            setUserProfilePictureUrl(url);
+          })
+          .catch(error => {
+            if (error.message === 'TOKEN_EXPIRED') {
+              Alert.alert(
+                'Session Expired',
+                'Your session has expired. Please login again.',
+                [{ text: 'OK', onPress: () => logout() }]
+              );
+            }
+          });
       }
     }, [token, user?.id])
   );
