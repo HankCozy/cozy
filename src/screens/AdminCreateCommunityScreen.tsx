@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,20 +11,98 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
-import { useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+
+interface GeneratedCode {
+  organization: string;
+  code: string;
+  managerEmail: string;
+}
 
 export default function AdminCreateCommunityScreen() {
   const { auth } = useAuth();
+  const route = useRoute();
   const navigation = useNavigation();
+  const communityId = (route.params as any)?.communityId;
+  const isEditMode = !!communityId;
+
   const [organization, setOrganization] = useState('');
   const [division, setDivision] = useState('');
   const [accountOwner, setAccountOwner] = useState('');
   const [managerEmail, setManagerEmail] = useState('');
-  const [codePrefix, setCodePrefix] = useState('');
   const [loading, setLoading] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
+  const [fetchingData, setFetchingData] = useState(isEditMode);
+
+  // Fetch community data if editing
+  useEffect(() => {
+    if (isEditMode) {
+      fetchCommunityData();
+    }
+  }, [communityId]);
+
+  // Clear form when entering create mode (from tab navigation)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Check if we're in create mode (no communityId in current params)
+      const params = route.params as any;
+
+      // If this screen is being accessed from the Create tab (no params), clear everything
+      if (!params || !params.communityId) {
+        // Clear route params to ensure clean state
+        navigation.setParams({ communityId: undefined } as any);
+
+        // Clear form state
+        setOrganization('');
+        setDivision('');
+        setAccountOwner('');
+        setManagerEmail('');
+        setGeneratedCode(null);
+        setFetchingData(false);
+      }
+    }, [navigation, route.params])
+  );
+
+  const fetchCommunityData = async () => {
+    setFetchingData(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/communities/${communityId}`, {
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOrganization(data.community.organization || '');
+        setDivision(data.community.division || '');
+        setAccountOwner(data.community.accountOwner || '');
+        setManagerEmail(data.community.managerEmail || '');
+
+        // Show existing code
+        setGeneratedCode({
+          organization: data.community.organization,
+          code: data.invitationCode,
+          managerEmail: data.community.managerEmail
+        });
+      } else {
+        Alert.alert('Error', data.error || 'Failed to load community');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Fetch community error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+      navigation.goBack();
+    } finally {
+      setFetchingData(false);
+    }
+  };
 
   const handleCreateCommunity = async () => {
     // Validation
@@ -33,13 +111,13 @@ export default function AdminCreateCommunityScreen() {
       return;
     }
 
-    if (!managerEmail.trim()) {
-      Alert.alert('Error', 'Manager email is required');
+    if (!accountOwner.trim()) {
+      Alert.alert('Error', 'Account manager is required');
       return;
     }
 
-    if (!codePrefix.trim()) {
-      Alert.alert('Error', 'Invitation code prefix is required');
+    if (!managerEmail.trim()) {
+      Alert.alert('Error', 'Manager email is required');
       return;
     }
 
@@ -53,57 +131,76 @@ export default function AdminCreateCommunityScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/communities`, {
-        method: 'POST',
+      const url = isEditMode
+        ? `${API_BASE_URL}/api/admin/communities/${communityId}`
+        : `${API_BASE_URL}/api/admin/communities`;
+
+      const method = isEditMode ? 'PATCH' : 'POST';
+
+      const body: any = {
+        organization: organization.trim(),
+        division: division.trim() || null,
+        accountOwner: accountOwner.trim(),
+        managerEmail: managerEmail.trim().toLowerCase()
+      };
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Authorization': `Bearer ${auth.token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          organization: organization.trim(),
-          division: division.trim() || null,
-          accountOwner: accountOwner.trim() || null,
-          managerEmail: managerEmail.trim().toLowerCase(),
-          memberInviteCodePrefix: codePrefix.trim().toUpperCase()
-        })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Clear form
-        setOrganization('');
-        setDivision('');
-        setAccountOwner('');
-        setManagerEmail('');
-        setCodePrefix('');
+        // Store generated code
+        setGeneratedCode({
+          organization: data.community.organization,
+          code: data.invitationCode,
+          managerEmail: managerEmail.trim()
+        });
 
-        // Show success message with invitation codes
-        Alert.alert(
-          'Community Created!',
-          `Organization: ${data.community.organization}\n\nInvitation Codes:\n\nMember Code:\n${data.invitationCodes.member}\n\nManager Code:\n${data.invitationCodes.manager}\n\nShare these codes with your community members.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigate back to dashboard if it exists
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                }
-              }
-            }
-          ]
-        );
+        if (!isEditMode) {
+          // Clear form for new creation
+          setOrganization('');
+          setDivision('');
+          setAccountOwner('');
+          setManagerEmail('');
+        } else {
+          // Show success message for edit
+          Alert.alert('Success', 'Community updated successfully');
+        }
       } else {
-        Alert.alert('Error', data.error || 'Failed to create community');
+        Alert.alert('Error', data.error || `Failed to ${isEditMode ? 'update' : 'create'} community`);
       }
     } catch (error) {
-      console.error('Create community error:', error);
+      console.error('Community operation error:', error);
       Alert.alert('Error', 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCopyCode = async () => {
+    if (!generatedCode) return;
+
+    const codeText = `${generatedCode.organization} Invitation Code\n\nCode: ${generatedCode.code}\n\nManager Email: ${generatedCode.managerEmail}\n\nShare this code with all community members. The manager (${generatedCode.managerEmail}) will be automatically assigned when they register.`;
+
+    await Clipboard.setStringAsync(codeText);
+    Alert.alert('Success', 'Invitation code copied to clipboard');
+  };
+
+  if (fetchingData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Loading community...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -117,9 +214,19 @@ export default function AdminCreateCommunityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Create Community</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Feather name="chevron-left" size={24} color="#111827" />
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>
+            {isEditMode ? 'Edit Community' : 'Create Community'}
+          </Text>
           <Text style={styles.headerSubtitle}>
-            Set up a new community with invitation codes
+            {isEditMode ? 'Update community details' : 'System will generate a unique invitation code'}
           </Text>
         </View>
 
@@ -150,7 +257,9 @@ export default function AdminCreateCommunityScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Account Owner (optional)</Text>
+            <Text style={styles.label}>
+              Account Manager <Text style={styles.required}>*</Text>
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="e.g., John Smith"
@@ -178,23 +287,6 @@ export default function AdminCreateCommunityScreen() {
             </Text>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Invitation Code Prefix <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., ACME2025"
-              value={codePrefix}
-              onChangeText={setCodePrefix}
-              autoCapitalize="characters"
-              editable={!loading}
-            />
-            <Text style={styles.helperText}>
-              System will generate: {codePrefix.toUpperCase()}_MEMBER and {codePrefix.toUpperCase()}_MGR
-            </Text>
-          </View>
-
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleCreateCommunity}
@@ -204,11 +296,50 @@ export default function AdminCreateCommunityScreen() {
               <ActivityIndicator color="#ffffff" />
             ) : (
               <>
-                <Feather name="plus-circle" size={20} color="#ffffff" />
-                <Text style={styles.buttonText}>Create Community</Text>
+                <Feather name={isEditMode ? "save" : "key"} size={20} color="#ffffff" />
+                <Text style={styles.buttonText}>
+                  {isEditMode ? 'Save Changes' : 'Generate Code'}
+                </Text>
               </>
             )}
           </TouchableOpacity>
+
+          {/* Generated Code Section */}
+          {generatedCode && (
+            <View style={styles.generatedSection}>
+              <View style={styles.generatedHeader}>
+                <Feather name="check-circle" size={20} color="#10B981" />
+                <Text style={styles.generatedTitle}>
+                  {isEditMode ? 'Invitation Code' : 'Code Generated Successfully!'}
+                </Text>
+              </View>
+
+              <View style={styles.codeGroup}>
+                <Text style={styles.codeLabel}>Invitation Code</Text>
+                <View style={styles.codeDisplay}>
+                  <Text style={styles.codeText}>{generatedCode.code}</Text>
+                </View>
+                <Text style={styles.codeHelper}>
+                  Share with all members of {generatedCode.organization}
+                </Text>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Feather name="info" size={16} color="#3b82f6" />
+                <Text style={styles.infoText}>
+                  <Text style={styles.infoBold}>Manager:</Text> {generatedCode.managerEmail} will be auto-assigned as manager when they register with this code.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.copyButton}
+                onPress={handleCopyCode}
+              >
+                <Feather name="copy" size={18} color="#ffffff" />
+                <Text style={styles.copyButtonText}>Copy Invitation Code</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -219,6 +350,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6b7280',
   },
   scrollView: {
     flex: 1,
@@ -231,6 +373,17 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 24,
     backgroundColor: '#ffffff',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginLeft: -4,
+  },
+  backButtonText: {
+    fontSize: 17,
+    color: '#111827',
+    marginLeft: 4,
   },
   headerTitle: {
     fontSize: 28,
@@ -287,6 +440,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#9ca3af',
   },
   buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  generatedSection: {
+    marginTop: 32,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  generatedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  generatedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  codeGroup: {
+    marginBottom: 20,
+  },
+  codeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  codeDisplay: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  codeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  codeHelper: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 18,
+  },
+  infoBold: {
+    fontWeight: '600',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 14,
+    marginTop: 16,
+    gap: 8,
+  },
+  copyButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',

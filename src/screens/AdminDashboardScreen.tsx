@@ -116,8 +116,8 @@ export default function AdminDashboardScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Communities</Text>
-        <Text style={styles.headerSubtitle}>{communities.length} total</Text>
+        <Text style={styles.headerTitle}>Admin Panel</Text>
+        <Text style={styles.headerSubtitle}>{communities.length} {communities.length === 1 ? 'community' : 'communities'}</Text>
       </View>
 
       {/* Communities List */}
@@ -125,7 +125,12 @@ export default function AdminDashboardScreen() {
         {communities.length > 0 ? (
           <View style={styles.communitiesList}>
             {communities.map((community) => (
-              <View key={community.id} style={styles.communityCard}>
+              <TouchableOpacity
+                key={community.id}
+                style={styles.communityCard}
+                onPress={() => navigation.navigate('CreateCommunity' as never, { communityId: community.id } as never)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.communityHeader}>
                   <View style={styles.communityIconContainer}>
                     <Feather name="radio" size={24} color="#3b82f6" />
@@ -173,7 +178,7 @@ export default function AdminDashboardScreen() {
                     </View>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         ) : (
