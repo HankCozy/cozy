@@ -18,6 +18,7 @@ import MemberProfileScreen from '../screens/MemberProfileScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
+import AccountScreen from '../screens/AccountScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -31,6 +32,7 @@ export type AppTabsParamList = {
   Dashboard?: undefined;
   AdminDashboard?: undefined;
   CreateCommunity?: undefined;
+  Account?: undefined;
 };
 
 export type QuestionFlowParamList = {
@@ -111,11 +113,20 @@ function TabsNavigator() {
             ),
           }}
         />
+        <AppTabs.Screen
+          name="Account"
+          component={AccountScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="settings" size={size} color={color} />
+            ),
+          }}
+        />
       </AppTabs.Navigator>
     );
   }
 
-  // MANAGER: Show dashboard and profile tabs (no "Your Circles")
+  // MANAGER: Show dashboard and account tabs
   if (auth.user?.role === 'MANAGER') {
     return (
       <AppTabs.Navigator
@@ -129,17 +140,18 @@ function TabsNavigator() {
           name="Dashboard"
           component={ManagerDashboardScreen}
           options={{
+            tabBarLabel: 'Your Community',
             tabBarIcon: ({ color, size }) => (
-              <Feather name="bar-chart-2" size={size} color={color} />
+              <Feather name="radio" size={size} color={color} />
             ),
           }}
         />
         <AppTabs.Screen
-          name="Profile"
-          component={ProfileScreen}
+          name="Account"
+          component={AccountScreen}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Feather name="user" size={size} color={color} />
+              <Feather name="settings" size={size} color={color} />
             ),
           }}
         />

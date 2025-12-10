@@ -27,36 +27,34 @@ export default function AdminCreateCommunityScreen() {
   const { auth } = useAuth();
   const route = useRoute();
   const navigation = useNavigation();
-  const communityId = (route.params as any)?.communityId;
-  const isEditMode = !!communityId;
 
+  // Get communityId from params - will be undefined in create mode
+  const routeCommunityId = (route.params as any)?.communityId;
+
+  const [currentCommunityId, setCurrentCommunityId] = useState<string | undefined>(routeCommunityId);
   const [organization, setOrganization] = useState('');
   const [division, setDivision] = useState('');
   const [accountOwner, setAccountOwner] = useState('');
   const [managerEmail, setManagerEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
-  const [fetchingData, setFetchingData] = useState(isEditMode);
+  const [fetchingData, setFetchingData] = useState(false);
 
-  // Fetch community data if editing
-  useEffect(() => {
-    if (isEditMode) {
-      fetchCommunityData();
-    }
-  }, [communityId]);
+  const isEditMode = !!currentCommunityId;
 
-  // Clear form when entering create mode (from tab navigation)
+  // Clear form when entering create mode or load data when editing
   useFocusEffect(
     React.useCallback(() => {
-      // Check if we're in create mode (no communityId in current params)
       const params = route.params as any;
+      const communityId = params?.communityId;
 
-      // If this screen is being accessed from the Create tab (no params), clear everything
-      if (!params || !params.communityId) {
-        // Clear route params to ensure clean state
-        navigation.setParams({ communityId: undefined } as any);
-
-        // Clear form state
+      if (communityId) {
+        // Edit mode - load community data
+        setCurrentCommunityId(communityId);
+        fetchCommunityData(communityId);
+      } else {
+        // Create mode - clear everything
+        setCurrentCommunityId(undefined);
         setOrganization('');
         setDivision('');
         setAccountOwner('');
@@ -64,10 +62,10 @@ export default function AdminCreateCommunityScreen() {
         setGeneratedCode(null);
         setFetchingData(false);
       }
-    }, [navigation, route.params])
+    }, [route.params])
   );
 
-  const fetchCommunityData = async () => {
+  const fetchCommunityData = async (communityId: string) => {
     setFetchingData(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/communities/${communityId}`, {
@@ -132,7 +130,7 @@ export default function AdminCreateCommunityScreen() {
 
     try {
       const url = isEditMode
-        ? `${API_BASE_URL}/api/admin/communities/${communityId}`
+        ? `${API_BASE_URL}/api/admin/communities/${currentCommunityId}`
         : `${API_BASE_URL}/api/admin/communities`;
 
       const method = isEditMode ? 'PATCH' : 'POST';
@@ -163,16 +161,11 @@ export default function AdminCreateCommunityScreen() {
           managerEmail: managerEmail.trim()
         });
 
-        if (!isEditMode) {
-          // Clear form for new creation
-          setOrganization('');
-          setDivision('');
-          setAccountOwner('');
-          setManagerEmail('');
-        } else {
+        if (isEditMode) {
           // Show success message for edit
           Alert.alert('Success', 'Community updated successfully');
         }
+        // Note: Form clearing for create mode is now handled by useFocusEffect when switching tabs
       } else {
         Alert.alert('Error', data.error || `Failed to ${isEditMode ? 'update' : 'create'} community`);
       }
@@ -223,10 +216,10 @@ export default function AdminCreateCommunityScreen() {
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>
-            {isEditMode ? 'Edit Community' : 'Create Community'}
+            {isEditMode ? 'EDIT COMMUNITY' : 'CREATE COMMUNITY'}
           </Text>
           <Text style={styles.headerSubtitle}>
-            {isEditMode ? 'Update community details' : 'System will generate a unique invitation code'}
+            {isEditMode ? 'Update community details and invitation code' : 'System will generate a unique invitation code'}
           </Text>
         </View>
 
@@ -298,7 +291,7 @@ export default function AdminCreateCommunityScreen() {
               <>
                 <Feather name={isEditMode ? "save" : "key"} size={20} color="#ffffff" />
                 <Text style={styles.buttonText}>
-                  {isEditMode ? 'Save Changes' : 'Generate Code'}
+                  {isEditMode ? 'Update Community' : 'Generate Code'}
                 </Text>
               </>
             )}
@@ -310,7 +303,7 @@ export default function AdminCreateCommunityScreen() {
               <View style={styles.generatedHeader}>
                 <Feather name="check-circle" size={20} color="#10B981" />
                 <Text style={styles.generatedTitle}>
-                  {isEditMode ? 'Invitation Code' : 'Code Generated Successfully!'}
+                  {isEditMode ? 'Current Invitation Code' : 'Code Generated Successfully!'}
                 </Text>
               </View>
 
