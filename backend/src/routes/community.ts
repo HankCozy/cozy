@@ -39,10 +39,12 @@ router.get('/members', authenticateToken, async (req: AuthRequest, res: Response
     }
 
     // Fetch all users in the same community with published profiles
+    // Filter to only show MEMBER users (exclude MANAGERs and ADMINs)
     const members = await prisma.user.findMany({
       where: {
         communityId: communityId,
-        profilePublished: true
+        profilePublished: true,
+        role: 'MEMBER'
       },
       select: {
         id: true,

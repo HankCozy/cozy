@@ -53,12 +53,19 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, communityId: user.communityId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Generate JWT token (include role, handle ADMIN users without communityId)
+    const tokenPayload: any = {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    };
+
+    // Only include communityId for non-ADMIN users
+    if (user.role !== 'ADMIN' && user.communityId) {
+      tokenPayload.communityId = user.communityId;
+    }
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     // Return user data and token
     res.json({
@@ -71,12 +78,12 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         lastName: user.lastName,
         role: user.role,
         profilePictureUrl: user.profilePictureUrl,
-        community: {
+        community: user.community ? {
           id: user.community.id,
           organization: user.community.organization,
           division: user.community.division,
           accountOwner: user.community.accountOwner
-        }
+        } : undefined
       }
     });
   } catch (error) {
@@ -145,16 +152,30 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Check if email matches pre-authorized manager email for auto-assignment
+    const userEmail = email.toLowerCase();
+    const isPreAuthorizedManager = invitation.community.managerEmail?.toLowerCase() === userEmail;
+
+    let assignedRole = invitation.role;
+    let managedCommunityId = null;
+
+    if (isPreAuthorizedManager) {
+      // Override role to MANAGER and set up 1:1 relationship
+      assignedRole = 'MANAGER';
+      managedCommunityId = invitation.communityId;
+    }
+
     // Create user and increment invitation usage in a transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          email: email.toLowerCase(),
+          email: userEmail,
           passwordHash,
           firstName: firstName || null,
           lastName: lastName || null,
-          role: invitation.role,
-          communityId: invitation.communityId
+          role: assignedRole,
+          communityId: invitation.communityId,
+          managedCommunityId: managedCommunityId
         },
         include: { community: true }
       });
@@ -167,12 +188,19 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return newUser;
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, communityId: user.communityId },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Generate JWT token (include role, handle ADMIN users without communityId)
+    const registerTokenPayload: any = {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    };
+
+    // Only include communityId for non-ADMIN users
+    if (user.role !== 'ADMIN' && user.communityId) {
+      registerTokenPayload.communityId = user.communityId;
+    }
+
+    const token = jwt.sign(registerTokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     // Return user data and token
     res.status(201).json({
@@ -185,12 +213,12 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         lastName: user.lastName,
         role: user.role,
         profilePictureUrl: user.profilePictureUrl,
-        community: {
+        community: user.community ? {
           id: user.community.id,
           organization: user.community.organization,
           division: user.community.division,
           accountOwner: user.community.accountOwner
-        }
+        } : undefined
       }
     });
   } catch (error) {

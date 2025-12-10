@@ -9,14 +9,16 @@ import VennDiagramIcon from '../components/VennDiagramIcon';
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
-import OnboardingScreen from '../screens/OnboardingScreen';
-import NameScreen from '../screens/NameScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CommunityScreen from '../screens/CommunityScreen';
 import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
+import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
+import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
+import AccountScreen from '../screens/AccountScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -27,6 +29,10 @@ export type AuthStackParamList = {
 export type AppTabsParamList = {
   Profile: undefined;
   Community: undefined;
+  Dashboard?: undefined;
+  AdminDashboard?: undefined;
+  CreateCommunity?: undefined;
+  Account?: undefined;
 };
 
 export type QuestionFlowParamList = {
@@ -75,6 +81,85 @@ function QuestionFlowNavigator() {
 }
 
 function TabsNavigator() {
+  const { auth } = useAuth();
+
+  // ADMIN: Show admin dashboard and community creation tabs
+  if (auth.user?.role === 'ADMIN') {
+    return (
+      <AppTabs.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#3b82f6',
+          tabBarInactiveTintColor: '#9ca3af',
+        }}
+      >
+        <AppTabs.Screen
+          name="AdminDashboard"
+          component={AdminDashboardScreen}
+          options={{
+            tabBarLabel: 'Communities',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="grid" size={size} color={color} />
+            ),
+          }}
+        />
+        <AppTabs.Screen
+          name="CreateCommunity"
+          component={AdminCreateCommunityScreen}
+          options={{
+            tabBarLabel: 'Create',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="plus-circle" size={size} color={color} />
+            ),
+          }}
+        />
+        <AppTabs.Screen
+          name="Account"
+          component={AccountScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      </AppTabs.Navigator>
+    );
+  }
+
+  // MANAGER: Show dashboard and account tabs
+  if (auth.user?.role === 'MANAGER') {
+    return (
+      <AppTabs.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#3b82f6',
+          tabBarInactiveTintColor: '#9ca3af',
+        }}
+      >
+        <AppTabs.Screen
+          name="Dashboard"
+          component={ManagerDashboardScreen}
+          options={{
+            tabBarLabel: 'Your Community',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="radio" size={size} color={color} />
+            ),
+          }}
+        />
+        <AppTabs.Screen
+          name="Account"
+          component={AccountScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      </AppTabs.Navigator>
+    );
+  }
+
+  // MEMBER: Regular experience (Profile + Your Circles)
   return (
     <AppTabs.Navigator
       screenOptions={{
@@ -128,20 +213,9 @@ export default function RootNavigator() {
     return null;
   }
 
-  // Determine which screen to show based on auth state
-  const getAuthenticatedScreen = () => {
-    if (!auth.hasSeenOnboarding) {
-      return <OnboardingScreen />;
-    }
-    if (!auth.hasCompletedProfile) {
-      return <NameScreen />;
-    }
-    return <AppNavigator />;
-  };
-
   return (
     <NavigationContainer>
-      {auth.isAuthenticated ? getAuthenticatedScreen() : <AuthNavigator />}
+      {auth.isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }

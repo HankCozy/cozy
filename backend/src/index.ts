@@ -7,6 +7,8 @@ import transcribeRoutes from './routes/transcribe';
 import profileRoutes from './routes/profile';
 import usersRoutes from './routes/users';
 import communityRoutes from './routes/community';
+import adminRoutes from './routes/admin';
+import managerRoutes from './routes/manager';
 
 dotenv.config();
 
@@ -30,6 +32,8 @@ app.use('/api/transcribe', transcribeRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/communities', communityRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/manager', managerRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
