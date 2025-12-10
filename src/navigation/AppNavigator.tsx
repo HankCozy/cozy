@@ -17,6 +17,9 @@ import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
+import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
+import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -27,6 +30,9 @@ export type AuthStackParamList = {
 export type AppTabsParamList = {
   Profile: undefined;
   Community: undefined;
+  Dashboard?: undefined;
+  AdminDashboard?: undefined;
+  CreateCommunity?: undefined;
 };
 
 export type QuestionFlowParamList = {
@@ -75,6 +81,75 @@ function QuestionFlowNavigator() {
 }
 
 function TabsNavigator() {
+  const { auth } = useAuth();
+
+  // ADMIN: Show admin dashboard and community creation tabs
+  if (auth.user?.role === 'ADMIN') {
+    return (
+      <AppTabs.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#3b82f6',
+          tabBarInactiveTintColor: '#9ca3af',
+        }}
+      >
+        <AppTabs.Screen
+          name="AdminDashboard"
+          component={AdminDashboardScreen}
+          options={{
+            tabBarLabel: 'Communities',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="grid" size={size} color={color} />
+            ),
+          }}
+        />
+        <AppTabs.Screen
+          name="CreateCommunity"
+          component={AdminCreateCommunityScreen}
+          options={{
+            tabBarLabel: 'Create',
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="plus-circle" size={size} color={color} />
+            ),
+          }}
+        />
+      </AppTabs.Navigator>
+    );
+  }
+
+  // MANAGER: Show dashboard and profile tabs (no "Your Circles")
+  if (auth.user?.role === 'MANAGER') {
+    return (
+      <AppTabs.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#3b82f6',
+          tabBarInactiveTintColor: '#9ca3af',
+        }}
+      >
+        <AppTabs.Screen
+          name="Dashboard"
+          component={ManagerDashboardScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="bar-chart-2" size={size} color={color} />
+            ),
+          }}
+        />
+        <AppTabs.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="user" size={size} color={color} />
+            ),
+          }}
+        />
+      </AppTabs.Navigator>
+    );
+  }
+
+  // MEMBER: Regular experience (Profile + Your Circles)
   return (
     <AppTabs.Navigator
       screenOptions={{

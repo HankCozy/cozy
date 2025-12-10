@@ -7,9 +7,9 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
-  role: 'MEMBER' | 'MANAGER';
+  role: 'MEMBER' | 'MANAGER' | 'ADMIN';
   profilePictureUrl?: string;
-  community: {
+  community?: {
     id: string;
     organization: string;
     division?: string;
