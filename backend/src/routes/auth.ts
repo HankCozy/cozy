@@ -103,6 +103,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    if (!firstName || !lastName) {
+      res.status(400).json({ success: false, error: 'First name and last name are required' });
+      return;
+    }
+
     if (!isValidEmail(email)) {
       res.status(400).json({ success: false, error: 'Invalid email format' });
       return;
@@ -171,8 +176,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         data: {
           email: userEmail,
           passwordHash,
-          firstName: firstName || null,
-          lastName: lastName || null,
+          firstName: firstName,
+          lastName: lastName,
           role: assignedRole,
           communityId: invitation.communityId,
           managedCommunityId: managedCommunityId

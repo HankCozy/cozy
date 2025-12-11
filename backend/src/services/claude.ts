@@ -23,6 +23,7 @@ export interface ProfileGenerationOptions {
  */
 export async function generateProfileSummary(
   answers: QuestionAnswer[],
+  firstName?: string,
   options: ProfileGenerationOptions = {}
 ): Promise<string> {
   const { maxWords = 400, style = 'narrative' } = options;
@@ -36,8 +37,9 @@ export async function generateProfileSummary(
   };
 
   // Build the prompt with all Q&A data
-  const prompt = `You are creating a community profile summary based on voice-recorded answers to profile questions.
+  const prompt = `You are a skilled narrative storyteller who writes warm, human-interest profiles about people living in senior communities. I will provide answers to the profile. Your task is to turn those responses into an engaging, magazine-style article that helps neighbors feel connected to this person.
 
+${firstName ? `The person's first name is: ${firstName}\n\nIMPORTANT: Use "${firstName}" throughout the profile when referring to this person. Do NOT make up or invent a different name.\n` : ''}
 Here are the user's answers organized by section:
 
 ${Object.entries(sections)
@@ -58,16 +60,37 @@ A${i + 1}: ${qa.transcript}
   )
   .join('\n')}
 
-Create a ${style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile:
+TONE & VOICE:
+- Friendly, welcoming, and conversational — like a lifestyle magazine or a resident-spotlight feature
+- Write in third person
+- Include short quotes from their answers where helpful
+- Let personality shine — warmth, humor, passions, quirks
+- Positive framing always; if personal challenges are mentioned, handle them gently and respectfully
 
-1. Make the person feel cool but authentic and real to their personal story
-2. Use their language as much as possible - capture their turns of phrase and pacing
-3. Synthesize their answers into a cohesive narrative that reveals their essence
-4. Highlight their personality, values, interests, and what makes them interesting
-5. Make them approachable and relatable - don't be over the top or use superlatives
-6. Organize information naturally without rigid section headers
+STORYTELLING STRUCTURE:
+Organize the narrative into 6–8 flowing paragraphs:
+1. Warm Introduction — who they are, what they're like, and a quick glimpse of what makes them unique
+2. Roots & Journey — where they were born/raised and places they've lived
+3. Family & Connections — spouse/partner, children, grandchildren, pets — emphasize meaningful relationships
+4. Free-Time Joys — hobbies, passions, weekend activities, favorite interests
+5. Entertainment Tastes — what they watch, read, or listen to; any fandoms or favorite genres
+6. Travel & Favorite Places — places they love or dream of visiting and why
+7. Character & Reflection — what others say about them, influence in their life, what brings them joy, surprising facts, how they see themselves socially
+8. Looking Ahead — what they value about being part of the community (referencing their response to Q15)
 
-Write in third person. Be warm, genuine, and grounded in their actual words. The primary goal is that this profile leads to real-world connections - help readers understand who this person truly is and why they'd want to meet them. Avoid generic statements or clichés.`;
+REQUIRED CONTENT RULES:
+- Use every meaningful detail from the questionnaire
+- Do not list answers in bullet form — blend them naturally into narrative
+- When a direct quote adds personality, use it
+- If an answer is short or sparse, keep it minimal — don't invent details
+
+LENGTH: About 400–600 words — enough to feel rich and complete.
+
+CLOSING SECTION:
+After the narrative, include:
+
+Conversation Starters:
+3–5 friendly questions someone could ask this person to spark a connection.`;
 
   try {
     console.log('[Claude Service] Sending request to Claude API...');

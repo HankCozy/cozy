@@ -14,6 +14,7 @@ const router = Router();
  *     question: string,
  *     transcript: string
  *   }>,
+ *   firstName?: string,
  *   options?: {
  *     maxWords?: number,
  *     style?: 'professional' | 'casual' | 'narrative'
@@ -22,7 +23,7 @@ const router = Router();
  */
 router.post('/generate', async (req: Request, res: Response) => {
   try {
-    const { answers, options } = req.body;
+    const { answers, firstName, options } = req.body;
 
     // Validate request
     if (!answers || !Array.isArray(answers) || answers.length === 0) {
@@ -45,6 +46,7 @@ router.post('/generate', async (req: Request, res: Response) => {
     // Generate profile summary using Claude
     const summary = await generateProfileSummary(
       answers as QuestionAnswer[],
+      firstName,
       options
     );
 

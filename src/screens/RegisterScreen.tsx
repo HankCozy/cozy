@@ -37,6 +37,11 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       return;
     }
 
+    if (!formData.firstName || !formData.lastName) {
+      Alert.alert('Error', 'First name and last name are required');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -105,7 +110,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>First Name</Text>
+                <Text style={styles.label}>First Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.firstName}
@@ -115,7 +120,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 />
               </View>
               <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>Last Name</Text>
+                <Text style={styles.label}>Last Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.lastName}

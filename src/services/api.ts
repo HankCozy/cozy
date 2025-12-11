@@ -78,6 +78,7 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
  */
 export async function generateProfile(
   answers: QuestionAnswer[],
+  firstName?: string,
   options?: { maxWords?: number; style?: 'professional' | 'casual' | 'narrative' }
 ): Promise<string> {
   try {
@@ -88,7 +89,7 @@ export async function generateProfile(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ answers, options }),
+      body: JSON.stringify({ answers, firstName, options }),
     });
 
     const data: ProfileGenerationResponse = await response.json();
