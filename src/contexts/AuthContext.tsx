@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL as BASE_URL } from '../config/api';
 
 export interface User {
@@ -96,11 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, dispatch] = useReducer(authReducer, initialState);
 
   // Load saved authentication on mount
+  // SECURITY: Uses SecureStore for encrypted token storage
   useEffect(() => {
     const loadAuth = async () => {
       try {
-        const token = await AsyncStorage.getItem('auth_token');
-        const userStr = await AsyncStorage.getItem('auth_user');
+        const token = await SecureStore.getItemAsync('auth_token');
+        const userStr = await SecureStore.getItemAsync('auth_user');
 
         if (token && userStr) {
           const user = JSON.parse(userStr);
@@ -128,9 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (data.success) {
-        // Save to AsyncStorage
-        await AsyncStorage.setItem('auth_token', data.token);
-        await AsyncStorage.setItem('auth_user', JSON.stringify(data.user));
+        // SECURITY: Save to SecureStore (encrypted storage)
+        await SecureStore.setItemAsync('auth_token', data.token);
+        await SecureStore.setItemAsync('auth_user', JSON.stringify(data.user));
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data.user, token: data.token } });
         return { success: true };
@@ -159,9 +160,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
 
       if (result.success) {
-        // Save to AsyncStorage
-        await AsyncStorage.setItem('auth_token', result.token);
-        await AsyncStorage.setItem('auth_user', JSON.stringify(result.user));
+        // SECURITY: Save to SecureStore (encrypted storage)
+        await SecureStore.setItemAsync('auth_token', result.token);
+        await SecureStore.setItemAsync('auth_user', JSON.stringify(result.user));
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: result.user, token: result.token } });
         return { success: true };
@@ -175,8 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('auth_token');
-      await AsyncStorage.removeItem('auth_user');
+      // SECURITY: Remove from SecureStore
+      await SecureStore.deleteItemAsync('auth_token');
+      await SecureStore.deleteItemAsync('auth_user');
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       console.error('Failed to logout:', error);
@@ -222,8 +224,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.success) {
         // Update local user state
+        // SECURITY: Update in SecureStore
         const updatedUser = { ...auth.user, firstName, lastName };
-        await AsyncStorage.setItem('auth_user', JSON.stringify(updatedUser));
+        await SecureStore.setItemAsync('auth_user', JSON.stringify(updatedUser));
 
         dispatch({ type: 'UPDATE_USER', payload: { firstName, lastName } });
 

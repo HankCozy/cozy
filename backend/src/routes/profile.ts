@@ -1,11 +1,14 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { generateProfileSummary, QuestionAnswer } from '../services/claude';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 /**
  * POST /api/profile/generate
  * Generate an AI profile summary from transcribed answers
+ *
+ * SECURITY: Requires authentication
  *
  * Body:
  * {
@@ -20,7 +23,7 @@ const router = Router();
  *   }
  * }
  */
-router.post('/generate', async (req: Request, res: Response) => {
+router.post('/generate', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { answers, options } = req.body;
 

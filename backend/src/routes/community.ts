@@ -1,33 +1,9 @@
-import express, { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import express, { Response } from 'express';
 import { PrismaClient } from '../generated/prisma';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-// JWT middleware to extract user from token
-interface AuthRequest extends Request {
-  userId?: string;
-  communityId?: string;
-}
-
-const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
-    req.userId = decoded.userId;
-    req.communityId = decoded.communityId;
-    next();
-  } catch (error) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
-  }
-};
 
 // GET /api/communities/members - Fetch all published profiles in user's community
 router.get('/members', authenticateToken, async (req: AuthRequest, res: Response) => {

@@ -3,11 +3,16 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { PrismaClient } from '../generated/prisma';
 import { createClient } from '@supabase/supabase-js';
+import { validateProfileInput } from '../middleware/validation';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+// SECURITY: Validate JWT_SECRET is configured
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
 
 // Initialize Supabase storage client with service role key (bypasses RLS)
 const supabaseStorage = createClient(
@@ -56,7 +61,8 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
 
 // PATCH /api/users/profile
 // Update user's profile (name, summary, answers, published status)
-router.patch('/profile', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+// SECURITY: Validates and sanitizes input
+router.patch('/profile', authenticateToken, validateProfileInput, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { firstName, lastName, profileSummary, profileAnswers, profilePublished, profilePictureUrl } = req.body;
     const userId = req.userId;

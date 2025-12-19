@@ -2,17 +2,34 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '../generated/prisma';
+import { validateRegistrationInput } from '../middleware/validation';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+// SECURITY: Validate JWT_SECRET is configured
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+
 const SALT_ROUNDS = 12;
 
+// SECURITY: Logging helper for security events
+const logSecurityEvent = (event: string, details: any) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    event,
+    ...details
+  };
+  console.error(JSON.stringify(logEntry));
+};
+
 // Input validation helpers
+// SECURITY: RFC 5322 compliant email validation
 const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+  return emailRegex.test(email) && email.length <= 254; // RFC 5321 max length
 };
 
 const isValidPassword = (password: string): boolean => {
@@ -42,6 +59,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!user) {
+      // SECURITY: Log failed login attempt with invalid user
+      logSecurityEvent('LOGIN_ATTEMPT_INVALID_USER', { email, ip: req.ip });
       res.status(401).json({ success: false, error: 'Invalid email or password' });
       return;
     }
@@ -49,6 +68,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
+      // SECURITY: Log failed login attempt with wrong password
+      logSecurityEvent('LOGIN_FAILED_WRONG_PASSWORD', { email, userId: user.id, ip: req.ip });
       res.status(401).json({ success: false, error: 'Invalid email or password' });
       return;
     }
@@ -93,7 +114,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 });
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+// SECURITY: Validates and sanitizes registration input
+router.post('/register', validateRegistrationInput, async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, firstName, lastName, invitationCode } = req.body;
 
@@ -119,7 +141,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (existingUser) {
-      res.status(400).json({ success: false, error: 'Email already registered' });
+      // SECURITY: Use generic error to prevent user enumeration
+      res.status(400).json({
+        success: false,
+        error: 'Registration failed. Please verify your invitation code and try again.'
+      });
       return;
     }
 
