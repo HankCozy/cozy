@@ -1,8 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase credentials
-const SUPABASE_URL = 'https://ybwactpvyffcgevltfvg.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlid2FjdHB2eWZmY2dldmx0ZnZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNjYzMTUsImV4cCI6MjA3NDc0MjMxNX0.q74cwNcjsR8G_uLETy51PFHFviVyAZWJhLS2zIqnz7Y';
+// Supabase credentials from environment variables
+// SECURITY: Never hardcode credentials in source code
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Validate credentials are present
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Missing Supabase configuration. Please ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set in .env file.'
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

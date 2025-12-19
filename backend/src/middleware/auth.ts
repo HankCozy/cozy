@@ -4,6 +4,22 @@ import { PrismaClient, Role } from '../generated/prisma';
 
 const prisma = new PrismaClient();
 
+// SECURITY: Validate JWT_SECRET is configured
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+
+// SECURITY: Logging helper for security events
+const logSecurityEvent = (event: string, details: any) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    event,
+    ...details
+  };
+  console.error(JSON.stringify(logEntry));
+};
+
 // Extend Request interface to include auth properties
 export interface AuthRequest extends Request {
   userId?: string;
@@ -21,12 +37,18 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     req.userId = decoded.userId;
     req.communityId = decoded.communityId; // May be undefined for ADMIN users
     req.userRole = decoded.role; // Extract role from JWT
     next();
   } catch (error) {
+    // SECURITY: Log invalid token attempts
+    logSecurityEvent('INVALID_TOKEN_ATTEMPT', {
+      ip: req.ip,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      tokenPrefix: token.substring(0, 10)
+    });
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
 };

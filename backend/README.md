@@ -180,14 +180,64 @@ npm run db:migrate && npm run db:seed
 ✓ **Community Isolation** - Users scoped to communities
 ✓ **Database Transactions** - Atomic operations for data integrity
 
-## Production Considerations
+## Security Checklist for Production
 
-When deploying to production:
+### Pre-Deployment (CRITICAL)
 
-1. Use PostgreSQL instead of SQLite
-2. Set strong JWT_SECRET environment variable
-3. Enable HTTPS/TLS
-4. Add rate limiting for auth endpoints
-5. Set up proper logging and monitoring
-6. Configure CORS to only allow your mobile app domains
-7. Use environment-specific database connections
+Before deploying to production or TestFlight:
+
+- [ ] **Rotate ALL API Keys**
+  - [ ] Generate new Supabase publishable & service role keys
+  - [ ] Reset Supabase database password
+  - [ ] Create new AssemblyAI API key
+  - [ ] Create new Anthropic API key
+  - [ ] Generate strong JWT_SECRET: `openssl rand -base64 64`
+
+- [ ] **Environment Configuration**
+  - [ ] Set `NODE_ENV=production`
+  - [ ] Verify `.env` file is in `.gitignore`
+  - [ ] Remove all hardcoded secrets from source code
+  - [ ] Configure production database URL
+  - [ ] Set up environment variables on hosting platform
+
+- [ ] **Security Features Active**
+  - [ ] HTTPS enforced (automatic redirect from HTTP)
+  - [ ] Rate limiting configured (5 login attempts per 15 min)
+  - [ ] CORS restricted to production domains only
+  - [ ] Helmet security headers enabled
+  - [ ] SecureStore used for mobile token storage
+
+### Post-Deployment (Monitoring)
+
+- [ ] **Monitor Security Logs** for:
+  - Failed login attempts (`LOGIN_FAILED_WRONG_PASSWORD`)
+  - Invalid token attempts (`INVALID_TOKEN_ATTEMPT`)
+  - Suspicious user enumeration (`LOGIN_ATTEMPT_INVALID_USER`)
+
+- [ ] **Test Security**
+  - [ ] Verify HTTPS redirect works
+  - [ ] Test rate limiting (make 6 rapid login attempts)
+  - [ ] Confirm CORS blocks unauthorized origins
+  - [ ] Check security headers: `curl -I https://your-api.com/health`
+
+### Ongoing Maintenance
+
+- [ ] **Regular Security Updates**
+  - Run `npm audit` monthly
+  - Update dependencies quarterly
+  - Rotate secrets every 90 days
+  - Review security logs weekly
+
+- [ ] **Backup & Recovery**
+  - Supabase automatic backups enabled
+  - Test restore procedure quarterly
+  - Document recovery steps
+
+## Production Architecture
+
+**Recommended Stack:**
+- **Hosting:** Railway, Render, or DigitalOcean
+- **Database:** Supabase PostgreSQL (already configured)
+- **SSL/TLS:** Automatic via hosting provider
+- **Monitoring:** Logging to stdout (captured by platform)
+- **Secrets:** Platform environment variables (never in git)
