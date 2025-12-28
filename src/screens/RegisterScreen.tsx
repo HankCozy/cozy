@@ -58,9 +58,15 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
     if (!result.success) {
       Alert.alert('Registration Failed', result.error || 'Please try again');
+      setIsLoading(false);
+    } else {
+      // Navigate to onboarding with credentials
+      setIsLoading(false);
+      navigation.navigate('Onboarding', {
+        user: result.user,
+        token: result.token
+      });
     }
-    // On success, navigation will be handled by the auth flow
-    setIsLoading(false);
   };
 
   const handlePasswordChange = (password: string) => {
@@ -83,9 +89,9 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('Welcome')}
+              onPress={() => navigation.goBack()}
             >
-              <Feather name="arrow-left" size={24} color="#374151" />
+              <Feather name="chevron-left" size={24} color="#374151" />
             </TouchableOpacity>
             <Text style={styles.title}>Join Community</Text>
             <Text style={styles.subtitle}>Create your account with an invitation code</Text>

@@ -517,6 +517,17 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowSettingsMenu(false);
+                navigation.navigate('Onboarding', {});
+              }}
+            >
+              <Feather name="refresh-cw" size={24} color="#3b82f6" />
+              <Text style={styles.menuItemText}>Reset Onboarding</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.menuItem, styles.menuItemLast]}
               onPress={() => {
                 setShowSettingsMenu(false);

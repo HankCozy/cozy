@@ -81,7 +81,8 @@ interface AuthContextType {
     firstName?: string;
     lastName?: string;
     invitationCode: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+  }) => Promise<{ success: boolean; error?: string; user?: User; token?: string }>;
+  completeOnboarding: (user: User, token: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   validateInvitation: (code: string) => Promise<{ valid: boolean; error?: string; invitation?: any }>;
   updateUserProfile: (firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
@@ -160,17 +161,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
 
       if (result.success) {
-        // SECURITY: Save to SecureStore (encrypted storage)
-        await SecureStore.setItemAsync('auth_token', result.token);
-        await SecureStore.setItemAsync('auth_user', JSON.stringify(result.user));
-
-        dispatch({ type: 'LOGIN_SUCCESS', payload: { user: result.user, token: result.token } });
-        return { success: true };
+        // Return credentials but don't auto-login yet (for onboarding flow)
+        return { success: true, user: result.user, token: result.token };
       } else {
         return { success: false, error: result.error };
       }
     } catch (_error) {
       return { success: false, error: 'Network error - make sure your backend is running' };
+    }
+  };
+
+  const completeOnboarding = async (user: User, token: string) => {
+    try {
+      // SECURITY: Save to SecureStore (encrypted storage)
+      await SecureStore.setItemAsync('auth_token', token);
+      await SecureStore.setItemAsync('auth_user', JSON.stringify(user));
+
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
+      return { success: true };
+    } catch (_error) {
+      return { success: false, error: 'Failed to complete onboarding' };
     }
   };
 
@@ -246,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dispatch,
         login,
         register,
+        completeOnboarding,
         logout,
         validateInvitation,
         updateUserProfile

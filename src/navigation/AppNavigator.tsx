@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import VennDiagramIcon from '../components/VennDiagramIcon';
 
 // Import screens
+import SplashScreen from '../screens/SplashScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -22,6 +24,17 @@ import AccountScreen from '../screens/AccountScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
+  Splash: undefined;
+  Onboarding: {
+    user: {
+      id: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role: 'MEMBER' | 'MANAGER' | 'ADMIN';
+    };
+    token: string;
+  };
   Login: undefined;
   Register: undefined;
 };
@@ -45,6 +58,16 @@ export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
   MemberProfile: { userId: string };
+  Onboarding: {
+    user?: {
+      id: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      role: 'MEMBER' | 'MANAGER' | 'ADMIN';
+    };
+    token?: string;
+  };
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -58,8 +81,10 @@ function AuthNavigator() {
       screenOptions={{
         headerShown: false,
       }}
-      initialRouteName="Login"
+      initialRouteName="Splash"
     >
+      <AuthStack.Screen name="Splash" component={SplashScreen} />
+      <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
@@ -201,6 +226,7 @@ function AppNavigator() {
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
+      <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
     </RootStack.Navigator>
   );
 }
