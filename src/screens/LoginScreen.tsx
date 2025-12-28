@@ -61,6 +61,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Feather name="chevron-left" size={24} color="#111827" />
+            </TouchableOpacity>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to your community</Text>
           </View>

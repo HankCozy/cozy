@@ -52,6 +52,25 @@ This is the #1 rule. When building features:
 - Assistant: Plans home screen + navigation system + 5 other screens + backend changes + database migrations
 - ❌ This is irresponsible and dangerous
 
+**⚠️ CRITICAL: NEVER Create Unrequested Visual Assets**
+
+**ABSOLUTE RULE:** Do NOT create graphics, SVGs, illustrations, or visual components unless EXPLICITLY requested:
+- ❌ **NEVER** generate custom SVG graphics, illustrations, or animated components
+- ❌ **NEVER** create visual assets when an image would suffice
+- ❌ **NEVER** assume you should build a graphic when the user hasn't asked for one
+- ✅ **ALWAYS** ask for the actual image file if visual content is needed
+- ✅ **ALWAYS** use provided assets exactly as given
+- ✅ **IF** you absolutely must create something visual, ASK FIRST
+
+**Example of CORRECT approach:**
+- User: "Add a graphic to the onboarding screen"
+- Assistant: "Could you provide the image file for the onboarding graphic?"
+
+**Example of WRONG approach:**
+- User: "Add a graphic to the onboarding screen"
+- Assistant: Creates 140 lines of custom SVG code with animations
+- ❌ This wastes time, money, and creates unwanted code
+
 **Efficient & Simple**: Built with minimal dependencies and maximum functionality. No bloatware or unnecessary complexity.
 
 **Closed Community Networks**: Each community operates as an isolated, private network. Users belong to specific communities with invitation-based registration.

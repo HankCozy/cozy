@@ -301,10 +301,18 @@ export default function AnswerQuestionScreen() {
           {/* Initial state - show record button */}
           {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
             <View style={styles.recordButtonContainer}>
+              <View style={styles.privacyBox}>
+                <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
+              </View>
               <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
                 <Feather name="mic" size={32} color="white" />
               </TouchableOpacity>
-              <Text style={styles.buttonHintText}>Tap to start recording</Text>
+              <View style={styles.hintTextContainer}>
+                <Text style={styles.buttonHintText}>Tap to start recording or </Text>
+                <TouchableOpacity onPress={handleTypeInstead}>
+                  <Text style={styles.typeLink}>type instead</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -370,12 +378,6 @@ export default function AnswerQuestionScreen() {
 
         {/* Bottom area - status, links, buttons */}
         <View style={styles.bottomArea}>
-          {/* Initial state - "I'd rather type" */}
-          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
-            <TouchableOpacity onPress={handleTypeInstead}>
-              <Text style={styles.bottomLinkText}>I'd rather type</Text>
-            </TouchableOpacity>
-          )}
 
           {/* Transcript shown - Edit and Done buttons */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
@@ -490,6 +492,7 @@ const styles = StyleSheet.create({
   // Containers
   recordButtonContainer: {
     alignItems: 'center',
+    marginTop: 60,
   },
   recordingContainer: {
     alignItems: 'center',
@@ -554,11 +557,33 @@ const styles = StyleSheet.create({
   },
 
   // Text elements
+  privacyBox: {
+    backgroundColor: '#eff6ff',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 32,
+  },
+  privacyLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  hintTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
   buttonHintText: {
     fontSize: 14,
     color: '#6b7280',
-    marginTop: 16,
-    textAlign: 'center',
+  },
+  typeLink: {
+    fontSize: 14,
+    color: '#3b82f6',
+    textDecorationLine: 'underline',
   },
   centerHintText: {
     fontSize: 14,
