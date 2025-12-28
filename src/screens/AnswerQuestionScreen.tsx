@@ -301,9 +301,6 @@ export default function AnswerQuestionScreen() {
           {/* Initial state - show record button */}
           {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
             <View style={styles.recordButtonContainer}>
-              <View style={styles.privacyBox}>
-                <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
-              </View>
               <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
                 <Feather name="mic" size={32} color="white" />
               </TouchableOpacity>
@@ -312,6 +309,9 @@ export default function AnswerQuestionScreen() {
                 <TouchableOpacity onPress={handleTypeInstead}>
                   <Text style={styles.typeLink}>type instead</Text>
                 </TouchableOpacity>
+              </View>
+              <View style={styles.privacyBox}>
+                <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
               </View>
             </View>
           )}
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    marginBottom: 32,
+    marginTop: 24,
   },
   privacyLabel: {
     fontSize: 16,
