@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import invitationRoutes from './routes/invitations';
 import transcribeRoutes from './routes/transcribe';
@@ -13,6 +14,8 @@ import adminRoutes from './routes/admin';
 import managerRoutes from './routes/manager';
 
 dotenv.config();
+
+const prisma = new PrismaClient();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -104,9 +107,23 @@ app.use('/api/communities', communityRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/manager', managerRoutes);
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check - pings database to keep Supabase active
+app.get('/health', async (_req, res) => {
+  try {
+    // Ping database to prevent Supabase free tier from pausing
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: 'ok',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      database: 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // 404 handler
