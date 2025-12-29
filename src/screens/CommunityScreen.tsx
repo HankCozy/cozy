@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -151,21 +152,22 @@ export default function CommunityScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
         <Text style={styles.loadingText}>Loading community...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerSubtitle}>Your circle:</Text>
@@ -272,16 +274,21 @@ export default function CommunityScreen() {
         )}
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
   },
   contentContainer: {
-    paddingBottom: 32,
+    paddingBottom: 120,
   },
   loadingContainer: {
     flex: 1,
@@ -296,7 +303,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 16,
   },
   headerSubtitle: {
@@ -343,16 +350,16 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 20,
     position: 'relative',
+    minHeight: 400,
   },
   sharePromptOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 80,
+    left: 20,
+    right: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 80,
+    zIndex: 10,
   },
   sharePromptContent: {
     alignItems: 'center',

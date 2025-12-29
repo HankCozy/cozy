@@ -12,11 +12,11 @@ export function getStrengthColor(level: StrengthLevel): string {
     case 'starting':
       return '#8b5cf6'; // Purple
     case 'good':
-      return '#10b981'; // Green
+      return '#84cc16'; // Light green / Yellow-green
     case 'strong':
-      return '#059669'; // Dark Green
+      return '#047857'; // Race green (British racing green)
     case 'complete':
-      return '#f59e0b'; // Amber/Gold
+      return '#14532d'; // Dark green
   }
 }
 

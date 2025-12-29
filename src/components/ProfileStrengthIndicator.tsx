@@ -32,14 +32,11 @@ export default function ProfileStrengthIndicator({
               { width: `${progress * 100}%`, backgroundColor: color },
             ]}
           />
-          {/* Milestone markers at 4, 8, 16 */}
-          <View style={[styles.marker, { left: '25%' }]} />
-          <View style={[styles.marker, { left: '50%' }]} />
         </View>
 
         {/* Star icon for complete */}
         {totalAnswers >= 16 && (
-          <Feather name="star" size={16} color="#f59e0b" style={styles.star} />
+          <Feather name="star" size={16} color="#14532d" style={styles.star} />
         )}
       </View>
 
@@ -75,14 +72,6 @@ const styles = StyleSheet.create({
   barFill: {
     height: 8,
     borderRadius: 4,
-  },
-  marker: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: 'white',
-    opacity: 0.5,
   },
   star: {
     position: 'absolute',

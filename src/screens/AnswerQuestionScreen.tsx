@@ -855,8 +855,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navButtonActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#f0fdf4',
+    borderColor: '#84cc16',
+    backgroundColor: '#f7fee7',
   },
   navButtonText: {
     fontSize: 16,
@@ -864,6 +864,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   navButtonTextActive: {
-    color: '#10b981',
+    color: '#84cc16',
   },
 });

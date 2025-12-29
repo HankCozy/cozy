@@ -160,7 +160,7 @@ export default function ProfileScreen() {
       }));
 
       // Generate summary using Claude
-      const summary = await generateProfile(questionAnswers, {
+      const summary = await generateProfile(questionAnswers, token!, {
         maxWords: 400,
         style: 'narrative',
       });

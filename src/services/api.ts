@@ -78,6 +78,7 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
  */
 export async function generateProfile(
   answers: QuestionAnswer[],
+  token: string,
   options?: { maxWords?: number; style?: 'professional' | 'casual' | 'narrative' }
 ): Promise<string> {
   try {
@@ -87,6 +88,7 @@ export async function generateProfile(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ answers, options }),
     });
