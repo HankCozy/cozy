@@ -53,7 +53,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
     req.userId = decoded.userId;
     req.communityId = decoded.communityId;
     next();
-  } catch (error) {
+  } catch (_error) {
     res.status(403).json({ success: false, error: 'Invalid or expired token' });
     return;
   }
@@ -124,12 +124,12 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
         lastName: updatedUser.lastName,
         role: updatedUser.role,
         profilePictureUrl: updatedUser.profilePictureUrl,
-        community: {
+        community: updatedUser.community ? {
           id: updatedUser.community.id,
           organization: updatedUser.community.organization,
           division: updatedUser.community.division,
           accountOwner: updatedUser.community.accountOwner
-        }
+        } : null
       }
     });
   } catch (error) {

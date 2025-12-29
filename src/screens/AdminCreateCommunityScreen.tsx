@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
-import { useNavigation } from '@react-navigation/native';
 
 interface GeneratedCode {
   organization: string;
@@ -25,7 +24,6 @@ interface GeneratedCode {
 
 export default function AdminCreateCommunityScreen() {
   const { auth } = useAuth();
-  const navigation = useNavigation();
 
   const [organization, setOrganization] = useState('');
   const [division, setDivision] = useState('');
