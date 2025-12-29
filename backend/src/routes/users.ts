@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import { validateProfileInput } from '../middleware/validation';
 
