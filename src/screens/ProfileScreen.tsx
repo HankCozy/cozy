@@ -98,20 +98,13 @@ export default function ProfileScreen() {
 
       setAnswers(parsedAnswers);
 
-      // Load completion status and answer counts for each section
-      const completed: string[] = [];
+      // Load answer counts for each section
       const counts: Record<string, number> = {};
       for (const section of SECTIONS) {
-        const isCompleted = await AsyncStorage.getItem(`section_${section.id}_completed`);
-        if (isCompleted === 'true') {
-          completed.push(section.id);
-        }
-
         // Count answers for this section
         const sectionAnswers = answerKeys.filter(key => key.startsWith(`answer_${section.id}_`));
         counts[section.id] = sectionAnswers.length;
       }
-      setCompletedSections(completed);
       setAnswerCounts(counts);
     } catch (error) {
       console.error('Failed to load answers:', error);
@@ -246,7 +239,6 @@ export default function ProfileScreen() {
 
               // Reset state
               setAnswers([]);
-              setCompletedSections([]);
               setAnswerCounts({});
               setProfileSummary(null);
               setIsPublished(false);
