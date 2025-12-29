@@ -13,9 +13,7 @@ export async function transcribeAudioBuffer(
 ): Promise<string> {
   try {
     // Upload buffer directly to AssemblyAI
-    const uploadUrl = await client.files.upload(buffer, {
-      filename,
-    });
+    const uploadUrl = await client.files.upload(buffer);
 
     // Transcribe from uploaded URL
     const transcript = await client.transcripts.transcribe({

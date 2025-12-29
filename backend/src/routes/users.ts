@@ -124,12 +124,12 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
         lastName: updatedUser.lastName,
         role: updatedUser.role,
         profilePictureUrl: updatedUser.profilePictureUrl,
-        community: {
+        community: updatedUser.community ? {
           id: updatedUser.community.id,
           organization: updatedUser.community.organization,
           division: updatedUser.community.division,
           accountOwner: updatedUser.community.accountOwner
-        }
+        } : null
       }
     });
   } catch (error) {
