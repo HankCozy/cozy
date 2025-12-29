@@ -53,7 +53,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
     req.userId = decoded.userId;
     req.communityId = decoded.communityId;
     next();
-  } catch (error) {
+  } catch (_error) {
     res.status(403).json({ success: false, error: 'Invalid or expired token' });
     return;
   }

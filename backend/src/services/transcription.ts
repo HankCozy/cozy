@@ -9,7 +9,7 @@ const client = new AssemblyAI({
  */
 export async function transcribeAudioBuffer(
   buffer: Buffer,
-  filename: string
+  _filename: string
 ): Promise<string> {
   try {
     // Upload buffer directly to AssemblyAI

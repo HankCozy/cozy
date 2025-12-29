@@ -66,7 +66,6 @@ export default function ProfileScreen() {
   const token = auth.token;
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
