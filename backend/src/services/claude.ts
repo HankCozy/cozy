@@ -41,6 +41,8 @@ export async function generateProfileSummary(
   // Build the prompt with all Q&A data
   const prompt = `You are creating a community profile summary for ${userName} based on voice-recorded answers to profile questions.
 
+CRITICAL INSTRUCTION: You MUST use the exact name "${userName}" throughout the profile. NEVER make up, invent, or hallucinate a different name. If no name is provided, refer to them as "they" or "this person" - but NEVER create a fictional name.
+
 Here are ${firstName || 'the user'}'s answers organized by section:
 
 ${Object.entries(sections)
@@ -63,7 +65,7 @@ A${i + 1}: ${qa.transcript}
 
 Create a ${style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile:
 
-1. Use ${firstName || 'their'}'s actual name throughout the profile
+1. ALWAYS use "${userName}" (and only this exact name) throughout the profile - NEVER substitute or invent a different name
 2. Make ${firstName || 'them'} feel cool but authentic and real to their personal story
 3. Use their language as much as possible - capture their turns of phrase and pacing
 4. Synthesize their answers into a cohesive narrative that reveals their essence

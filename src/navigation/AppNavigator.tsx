@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import VennDiagramIcon from '../components/VennDiagramIcon';
 
 // Import screens
 import SplashScreen from '../screens/SplashScreen';
@@ -188,7 +187,7 @@ function TabsNavigator() {
     );
   }
 
-  // MEMBER: Regular experience (Profile + Your Circles)
+  // MEMBER: Regular experience (Profile + Your Circle)
   return (
     <AppTabs.Navigator
       screenOptions={{
@@ -210,9 +209,9 @@ function TabsNavigator() {
         name="Community"
         component={CommunityScreen}
         options={{
-          tabBarLabel: 'Your Circles',
+          tabBarLabel: 'Your Circle',
           tabBarIcon: ({ color, size }) => (
-            <VennDiagramIcon size={size} color={color} />
+            <Feather name="circle" size={size} color={color} />
           ),
         }}
       />
