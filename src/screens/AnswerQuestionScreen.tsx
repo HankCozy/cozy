@@ -22,12 +22,22 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
+import ProfileStrengthIndicator from '../components/ProfileStrengthIndicator';
 import { transcribeAudio } from '../services/api';
+import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
+
+// Helper to determine which section a question belongs to
+function getSectionIdForQuestionIndex(index: number): string {
+  if (index <= SECTION_BOUNDARIES.identity.end) return 'identity';
+  if (index <= SECTION_BOUNDARIES.relationships.end) return 'relationships';
+  if (index <= SECTION_BOUNDARIES.lifestyle.end) return 'lifestyle';
+  return 'community';
+}
 
 export default function AnswerQuestionScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { sectionId, questions } = route.params;
+  const { sectionId, questions, isFirstTimeOnboarding } = route.params;
 
   // Safety check
   if (!questions || questions.length === 0) {
@@ -48,6 +58,7 @@ export default function AnswerQuestionScreen() {
   const [isEditingTranscript, setIsEditingTranscript] = useState(false);
   const [editedTranscript, setEditedTranscript] = useState('');
   const [typedAnswer, setTypedAnswer] = useState('');
+  const [totalAnswers, setTotalAnswers] = useState(0);
 
   // Use platform-specific recording presets
   // LOW_QUALITY may work better on Android emulator
@@ -104,6 +115,15 @@ export default function AnswerQuestionScreen() {
 
     setupAudio();
   }, []);
+
+  useEffect(() => {
+    const loadTotalAnswers = async () => {
+      const keys = await AsyncStorage.getAllKeys();
+      const answerKeys = keys.filter((key) => key.startsWith('answer_'));
+      setTotalAnswers(answerKeys.length);
+    };
+    loadTotalAnswers();
+  }, [currentQuestionIndex]);
 
   const startRecording = async () => {
     try {
@@ -199,9 +219,14 @@ export default function AnswerQuestionScreen() {
     }
 
     try {
-      const key = `answer_${sectionId}_${Date.now()}`;
+      // Determine which section this question belongs to
+      const actualSectionId = sectionId === 'all'
+        ? getSectionIdForQuestionIndex(currentQuestionIndex)
+        : sectionId;
+
+      const key = `answer_${actualSectionId}_${Date.now()}`;
       const answerData = {
-        sectionId,
+        sectionId: actualSectionId,
         question: currentQuestion,
         ...(recordingUri && { audioUri: recordingUri }), // Only if recorded
         transcript: transcript.trim(),
@@ -210,11 +235,22 @@ export default function AnswerQuestionScreen() {
 
       await AsyncStorage.setItem(key, JSON.stringify(answerData));
 
+      // Immediately update total count
+      const allKeys = await AsyncStorage.getAllKeys();
+      const answerKeys = allKeys.filter((k) => k.startsWith('answer_'));
+      setTotalAnswers(answerKeys.length);
+
       // Advance to next question or finish
       if (isLastQuestion) {
-        await AsyncStorage.setItem(`section_${sectionId}_completed`, 'true');
-        // Navigate back without alert popup
-        navigation.navigate('QuestionFlow');
+        // If first-time onboarding, mark as complete and navigate to profile
+        if (isFirstTimeOnboarding) {
+          await AsyncStorage.setItem('onboarding_completed', 'true');
+          navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
+        } else {
+          // Regular flow - mark section complete and go back
+          await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
+          navigation.navigate('QuestionFlow');
+        }
       } else {
         // Reset for next question
         setCurrentQuestionIndex((prev) => prev + 1);
@@ -287,9 +323,16 @@ export default function AnswerQuestionScreen() {
         >
           <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.progress}>
-          Question {currentQuestionIndex + 1} of {questions.length}
-        </Text>
+        {!(isFirstTimeOnboarding && currentQuestionIndex === 0) && (
+          <View style={styles.strengthIndicatorContainer}>
+            <ProfileStrengthIndicator
+              totalAnswers={totalAnswers}
+              showLabel={false}
+              compact={true}
+            />
+            <Text style={styles.questionCounter}>Profile Strength</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -310,9 +353,11 @@ export default function AnswerQuestionScreen() {
                   <Text style={styles.typeLink}>type instead</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.privacyBox}>
-                <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
-              </View>
+              {isFirstTimeOnboarding && currentQuestionIndex === 0 && (
+                <View style={styles.privacyBox}>
+                  <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -345,6 +390,12 @@ export default function AnswerQuestionScreen() {
               <View style={styles.transcriptBox}>
                 <Text style={styles.transcriptText}>{transcript}</Text>
               </View>
+              <TouchableOpacity
+                style={styles.editLinkButton}
+                onPress={handleStartEditing}
+              >
+                <Text style={styles.editLinkText}>Edit</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -379,19 +430,11 @@ export default function AnswerQuestionScreen() {
         {/* Bottom area - status, links, buttons */}
         <View style={styles.bottomArea}>
 
-          {/* Transcript shown - Edit and Done buttons */}
+          {/* Transcript shown - Next button */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
-            <View style={styles.editButtonRow}>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={handleStartEditing}
-              >
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.nextButton} onPress={handleDone}>
+              <Text style={styles.nextButtonText}>Next</Text>
+            </TouchableOpacity>
           )}
 
           {/* Editing mode - Save/Cancel buttons */}
@@ -435,6 +478,37 @@ export default function AnswerQuestionScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Navigation controls */}
+          <View style={styles.navControls}>
+            {!isFirstTimeOnboarding && (
+              <TouchableOpacity
+                style={styles.navButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.navButtonText}>Select Question</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.navButton,
+                totalAnswers >= 4 && styles.navButtonActive,
+                isFirstTimeOnboarding && { flex: 1 },
+              ]}
+              onPress={() => {
+                navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
+              }}
+            >
+              <Text
+                style={[
+                  styles.navButtonText,
+                  totalAnswers >= 4 && styles.navButtonTextActive,
+                ]}
+              >
+                View Profile
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -462,6 +536,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#6b7280',
+    textAlign: 'center',
+  },
+  strengthIndicatorContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 60,
+    gap: 8,
+  },
+  questionCounter: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9ca3af',
     textAlign: 'center',
   },
   content: {
@@ -610,6 +695,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 8,
   },
+  editLinkButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    padding: 4,
+  },
   editLinkText: {
     fontSize: 14,
     color: '#9ca3af',
@@ -693,6 +783,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  nextButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    alignItems: 'center',
+    width: '100%',
+  },
+  nextButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+  },
   editButtonRow: {
     flexDirection: 'row',
     gap: 12,
@@ -734,5 +837,33 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+  },
+  navControls: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  navButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: 'white',
+    alignItems: 'center',
+  },
+  navButtonActive: {
+    borderColor: '#84cc16',
+    backgroundColor: '#f7fee7',
+  },
+  navButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  navButtonTextActive: {
+    color: '#84cc16',
   },
 });

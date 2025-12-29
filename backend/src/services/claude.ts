@@ -16,6 +16,8 @@ export interface QuestionAnswer {
 export interface ProfileGenerationOptions {
   maxWords?: number;
   style?: 'professional' | 'casual' | 'narrative';
+  firstName?: string;
+  lastName?: string;
 }
 
 /**
@@ -25,7 +27,8 @@ export async function generateProfileSummary(
   answers: QuestionAnswer[],
   options: ProfileGenerationOptions = {}
 ): Promise<string> {
-  const { maxWords = 400, style = 'narrative' } = options;
+  const { maxWords = 400, style = 'narrative', firstName, lastName } = options;
+  const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'this person';
 
   // Group answers by section
   const sections = {
@@ -36,9 +39,11 @@ export async function generateProfileSummary(
   };
 
   // Build the prompt with all Q&A data
-  const prompt = `You are creating a community profile summary based on voice-recorded answers to profile questions.
+  const prompt = `You are creating a community profile summary for ${userName} based on voice-recorded answers to profile questions.
 
-Here are the user's answers organized by section:
+CRITICAL INSTRUCTION: You MUST use the exact name "${userName}" throughout the profile. NEVER make up, invent, or hallucinate a different name. If no name is provided, refer to them as "they" or "this person" - but NEVER create a fictional name.
+
+Here are ${firstName || 'the user'}'s answers organized by section:
 
 ${Object.entries(sections)
   .filter(([_, sectionAnswers]) => sectionAnswers.length > 0)
@@ -60,14 +65,25 @@ A${i + 1}: ${qa.transcript}
 
 Create a ${style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile:
 
-1. Make the person feel cool but authentic and real to their personal story
-2. Use their language as much as possible - capture their turns of phrase and pacing
-3. Synthesize their answers into a cohesive narrative that reveals their essence
-4. Highlight their personality, values, interests, and what makes them interesting
-5. Make them approachable and relatable - don't be over the top or use superlatives
-6. Organize information naturally without rigid section headers
+1. ALWAYS use "${userName}" (and only this exact name) throughout the profile - NEVER substitute or invent a different name
+2. Make ${firstName || 'them'} feel cool but authentic and real to their personal story
+3. Use their language as much as possible - capture their turns of phrase and pacing
+4. Synthesize their answers into a cohesive narrative that reveals their essence
+5. Highlight their personality, values, interests, and what makes them interesting
+6. Make them approachable and relatable - don't be over the top or use superlatives
+7. Organize information naturally without rigid section headers
 
-Write in third person. Be warm, genuine, and grounded in their actual words. The primary goal is that this profile leads to real-world connections - help readers understand who this person truly is and why they'd want to meet them. Avoid generic statements or clichés.`;
+Write in third person using ${firstName || 'their'}'s name. Be warm, genuine, and grounded in their actual words.
+
+After the profile summary, add a blank line and then provide 3 thoughtful icebreaker questions that would help someone connect with ${firstName || 'this person'} based on their answers. Format them as:
+
+---
+**Icebreaker Questions:**
+1. [First question based on their interests/values]
+2. [Second question about something specific they mentioned]
+3. [Third question that invites deeper conversation]
+
+The primary goal is that this profile leads to real-world connections - help readers understand who ${firstName || 'this person'} truly is and why they'd want to meet them. Avoid generic statements or clichés.`;
 
   try {
     console.log('[Claude Service] Sending request to Claude API...');

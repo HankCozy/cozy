@@ -12,6 +12,7 @@ import {
 import { Audio } from 'expo-audio';
 import { useAuth, User } from '../contexts/AuthContext';
 import OnboardingGraphic from '../components/OnboardingGraphic';
+import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -99,12 +100,13 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
         await completeOnboarding(route.params.user, route.params.token);
       }
 
-      // Navigate to first question from master list (Identity section)
+      // Navigate to all 16 questions for first-time onboarding
       navigation.navigate('QuestionFlowStack', {
         screen: 'AnswerQuestion',
         params: {
-          sectionId: 'identity',
-          questions: ['What are three words that best describe you?'],
+          sectionId: 'all',
+          questions: ALL_QUESTIONS_ORDERED,
+          isFirstTimeOnboarding: true,
         },
       });
     }

@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import { compressProfilePicture } from '../utils/imageCompression';
 import { API_BASE_URL } from '../config/api';
+import { getStrengthLevel, getStrengthColor, getStrengthLabel } from '../utils/profileStrength';
 
 interface Answer {
   sectionId: string;
@@ -35,6 +36,29 @@ const SECTIONS = [
   { id: 'lifestyle', name: 'Lifestyle', icon: 'coffee', color: '#10b981' },
   { id: 'community', name: 'Community', icon: 'users', color: '#f59e0b' },
 ];
+
+/**
+ * Remove icebreaker questions from profile summary
+ * (Only shown to others, not to the profile owner)
+ */
+function stripIcebreakerQuestions(summary: string): string {
+  // Try multiple patterns to find the icebreaker section
+  const patterns = [
+    /---\s*\*?\*?Icebreaker Questions/i,  // Match "---**Icebreaker Questions" or "--- **Icebreaker Questions"
+    /\*\*Icebreaker Questions/i,           // Match "**Icebreaker Questions"
+    /---/,                                  // Match plain "---"
+  ];
+
+  for (const pattern of patterns) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      return summary.substring(0, match.index).trim();
+    }
+  }
+
+  // If no separator found, return original
+  return summary;
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
@@ -54,6 +78,8 @@ export default function ProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showResponses, setShowResponses] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [shareProfileSummary, setShareProfileSummary] = useState(true);
+  const [shareResponses, setShareResponses] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -159,15 +185,26 @@ export default function ProfileScreen() {
         transcript: a.transcript!,
       }));
 
-      // Generate summary using Claude
-      const summary = await generateProfile(questionAnswers, {
+      // Generate summary using Claude with user's actual name
+      const summary = await generateProfile(questionAnswers, token!, {
         maxWords: 400,
         style: 'narrative',
+        firstName: auth.user?.firstName,
+        lastName: auth.user?.lastName,
       });
 
       // Save to AsyncStorage
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);
+
+      // Unpublish profile when regenerating (requires re-sharing)
+      await AsyncStorage.setItem('profile_published', 'false');
+      setIsPublished(false);
+
+      Alert.alert(
+        'Profile Generated!',
+        'Your new profile is ready. Review it and click "Share Profile" when you\'re ready to publish.'
+      );
     } catch (error) {
       console.error('Failed to generate summary:', error);
       Alert.alert(
@@ -289,10 +326,10 @@ export default function ProfileScreen() {
     try {
       setIsPublishing(true);
 
-      // Prepare profile data
+      // Prepare profile data based on checkbox selections
       const profileData = {
-        profileSummary: profileSummary || null,
-        profileAnswers: answers,
+        profileSummary: shareProfileSummary ? (profileSummary || null) : null,
+        profileAnswers: shareResponses ? answers : [],
         profilePublished: true,
       };
 
@@ -580,71 +617,151 @@ export default function ProfileScreen() {
           </View>
 
           {/* Progress Tracker */}
-          <View style={styles.progressCard}>
-            {/* Tappable headline area - goes to question category page */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('QuestionFlowStack')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.progressHeadline}>
-                {totalAnswers >= 4
-                  ? 'Tell us more about yourself:'
-                  : `${totalAnswers}/4 questions answered`
-                }
-              </Text>
-            </TouchableOpacity>
-
-            {/* Individual category circles - go directly to that category's questions */}
-            <View style={styles.sectionsContainer}>
-              {SECTIONS.map((section) => {
-                const answerCount = answerCounts[section.id] || 0;
-                const hasAnswers = answerCount > 0;
-                return (
-                  <TouchableOpacity
-                    key={section.id}
-                    style={styles.sectionIndicator}
-                    onPress={() => {
-                      // Navigate to the nested screen inside QuestionFlowStack
-                      navigation.navigate('QuestionFlowStack', {
-                        screen: 'SectionQuestions',
-                        params: {
-                          sectionId: section.id,
-                          sectionName: section.name,
-                          sectionIcon: section.icon,
-                          sectionColor: section.color,
-                        },
-                      });
-                    }}
-                    activeOpacity={0.6}
-                  >
-                    <View
-                      style={[
-                        styles.sectionFeatherContainer,
-                        {
-                          backgroundColor: hasAnswers ? section.color : '#e5e7eb',
-                        },
-                      ]}
-                    >
-                      <Text style={[
-                        styles.sectionCount,
-                        { color: hasAnswers ? 'white' : '#9ca3af' }
-                      ]}>
-                        {answerCount}
-                      </Text>
-                    </View>
-                    <Text style={styles.sectionLabel}>{section.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          <TouchableOpacity
+            style={styles.progressCard}
+            onPress={() => navigation.navigate('QuestionFlowStack')}
+            activeOpacity={0.7}
+          >
+            {/* Profile Strength Indicator */}
+            <View style={styles.strengthContainer}>
+              <Text style={styles.strengthLabel}>Profile Strength</Text>
+              <View style={styles.strengthBar}>
+                <View
+                  style={[
+                    styles.strengthFill,
+                    {
+                      width: `${(totalAnswers / 16) * 100}%`,
+                      backgroundColor: getStrengthColor(getStrengthLevel(totalAnswers)),
+                    },
+                  ]}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* AI Profile Summary */}
+            {/* Answer More Questions Button */}
+            <View style={styles.answerMoreButton}>
+              <Feather name="plus-circle" size={16} color="#9ca3af" />
+              <Text style={styles.answerMoreButtonText}>Answer more questions</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Published Status Badge */}
+          {isPublished && (
+            <View style={styles.publishedContainer}>
+              <View style={styles.publishedBadge}>
+                <Feather name="check-circle" size={20} color="white" />
+                <Text style={styles.publishedText}>Profile Published</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.unpublishButton}
+                onPress={async () => {
+                  Alert.alert(
+                    'Unpublish Profile',
+                    'Your profile will be hidden from your circle. You can re-share it anytime.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Unpublish',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            // Update backend to unpublish
+                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                profileSummary: null,
+                                profileAnswers: [],
+                                profilePublished: false,
+                              }),
+                            });
+
+                            if (response.ok) {
+                              await AsyncStorage.setItem('profile_published', 'false');
+                              setIsPublished(false);
+                              Alert.alert('Success', 'Your profile is now private.');
+                            } else {
+                              Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
+                            }
+                          } catch (error) {
+                            console.error('Unpublish error:', error);
+                            Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <Feather name="eye-off" size={16} color="#6b7280" />
+                <Text style={styles.unpublishButtonText}>Make Private</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Share Profile Button - Show above profile when summary exists but not published */}
+          {!isPublished && profileSummary && totalAnswers >= 4 && (
+            <View style={styles.profileActionContainer}>
+              <Text style={styles.shareQuestion}>What would you like to share?</Text>
+
+              {/* Checkbox for Profile Summary */}
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setShareProfileSummary(!shareProfileSummary)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.checkbox}>
+                  {shareProfileSummary && (
+                    <Feather name="check" size={16} color="#3b82f6" />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>Profile Summary</Text>
+              </TouchableOpacity>
+
+              {/* Checkbox for Your Responses */}
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setShareResponses(!shareResponses)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.checkbox}>
+                  {shareResponses && (
+                    <Feather name="check" size={16} color="#3b82f6" />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>Your Responses</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.publishButton,
+                  (!shareProfileSummary && !shareResponses) && styles.publishButtonDisabled
+                ]}
+                onPress={handlePublishProfile}
+                disabled={isPublishing || (!shareProfileSummary && !shareResponses)}
+              >
+                {isPublishing ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Feather name="share-2" size={20} color="white" />
+                    <Text style={styles.publishButtonText}>Share Profile</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Profile Summary */}
           {profileSummary && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryHeader}>
                 <Feather name="user" size={20} color="#3b82f6" />
-                <Text style={styles.summaryTitle}>AI Profile Summary</Text>
+                <Text style={styles.summaryTitle}>Profile Summary</Text>
               </View>
 
               {isEditingProfile ? (
@@ -659,7 +776,9 @@ export default function ProfileScreen() {
                   autoFocus
                 />
               ) : (
-                <Text style={styles.summaryText}>{profileSummary}</Text>
+                <Text style={styles.summaryText}>
+                  {stripIcebreakerQuestions(profileSummary)}
+                </Text>
               )}
 
               <View style={styles.summaryActions}>
@@ -679,10 +798,55 @@ export default function ProfileScreen() {
                       style={styles.saveButton}
                       onPress={async () => {
                         try {
-                          await AsyncStorage.setItem('profile_summary', editedSummary);
-                          setProfileSummary(editedSummary);
+                          // Preserve icebreaker questions from original summary
+                          let finalSummary = editedSummary.trim();
+
+                          // Find where icebreaker section starts in original
+                          const patterns = [
+                            /---\s*\*?\*?Icebreaker Questions/i,
+                            /\*\*Icebreaker Questions/i,
+                            /---/,
+                          ];
+
+                          for (const pattern of patterns) {
+                            const match = profileSummary.match(pattern);
+                            if (match && match.index !== undefined) {
+                              const icebreakerSection = profileSummary.substring(match.index);
+                              finalSummary = `${editedSummary.trim()}\n\n${icebreakerSection}`;
+                              break;
+                            }
+                          }
+
+                          // Save locally
+                          await AsyncStorage.setItem('profile_summary', finalSummary);
+                          setProfileSummary(finalSummary);
                           setIsEditingProfile(false);
-                          Alert.alert('Success', 'Profile updated!');
+
+                          // If profile is published, auto-update the published version
+                          if (isPublished) {
+                            const profileData = {
+                              profileSummary: shareProfileSummary ? finalSummary : null,
+                              profileAnswers: shareResponses ? answers : [],
+                              profilePublished: true,
+                            };
+
+                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify(profileData),
+                            });
+
+                            if (response.ok) {
+                              Alert.alert('Success', 'Your published profile has been updated!');
+                            } else {
+                              Alert.alert('Success', 'Profile saved locally. Please re-share to update your published profile.');
+                            }
+                          } else {
+                            Alert.alert('Success', 'Profile updated!');
+                          }
                         } catch (_error) {
                           Alert.alert('Error', 'Failed to save changes');
                         }
@@ -697,7 +861,7 @@ export default function ProfileScreen() {
                     <TouchableOpacity
                       style={styles.editButton}
                       onPress={() => {
-                        setEditedSummary(profileSummary);
+                        setEditedSummary(stripIcebreakerQuestions(profileSummary));
                         setIsEditingProfile(true);
                       }}
                     >
@@ -724,42 +888,26 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Profile Action Button - Create Draft or Share Profile */}
-          {!isPublished && totalAnswers >= 4 && (
+          {/* Create Profile Draft Button - Show only when no summary exists */}
+          {!isPublished && !profileSummary && totalAnswers >= 4 && (
             <View style={styles.profileActionContainer}>
               <TouchableOpacity
                 style={styles.publishButton}
-                onPress={profileSummary ? handlePublishProfile : handleGenerateSummary}
-                disabled={profileSummary ? isPublishing : generatingSummary}
+                onPress={handleGenerateSummary}
+                disabled={generatingSummary}
               >
-                {(profileSummary ? isPublishing : generatingSummary) ? (
+                {generatingSummary ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
                   <>
-                    <Feather
-                      name={profileSummary ? "share-2" : "file-text"}
-                      size={20}
-                      color="white"
-                    />
-                    <Text style={styles.publishButtonText}>
-                      {profileSummary ? 'Share Profile' : 'Create Profile Draft'}
-                    </Text>
+                    <Feather name="file-text" size={20} color="white" />
+                    <Text style={styles.publishButtonText}>Create Profile Draft</Text>
                   </>
                 )}
               </TouchableOpacity>
-              {!profileSummary && (
-                <Text style={styles.aiCaption}>
-                  Our AI model is trained and secure to create your personalized profile
-                </Text>
-              )}
-            </View>
-          )}
-
-          {/* Published Status Badge */}
-          {isPublished && (
-            <View style={styles.publishedBadge}>
-              <Feather name="check-circle" size={20} color="#10b981" />
-              <Text style={styles.publishedText}>Profile Published</Text>
+              <Text style={styles.aiCaption}>
+                Our AI model is trained and secure to create your personalized profile
+              </Text>
             </View>
           )}
 
@@ -937,6 +1085,51 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  strengthContainer: {
+    marginBottom: 16,
+  },
+  strengthLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  answerMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  answerMoreButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#9ca3af',
+  },
+  strengthBar: {
+    height: 8,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  strengthText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'left',
+  },
+  categoryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 16,
+    textAlign: 'left',
   },
   sectionsContainer: {
     flexDirection: 'row',
@@ -1147,13 +1340,24 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
   profileActionContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   publishButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10b981',
+    backgroundColor: '#3b82f6',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -1187,21 +1391,47 @@ const styles = StyleSheet.create({
   publishButtonTextDisabled: {
     color: '#9CA3AF',
   },
+  publishedContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
   publishedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#10b981',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 8,
     gap: 8,
   },
   publishedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#10b981',
+    color: 'white',
+  },
+  unpublishButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+  },
+  unpublishButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
   },
   profileBadgeContainer: {
     position: 'relative',
@@ -1234,5 +1464,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     marginTop: 4,
+  },
+  shareQuestion: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  checkboxLabel: {
+    fontSize: 15,
+    color: '#374151',
+    fontWeight: '500',
   },
 });
