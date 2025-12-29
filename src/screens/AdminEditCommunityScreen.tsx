@@ -15,7 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
-import { useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 
 interface GeneratedCode {
   organization: string;
@@ -23,9 +23,13 @@ interface GeneratedCode {
   managerEmail: string;
 }
 
-export default function AdminCreateCommunityScreen() {
+export default function AdminEditCommunityScreen() {
   const { auth } = useAuth();
+  const route = useRoute();
   const navigation = useNavigation();
+
+  // Get communityId from params - REQUIRED for edit mode
+  const communityId = (route.params as any)?.communityId;
 
   const [organization, setOrganization] = useState('');
   const [division, setDivision] = useState('');
@@ -33,8 +37,57 @@ export default function AdminCreateCommunityScreen() {
   const [managerEmail, setManagerEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
+  const [fetchingData, setFetchingData] = useState(true);
 
-  const handleCreateCommunity = async () => {
+  // Fetch community data on mount
+  useEffect(() => {
+    if (!communityId) {
+      Alert.alert('Error', 'No community ID provided');
+      navigation.goBack();
+      return;
+    }
+
+    fetchCommunityData(communityId);
+  }, [communityId]);
+
+  const fetchCommunityData = async (id: string) => {
+    setFetchingData(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/communities/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOrganization(data.community.organization || '');
+        setDivision(data.community.division || '');
+        setAccountOwner(data.community.accountOwner || '');
+        setManagerEmail(data.community.managerEmail || '');
+
+        // Show existing code
+        setGeneratedCode({
+          organization: data.community.organization,
+          code: data.invitationCode,
+          managerEmail: data.community.managerEmail
+        });
+      } else {
+        Alert.alert('Error', data.error || 'Failed to load community');
+        navigation.goBack();
+      }
+    } catch (error) {
+      console.error('Fetch community error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+      navigation.goBack();
+    } finally {
+      setFetchingData(false);
+    }
+  };
+
+  const handleUpdateCommunity = async () => {
     // Validation
     if (!organization.trim()) {
       Alert.alert('Error', 'Organization name is required');
@@ -61,8 +114,8 @@ export default function AdminCreateCommunityScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/communities`, {
-        method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/api/admin/communities/${communityId}`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${auth.token}`,
           'Content-Type': 'application/json',
@@ -78,17 +131,19 @@ export default function AdminCreateCommunityScreen() {
       const data = await response.json();
 
       if (data.success) {
-        // Store generated code
+        // Update generated code display
         setGeneratedCode({
           organization: data.community.organization,
           code: data.invitationCode,
           managerEmail: managerEmail.trim()
         });
+
+        Alert.alert('Success', 'Community updated successfully');
       } else {
-        Alert.alert('Error', data.error || 'Failed to create community');
+        Alert.alert('Error', data.error || 'Failed to update community');
       }
     } catch (error) {
-      console.error('Community operation error:', error);
+      console.error('Update community error:', error);
       Alert.alert('Error', 'Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -104,6 +159,15 @@ export default function AdminCreateCommunityScreen() {
     Alert.alert('Success', 'Invitation code copied to clipboard');
   };
 
+  if (fetchingData) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={styles.loadingText}>Loading community...</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -116,9 +180,17 @@ export default function AdminCreateCommunityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>CREATE COMMUNITY</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Feather name="chevron-left" size={24} color="#111827" />
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>EDIT COMMUNITY</Text>
           <Text style={styles.headerSubtitle}>
-            System will generate a unique invitation code
+            Update community details and invitation code
           </Text>
         </View>
 
@@ -181,15 +253,15 @@ export default function AdminCreateCommunityScreen() {
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleCreateCommunity}
+            onPress={handleUpdateCommunity}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
               <>
-                <Feather name="key" size={20} color="#ffffff" />
-                <Text style={styles.buttonText}>Generate Code</Text>
+                <Feather name="save" size={20} color="#ffffff" />
+                <Text style={styles.buttonText}>Update Community</Text>
               </>
             )}
           </TouchableOpacity>
@@ -199,7 +271,7 @@ export default function AdminCreateCommunityScreen() {
             <View style={styles.generatedSection}>
               <View style={styles.generatedHeader}>
                 <Feather name="check-circle" size={20} color="#10B981" />
-                <Text style={styles.generatedTitle}>Code Generated Successfully!</Text>
+                <Text style={styles.generatedTitle}>Current Invitation Code</Text>
               </View>
 
               <View style={styles.codeGroup}>
@@ -239,6 +311,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9fafb',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6b7280',
+  },
   scrollView: {
     flex: 1,
   },
@@ -250,6 +333,17 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 24,
     backgroundColor: '#ffffff',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginLeft: -4,
+  },
+  backButtonText: {
+    fontSize: 17,
+    color: '#111827',
+    marginLeft: 4,
   },
   headerTitle: {
     fontSize: 28,

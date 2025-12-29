@@ -129,9 +129,29 @@ router.get('/communities', authenticateToken, requireAdmin, async (req: AuthRequ
       }
     });
 
+    // Enhance communities with published profile counts
+    const enhancedCommunities = await Promise.all(
+      communities.map(async (community) => {
+        const publishedCount = await prisma.user.count({
+          where: {
+            communityId: community.id,
+            profilePublished: true
+          }
+        });
+
+        return {
+          ...community,
+          _count: {
+            ...community._count,
+            publishedProfiles: publishedCount
+          }
+        };
+      })
+    );
+
     res.json({
       success: true,
-      communities
+      communities: enhancedCommunities
     });
   } catch (error) {
     console.error('Fetch communities error:', error);

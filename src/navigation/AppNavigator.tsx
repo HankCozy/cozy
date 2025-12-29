@@ -19,6 +19,7 @@ import MemberProfileScreen from '../screens/MemberProfileScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
+import AdminEditCommunityScreen from '../screens/AdminEditCommunityScreen';
 import AccountScreen from '../screens/AccountScreen';
 
 // Define navigation types
@@ -61,6 +62,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
   MemberProfile: { userId: string };
+  EditCommunity: { communityId: string };
   Onboarding: {
     user?: {
       id: string;
@@ -125,7 +127,7 @@ function TabsNavigator() {
           name="AdminDashboard"
           component={AdminDashboardScreen}
           options={{
-            tabBarLabel: 'Communities',
+            tabBarLabel: 'Active Circles',
             tabBarIcon: ({ color, size }) => (
               <Feather name="grid" size={size} color={color} />
             ),
@@ -135,7 +137,7 @@ function TabsNavigator() {
           name="CreateCommunity"
           component={AdminCreateCommunityScreen}
           options={{
-            tabBarLabel: 'Create',
+            tabBarLabel: 'Create Circle',
             tabBarIcon: ({ color, size }) => (
               <Feather name="plus-circle" size={size} color={color} />
             ),
@@ -229,6 +231,7 @@ function AppNavigator() {
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
+      <RootStack.Screen name="EditCommunity" component={AdminEditCommunityScreen} />
       <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
     </RootStack.Navigator>
   );
