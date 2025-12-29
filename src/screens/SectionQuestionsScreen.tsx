@@ -39,6 +39,22 @@ const QUESTIONS_BY_SECTION: Record<string, string[]> = {
   ],
 };
 
+// Export all 16 questions in section order for onboarding
+export const ALL_QUESTIONS_ORDERED = [
+  ...QUESTIONS_BY_SECTION.identity,
+  ...QUESTIONS_BY_SECTION.relationships,
+  ...QUESTIONS_BY_SECTION.lifestyle,
+  ...QUESTIONS_BY_SECTION.community,
+];
+
+// Also export section boundaries for tracking
+export const SECTION_BOUNDARIES = {
+  identity: { start: 0, end: 3 },
+  relationships: { start: 4, end: 7 },
+  lifestyle: { start: 8, end: 11 },
+  community: { start: 12, end: 15 },
+};
+
 export default function SectionQuestionsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();

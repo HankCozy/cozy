@@ -51,7 +51,11 @@ export type AppTabsParamList = {
 export type QuestionFlowParamList = {
   QuestionFlow: undefined;
   SectionQuestions: { sectionId: string; sectionName: string };
-  AnswerQuestion: { sectionId: string; questions: any[] };
+  AnswerQuestion: {
+    sectionId: string;
+    questions: string[];
+    isFirstTimeOnboarding?: boolean;
+  };
 };
 
 export type RootStackParamList = {
