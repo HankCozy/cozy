@@ -28,6 +28,7 @@ interface Community {
   };
   _count: {
     users: number;
+    publishedProfiles: number;
   };
 }
 
@@ -128,7 +129,7 @@ export default function AdminDashboardScreen() {
               <TouchableOpacity
                 key={community.id}
                 style={styles.communityCard}
-                onPress={() => navigation.navigate('CreateCommunity' as never, { communityId: community.id } as never)}
+                onPress={() => navigation.navigate('EditCommunity' as never, { communityId: community.id } as never)}
                 activeOpacity={0.7}
               >
                 <View style={styles.communityHeader}>
@@ -144,11 +145,19 @@ export default function AdminDashboardScreen() {
                 </View>
 
                 <View style={styles.communityDetails}>
-                  {/* Member Count */}
+                  {/* Registered Members Count */}
                   <View style={styles.detailRow}>
                     <Feather name="users" size={14} color="#6b7280" />
                     <Text style={styles.detailText}>
-                      {community._count.users} {community._count.users === 1 ? 'member' : 'members'}
+                      {community._count.users} registered {community._count.users === 1 ? 'member' : 'members'}
+                    </Text>
+                  </View>
+
+                  {/* Published Profiles Count */}
+                  <View style={styles.detailRow}>
+                    <Feather name="check-circle" size={14} color="#10b981" />
+                    <Text style={styles.detailText}>
+                      {community._count.publishedProfiles} published {community._count.publishedProfiles === 1 ? 'profile' : 'profiles'}
                     </Text>
                   </View>
 
