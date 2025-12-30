@@ -121,13 +121,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const url = `${API_BASE_URL}/api/auth/login`;
+      console.log('[AUTH] Login URL:', url);
+      console.log('[AUTH] API_BASE_URL:', API_BASE_URL);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
+      console.log('[AUTH] Response status:', response.status);
       const data = await response.json();
+      console.log('[AUTH] Response data:', data);
 
       if (data.success) {
         // SECURITY: Save to SecureStore (encrypted storage)
@@ -139,8 +145,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         return { success: false, error: data.error };
       }
-    } catch (_error) {
-      return { success: false, error: 'Network error - make sure your backend is running' };
+    } catch (error) {
+      console.error('[AUTH] Login error:', error);
+      console.error('[AUTH] Error details:', JSON.stringify(error, null, 2));
+      return { success: false, error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}. API URL: ${API_BASE_URL}` };
     }
   };
 
