@@ -17,9 +17,6 @@
       }
     },
     "production": {
-      "ios": {
-        "bundleIdentifier": "com.cozycircle.app"
-      },
       "android": {
         "buildType": "apk"
       }
