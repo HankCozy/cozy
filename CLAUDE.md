@@ -97,6 +97,7 @@ These diagrams show how the mobile app, backend API, and external services (Supa
 
 **Backend:**
 - **Node.js + Express**: RESTful API server
+- **Railway**: Cloud hosting platform with automatic deployments
 - **Prisma ORM**: Type-safe database queries and migrations
 - **Supabase PostgreSQL**: Cloud-hosted database with automatic backups
 - **bcrypt**: Password hashing (12 salt rounds)
@@ -279,14 +280,33 @@ The project includes a production-ready Node.js backend with Prisma ORM and Supa
 ```
 Mobile App (React Native)
     ↓
-Express API Server (localhost:3001)
+Express API Server (Railway - Production)
     ↓
 Prisma ORM (type-safe queries)
     ↓
 Supabase PostgreSQL (cloud database)
 ```
 
-### First Time Setup
+**Production Deployment:**
+- **Backend URL**: Deployed on Railway (cloud hosting)
+- **Database**: Supabase PostgreSQL (cloud-hosted)
+- **Mobile App**: Connects to Railway backend via API_URL in app configuration
+
+### Railway Deployment
+
+The backend is deployed and running on Railway:
+- Automatic deployments from main branch
+- Environment variables configured in Railway dashboard
+- Health check available at `/health` endpoint
+- No local backend server needed for mobile app testing
+
+**Test Credentials (works with Railway deployment):**
+- Email: `test@example.com`
+- Password: `testpassword123`
+
+### Local Development Setup (Optional)
+
+If you want to run the backend locally for development:
 
 **1. Create Supabase Project**
 - Go to https://supabase.com and create a new project
@@ -322,9 +342,9 @@ npm run db:seed       # Add test data
 npm run dev           # Runs at http://localhost:3001
 ```
 
-### Verify Setup
+### Verify Local Setup
 
-Test the API endpoints:
+Test the local API endpoints:
 ```bash
 # Health check
 curl http://localhost:3001/health
@@ -335,17 +355,9 @@ curl -X POST http://localhost:3001/api/auth/login \
   -d '{"email":"test@example.com","password":"testpassword123"}'
 ```
 
-Backend runs at `http://localhost:3001`
+Local backend runs at `http://localhost:3001`
 
-### Test Credentials
-
-After seeding, use these for testing:
-
-**Login:**
-- Email: `test@example.com`
-- Password: `testpassword123`
-
-**Invitation Codes:**
+**Invitation Codes (available in Railway deployment):**
 - `ALPHA2025` - Member for Test Community Alpha
 - `MANAGER01` - Manager for Test Community Alpha
 - `BETA2025` - Member for Test Community Beta
@@ -417,11 +429,11 @@ npm run db:studio
 
 ## Deployment
 
-- **Mobile App**: Expo managed workflow for easy deployment to App Store and Google Play
-- **Backend**: Node.js + Prisma + Supabase PostgreSQL (cloud-hosted)
+- **Mobile App**: Expo EAS Build for iOS and Android (production APK/IPA builds)
+- **Backend**: Deployed on Railway with automatic deployments from main branch
 - **Database**: Supabase PostgreSQL with automatic backups and scaling
-- **Development Builds**: Native builds for testing and development
-- **Environment**: Separate configs for development and production
+- **API**: Railway backend connected to Supabase database
+- **Environment**: Production environment configured via Railway dashboard
 
 ---
 
