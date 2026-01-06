@@ -77,12 +77,18 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 5. Rate limiting - Strict for auth endpoints
+// 5. Rate limiting - Strict for auth endpoints (email-based)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Only 5 attempts per 15 minutes
-  message: { error: 'Too many login attempts, please try again later' },
+  message: { error: "Too many login attempts. You're account is temporarily locked." },
   skipSuccessfulRequests: true, // Only count failed attempts
+  keyGenerator: (req) => {
+    // Use email from request body as the key instead of IP
+    return req.body.email || req.ip; // Fallback to IP if no email provided
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // Apply general rate limit to all API routes
