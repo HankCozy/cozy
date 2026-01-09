@@ -556,6 +556,17 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowSettingsMenu(false);
+                navigation.navigate('PrivacyPolicy');
+              }}
+            >
+              <Feather name="shield" size={24} color="#10B981" />
+              <Text style={styles.menuItemText}>Privacy Policy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.menuItem, styles.menuItemLast]}
               onPress={() => {
                 setShowSettingsMenu(false);

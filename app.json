@@ -130,7 +130,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
-      "package": "com.cozycircle.app"
+      "package": "com.cozycircle.app",
+      "usesCleartextTraffic": false
     },
     "web": {
       "favicon": "./assets/favicon.png"

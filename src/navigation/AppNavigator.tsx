@@ -21,6 +21,7 @@ import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
 import AdminEditCommunityScreen from '../screens/AdminEditCommunityScreen';
 import AccountScreen from '../screens/AccountScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -73,6 +74,7 @@ export type RootStackParamList = {
     };
     token?: string;
   };
+  PrivacyPolicy: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -233,6 +235,7 @@ function AppNavigator() {
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
       <RootStack.Screen name="EditCommunity" component={AdminEditCommunityScreen} />
       <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+      <RootStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </RootStack.Navigator>
   );
 }
