@@ -13,46 +13,45 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Sample questions for each section
 const QUESTIONS_BY_SECTION: Record<string, string[]> = {
-  identity: [
-    'What are three words that best describe you?',
-    'What is a passion or hobby that defines you?',
-    'What is a value you refuse to compromise on?',
-    'What is something you are working to improve about yourself?',
+  intro_identity: [
+    "Can you tell me your name—and is there a good story behind it?",
+    "You've heard the expression that age is just a number. How old are you in your head? What makes you say that?",
+    "Where were you born and raised? Where else have you lived along the way?",
+    "Do you have a current co-pilot on life's journey, and who makes up your close family?",
+  ],
+  interests: [
+    "When you're not busy, how do you enjoy spending your free time? Got any hobbies or passions?",
+    "What are you watching, reading, or listening to these days?",
+    "What's a favorite place you've traveled—or a dream destination you'd love to visit—and why?",
+    "Are you part of any groups, clubs, or organizations that you're passionate about?",
+    "Tell me about something that brings you joy:",
   ],
   relationships: [
-    'What do you value most in friendships?',
-    'How do you show care for the people you love?',
-    'What is your approach to conflict resolution?',
-    'What role does family play in your life?',
-  ],
-  lifestyle: [
-    'What does a perfect weekend look like for you?',
-    'What are your daily non-negotiables?',
-    'How do you maintain work-life balance?',
-    'What is a recent change you have made to improve your lifestyle?',
+    "Who is your best friend, and what three words would they use to describe you?",
+    "Would you call yourself more of a homebody or a social butterfly—and why?",
+    "Who was one of the greatest influences on your life, and how did they shape you?",
+    "Tell me something about you that most people don't know – a hidden skill, an interesting life experience, an accomplishment.",
   ],
   community: [
-    'What kind of community are you looking to be part of?',
-    'How do you like to contribute to your community?',
-    'What is important to you in a neighbor or community member?',
-    'What community activities interest you most?',
+    "What's one thing you want your community members to know about you?",
+    "Finally, what does being a part of this community mean to you?",
   ],
 };
 
-// Export all 16 questions in section order for onboarding
+// Export all 15 questions in section order for onboarding
 export const ALL_QUESTIONS_ORDERED = [
-  ...QUESTIONS_BY_SECTION.identity,
+  ...QUESTIONS_BY_SECTION.intro_identity,
+  ...QUESTIONS_BY_SECTION.interests,
   ...QUESTIONS_BY_SECTION.relationships,
-  ...QUESTIONS_BY_SECTION.lifestyle,
   ...QUESTIONS_BY_SECTION.community,
 ];
 
 // Also export section boundaries for tracking
 export const SECTION_BOUNDARIES = {
-  identity: { start: 0, end: 3 },
-  relationships: { start: 4, end: 7 },
-  lifestyle: { start: 8, end: 11 },
-  community: { start: 12, end: 15 },
+  intro_identity: { start: 0, end: 3 },
+  interests: { start: 4, end: 8 },
+  relationships: { start: 9, end: 12 },
+  community: { start: 13, end: 14 },
 };
 
 export default function SectionQuestionsScreen() {
