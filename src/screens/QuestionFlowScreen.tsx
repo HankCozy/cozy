@@ -88,7 +88,7 @@ export default function QuestionFlowScreen() {
               }
             >
               <View style={[styles.iconContainer, { backgroundColor: section.color }]}>
-                <Feather name={section.icon} size={32} color="white" />
+                <Feather name={section.icon} size={26} color="white" />
               </View>
               <View style={styles.sectionContent}>
                 <View>
@@ -100,11 +100,6 @@ export default function QuestionFlowScreen() {
                   )}
                 </View>
                 <View style={styles.rightSection}>
-                  {isCompleted && (
-                    <View style={styles.completedBadge}>
-                      <Feather name="check" size={16} color="#10b981" />
-                    </View>
-                  )}
                   <Feather name="chevron-right" size={24} color="#9ca3af" />
                 </View>
               </View>
@@ -180,9 +175,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -194,7 +189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionName: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '600',
     color: '#111827',
   },

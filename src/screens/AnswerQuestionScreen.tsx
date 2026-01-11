@@ -341,37 +341,39 @@ export default function AnswerQuestionScreen() {
 
         {/* Center content area - scrollable */}
         <View style={styles.centerContent}>
-          {/* Initial state - show record button */}
-          {inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing && !isRecording && (
+          {/* Recording UI - button stays in same position, changes color only */}
+          {(inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing) && (
             <View style={styles.recordButtonContainer}>
-              <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
-                <Feather name="mic" size={32} color="white" />
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  isRecording && styles.recordingButton
+                ]}
+                onPress={isRecording ? stopRecording : startRecording}
+              >
+                <Feather
+                  name={isRecording ? "square" : "mic"}
+                  size={32}
+                  color="white"
+                />
               </TouchableOpacity>
-              <View style={styles.hintTextContainer}>
-                <Text style={styles.buttonHintText}>Tap to start recording or </Text>
-                <TouchableOpacity onPress={handleTypeInstead}>
-                  <Text style={styles.typeLink}>type instead</Text>
-                </TouchableOpacity>
-              </View>
-              {isFirstTimeOnboarding && currentQuestionIndex === 0 && (
+              {!isRecording && (
+                <View style={styles.hintTextContainer}>
+                  <Text style={styles.buttonHintText}>Tap to start recording or </Text>
+                  <TouchableOpacity onPress={handleTypeInstead}>
+                    <Text style={styles.typeLink}>type instead</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {isRecording && (
+                <Text style={styles.centerHintText}>Recording</Text>
+              )}
+              <Waveform isRecording={isRecording} />
+              {isFirstTimeOnboarding && currentQuestionIndex === 0 && !isRecording && (
                 <View style={styles.privacyBox}>
                   <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
                 </View>
               )}
-            </View>
-          )}
-
-          {/* Recording state - waveform + stop button */}
-          {isRecording && (
-            <View style={styles.recordingContainer}>
-              <Waveform isRecording={isRecording} />
-              <TouchableOpacity
-                style={[styles.recordButton, styles.recordingButton]}
-                onPress={stopRecording}
-              >
-                <Feather name="square" size={32} color="white" />
-              </TouchableOpacity>
-              <Text style={styles.centerHintText}>Recording</Text>
             </View>
           )}
 
@@ -479,36 +481,17 @@ export default function AnswerQuestionScreen() {
             </View>
           )}
 
-          {/* Navigation controls */}
-          <View style={styles.navControls}>
-            {!isFirstTimeOnboarding && (
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.navButtonText}>Select Question</Text>
-              </TouchableOpacity>
-            )}
+          {/* View Profile link - only show when transcript is visible */}
+          {!isFirstTimeOnboarding && transcript && !isTranscribing && !isEditingTranscript && inputMode === 'idle' && (
             <TouchableOpacity
-              style={[
-                styles.navButton,
-                totalAnswers >= 4 && styles.navButtonActive,
-                isFirstTimeOnboarding && { flex: 1 },
-              ]}
+              style={styles.viewProfileLink}
               onPress={() => {
                 navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
               }}
             >
-              <Text
-                style={[
-                  styles.navButtonText,
-                  totalAnswers >= 4 && styles.navButtonTextActive,
-                ]}
-              >
-                View Profile
-              </Text>
+              <Text style={styles.viewProfileLinkText}>View Profile</Text>
             </TouchableOpacity>
-          </View>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -578,9 +561,7 @@ const styles = StyleSheet.create({
   recordButtonContainer: {
     alignItems: 'center',
     marginTop: 60,
-  },
-  recordingContainer: {
-    alignItems: 'center',
+    minHeight: 200,
   },
   playbackContainer: {
     alignItems: 'center',
@@ -865,5 +846,15 @@ const styles = StyleSheet.create({
   },
   navButtonTextActive: {
     color: '#84cc16',
+  },
+  viewProfileLink: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  viewProfileLinkText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6b7280',
+    textDecorationLine: 'underline',
   },
 });
