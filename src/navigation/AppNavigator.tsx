@@ -42,6 +42,7 @@ export type AuthStackParamList = {
 
 export type AppTabsParamList = {
   Profile: undefined;
+  Questions: undefined;
   Community: undefined;
   Dashboard?: undefined;
   AdminDashboard?: undefined;
@@ -191,7 +192,7 @@ function TabsNavigator() {
     );
   }
 
-  // MEMBER: Regular experience (Profile + Your Circle)
+  // MEMBER: Regular experience (Profile + Answer Questions + Your Circle)
   return (
     <AppTabs.Navigator
       screenOptions={{
@@ -208,6 +209,22 @@ function TabsNavigator() {
             <Feather name="user" size={size} color={color} />
           ),
         }}
+      />
+      <AppTabs.Screen
+        name="Questions"
+        component={QuestionFlowNavigator}
+        options={{
+          tabBarLabel: 'Questions',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="mic" size={size} color={color} />
+          ),
+        }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('QuestionFlowStack');
+          },
+        })}
       />
       <AppTabs.Screen
         name="Community"
