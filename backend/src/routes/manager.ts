@@ -73,7 +73,7 @@ router.get('/stats', authenticateToken, requireManagerOrAdmin, async (req: AuthR
     });
 
     // Calculate completion stats for each member
-    const TOTAL_QUESTIONS = 4; // Update this if question count changes
+    const TOTAL_QUESTIONS = 15; // Update this if question count changes
 
     const memberStats = members.map(member => {
       const answersData = member.profileAnswers as any;

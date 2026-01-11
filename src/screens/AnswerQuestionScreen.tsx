@@ -28,9 +28,9 @@ import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
 
 // Helper to determine which section a question belongs to
 function getSectionIdForQuestionIndex(index: number): string {
-  if (index <= SECTION_BOUNDARIES.identity.end) return 'identity';
+  if (index <= SECTION_BOUNDARIES.intro_identity.end) return 'intro_identity';
+  if (index <= SECTION_BOUNDARIES.interests.end) return 'interests';
   if (index <= SECTION_BOUNDARIES.relationships.end) return 'relationships';
-  if (index <= SECTION_BOUNDARIES.lifestyle.end) return 'lifestyle';
   return 'community';
 }
 

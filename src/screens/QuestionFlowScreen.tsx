@@ -12,10 +12,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SECTIONS = [
-  { id: 'identity', name: 'Identity', icon: 'user', color: '#3b82f6' },
-  { id: 'relationships', name: 'Relationships', icon: 'heart', color: '#ec4899' },
-  { id: 'lifestyle', name: 'Lifestyle', icon: 'coffee', color: '#10b981' },
-  { id: 'community', name: 'Community', icon: 'users', color: '#f59e0b' },
+  { id: 'intro_identity', name: 'Intro & Identity', icon: 'user', color: '#3b82f6' },
+  { id: 'interests', name: 'Free Time & Interests', icon: 'compass', color: '#10b981' },
+  { id: 'relationships', name: 'Relationships & Reflections', icon: 'heart', color: '#ec4899' },
+  { id: 'community', name: 'You & Your Community', icon: 'users', color: '#f59e0b' },
 ];
 
 export default function QuestionFlowScreen() {
