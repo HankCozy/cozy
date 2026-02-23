@@ -112,22 +112,33 @@ async function generateCircles(members: MemberProfile[]): Promise<CirclesResult>
 ## Member Profiles
 ${JSON.stringify(memberData, null, 2)}
 
-## Clustering Rules
+## CRITICAL: NO HALLUCINATION - STRICT GROUNDING RULES
 
-### Priority Hierarchy (in order of importance):
-1. **Joint Action** - "We could do X together" (Woodworking Club, Book Club Readers)
-2. **Niche Passion** - "We both love this specific thing" (1940s Film Buffs, Vinyl Collectors)
-3. **Shared Life-Stage** - "We're going through X" (First-time Grandparents, Empty Nesters)
-4. **Service/Skill** - "I can teach/help you with X" (Tech Help, Knitting Mentors)
+You must ONLY create circles based on interests/activities that members EXPLICITLY mentioned in their profile answers.
 
-### Constraints:
-- Each circle MUST have at least 3 members (discard circles with only 2)
+### What counts as "explicitly mentioned":
+- They used the exact word or a clear synonym (e.g., "birding", "bird watching", "I watch birds")
+- They described doing the activity (e.g., "I hike every weekend", "I bake cookies")
+- They expressed clear interest (e.g., "I love woodworking", "I'm passionate about gardening")
+
+### What does NOT count:
+- Inferred interests (e.g., assuming someone likes "nature" because they mentioned hiking once)
+- Vague associations (e.g., grouping someone in "crafts" because they mentioned sewing once)
+- Generalized categories that combine different activities
+- Interests you think they MIGHT have based on other traits
+
+### Clustering Constraints:
+- Each circle MUST have at least 3 members who EXPLICITLY mentioned that specific interest
 - Create 2-8 circles (not including "All")
-- Use specific, action-oriented names (not generic like "Nature Lovers")
-- Avoid redundant/obvious groupings for the community context
+- Circle names should use the ACTUAL words members used (e.g., "Birders" not "Nature Enthusiasts")
+- If fewer than 3 people explicitly mentioned an interest, do NOT create that circle
 - NO trauma/illness-centered groups
 - NO opinion-only or political groups
-- Prioritize activity-based interests over passive consumption
+
+### Priority for circle creation:
+1. Activities multiple people explicitly said they DO (hiking, baking, woodworking)
+2. Specific hobbies multiple people explicitly named (birding, photography, book clubs)
+3. Life stages multiple people explicitly described (grandparents, empty nesters)
 
 ### CRITICAL - Tagline Rules (NO HALLUCINATION):
 For each member in a circle, provide a contextual tagline that is STRICTLY grounded in their actual words:
