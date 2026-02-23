@@ -18,31 +18,39 @@ import ProfileBadge from '../components/ProfileBadge';
 import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 
-interface CommunityMember {
+interface CircleOverview {
   id: string;
-  firstName: string | null;
-  lastName: string | null;
-  role: 'MEMBER' | 'MANAGER';
-  profileSummary: string | null;
-  profileAnswers: any;
-  profilePictureUrl: string | null;
-  createdAt: string;
+  name: string;
+  count: number;
+}
+
+interface IcebreakerMatch {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  matchScore: number;
+  sharedInterests: string[];
+  icebreakerQuestions: string[];
 }
 
 export default function CommunityScreen() {
   const navigation = useNavigation<any>();
   const { auth, logout } = useAuth();
   const { user, token } = auth;
-  const [members, setMembers] = useState<CommunityMember[]>([]);
+  const [circles, setCircles] = useState<CircleOverview[]>([]);
+  const [icebreakerMatch, setIcebreakerMatch] = useState<IcebreakerMatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingIcebreaker, setLoadingIcebreaker] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
   const [answerCount, setAnswerCount] = useState(0);
   const [userProfilePictureUrl, setUserProfilePictureUrl] = useState<string | null>(null);
+  const [showAllCircles, setShowAllCircles] = useState(false);
+  const [smallCommunity, setSmallCommunity] = useState(false);
 
-  const fetchCommunityMembers = async () => {
+  const fetchCircles = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/communities/members`, {
+      const response = await fetch(`${API_BASE_URL}/api/communities/circles`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -50,8 +58,12 @@ export default function CommunityScreen() {
         },
       });
 
-      // Check for authentication errors
       if (response.status === 401 || response.status === 403) {
+        // User's profile isn't published - this is expected
+        if (response.status === 403) {
+          setCircles([]);
+          return;
+        }
         Alert.alert(
           'Session Expired',
           'Your session has expired. Please login again.',
@@ -63,19 +75,41 @@ export default function CommunityScreen() {
       const data = await response.json();
 
       if (data.success) {
-        setMembers(data.members);
+        setCircles(data.circles);
+        // Check if small community (only "All" circle returned)
+        setSmallCommunity(data.circles.length === 1 && data.circles[0].id === 'all');
       }
     } catch (error) {
-      console.error('Failed to fetch community members:', error);
+      console.error('Failed to fetch circles:', error);
+    }
+  };
+
+  const fetchIcebreakerMatch = async () => {
+    setLoadingIcebreaker(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/communities/icebreaker`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.match) {
+          setIcebreakerMatch(data.match);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch icebreaker match:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoadingIcebreaker(false);
     }
   };
 
   const determineProfileStatus = async () => {
     try {
-      // Check if user has any answers recorded
       const keys = await AsyncStorage.getAllKeys();
       const answerKeys = keys.filter((key) => key.startsWith('answer_'));
       const totalAnswers = answerKeys.length;
@@ -86,7 +120,6 @@ export default function CommunityScreen() {
         return;
       }
 
-      // Check if profile is published
       const profilePublishedStr = await AsyncStorage.getItem('profile_published');
       const isPublished = profilePublishedStr === 'true';
 
@@ -106,9 +139,8 @@ export default function CommunityScreen() {
     React.useCallback(() => {
       setLoading(true);
       determineProfileStatus();
-      fetchCommunityMembers();
+      fetchCircles();
 
-      // Fetch user's profile picture
       if (user?.id && token) {
         getProfilePictureUrl(user.id, token)
           .then(url => {
@@ -124,23 +156,42 @@ export default function CommunityScreen() {
             }
           });
       }
+
+      setLoading(false);
     }, [token, user?.id])
+  );
+
+  // Fetch icebreaker when profile is sharing
+  useFocusEffect(
+    React.useCallback(() => {
+      if (profileStatus === 'sharing') {
+        fetchIcebreakerMatch();
+      }
+    }, [profileStatus, token])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
     determineProfileStatus();
-    fetchCommunityMembers();
+    fetchCircles();
+    if (profileStatus === 'sharing') {
+      fetchIcebreakerMatch();
+    }
+    setRefreshing(false);
   };
 
-  const handleMemberPress = (member: CommunityMember) => {
-    navigation.navigate('MemberProfile', { userId: member.id });
+  const handleCirclePress = (circle: CircleOverview) => {
+    navigation.navigate('CircleDetail', { circleId: circle.id, circleName: circle.name });
   };
 
-  const getBadgeColor = () => {
-    if (answerCount === 0) return '#DC2626'; // Red
-    if (answerCount < 4) return '#F59E0B'; // Amber
-    return '#10B981'; // Green
+  const handleIcebreakerPress = () => {
+    if (icebreakerMatch) {
+      navigation.navigate('MemberProfile', { userId: icebreakerMatch.userId });
+    }
+  };
+
+  const handleRandomize = () => {
+    fetchIcebreakerMatch();
   };
 
   const getStatusText = () => {
@@ -150,11 +201,15 @@ export default function CommunityScreen() {
     return 'Profile not shared';
   };
 
+  // Determine which circles to show (first 4 or all)
+  const visibleCircles = showAllCircles ? circles : circles.slice(0, 4);
+  const hasMoreCircles = circles.length > 4;
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading community...</Text>
+        <Text style={styles.loadingText}>Loading circles...</Text>
       </SafeAreaView>
     );
   }
@@ -168,112 +223,194 @@ export default function CommunityScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerSubtitle}>Your circle:</Text>
-        <Text style={styles.headerTitle}>{user?.community.organization}</Text>
-      </View>
-
-      {/* Profile Status Card */}
-      <TouchableOpacity
-        style={styles.profileStatusCard}
-        onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
-        activeOpacity={0.7}
-      >
-        <ProfileBadge
-          firstName={user?.firstName}
-          lastName={user?.lastName}
-          totalAnswers={answerCount}
-          profilePictureUrl={userProfilePictureUrl}
-        />
-        <View style={styles.profileStatusInfo}>
-          <Text style={styles.profileName}>
-            {user?.firstName && user?.lastName
-              ? `${user.firstName} ${user.lastName}`
-              : 'Your Profile'}
-          </Text>
-          <Text style={styles.profileStatusText}>{getStatusText()}</Text>
-          {profileStatus !== 'sharing' && (
-            <Text style={styles.profileQuestionCount}>
-              {answerCount}/4 questions answered
-            </Text>
-          )}
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerSubtitle}>Your circle:</Text>
+          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
         </View>
-        <Feather
-          name={profileStatus === 'sharing' ? 'chevron-right' : 'chevron-left'}
-          size={20}
-          color="#9CA3AF"
-        />
-      </TouchableOpacity>
 
-      {/* Community Members */}
-      <View style={styles.membersSection}>
-        <Text style={styles.sectionTitle}>
-          Your {user?.community.organization} circle ({members.length})
-        </Text>
-        {members.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Feather name="users" size={48} color="#d1d5db" />
-            <Text style={styles.emptyStateText}>No published profiles yet</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Be the first to share your profile with the community!
+        {/* Profile Status Card */}
+        <TouchableOpacity
+          style={styles.profileStatusCard}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
+          activeOpacity={0.7}
+        >
+          <ProfileBadge
+            firstName={user?.firstName}
+            lastName={user?.lastName}
+            totalAnswers={answerCount}
+            profilePictureUrl={userProfilePictureUrl}
+          />
+          <View style={styles.profileStatusInfo}>
+            <Text style={styles.profileName}>
+              {user?.firstName && user?.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : 'Your Profile'}
             </Text>
+            <Text style={styles.profileStatusText}>{getStatusText()}</Text>
+            {profileStatus !== 'sharing' && (
+              <Text style={styles.profileQuestionCount}>
+                {answerCount}/4 questions answered
+              </Text>
+            )}
           </View>
-        ) : (
-          <View style={[styles.membersList, profileStatus !== 'sharing' && styles.membersListDimmed]}>
-            {members.map((member) => (
-              <TouchableOpacity
-                key={member.id}
-                style={styles.memberCard}
-                onPress={() => handleMemberPress(member)}
-                disabled={profileStatus !== 'sharing'}
-              >
-                <View style={[
-                  styles.memberAvatar,
-                  profileStatus !== 'sharing' && styles.memberAvatarDimmed
-                ]}>
-                  <Text style={styles.memberInitials}>
-                    {member.firstName?.[0]?.toUpperCase() || '?'}
-                    {member.lastName?.[0]?.toUpperCase() || ''}
-                  </Text>
-                </View>
-                <View style={styles.memberInfo}>
-                  <Text style={[
-                    styles.memberName,
-                    profileStatus !== 'sharing' && styles.memberTextDimmed
-                  ]}>
-                    {member.firstName} {member.lastName}
-                  </Text>
-                  <Text style={[
-                    styles.memberRole,
-                    profileStatus !== 'sharing' && styles.memberTextDimmed
-                  ]}>
-                    {member.role === 'MANAGER' ? 'Manager' : 'Member'}
-                  </Text>
-                </View>
-                <Feather
-                  name="chevron-right"
-                  size={20}
-                  color={profileStatus !== 'sharing' ? '#D1D5DB' : '#9ca3af'}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+          <Feather
+            name={profileStatus === 'sharing' ? 'chevron-right' : 'chevron-left'}
+            size={20}
+            color="#9CA3AF"
+          />
+        </TouchableOpacity>
 
-        {/* Overlay Share Prompt */}
-        {profileStatus !== 'sharing' && members.length > 0 && (
-          <View style={styles.sharePromptOverlay}>
-            <View style={styles.sharePromptContent}>
-              <Feather name="lock" size={32} color="#6B7280" />
-              <Text style={styles.sharePromptOverlayText}>
-                Share your profile to unlock your circle
+        {/* Circles Section */}
+        <View style={styles.circlesSection}>
+          <Text style={styles.sectionTitle}>Your circles:</Text>
+
+          {profileStatus !== 'sharing' ? (
+            // Locked state - show dimmed circles with lock overlay
+            <View style={styles.lockedContainer}>
+              <View style={styles.circlesGridDimmed}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={styles.circleButtonPlaceholder}>
+                    <View style={styles.circleCountPlaceholder} />
+                    <View style={styles.circleNamePlaceholder} />
+                  </View>
+                ))}
+              </View>
+              <View style={styles.lockOverlay}>
+                <Feather name="lock" size={32} color="#6B7280" />
+                <Text style={styles.lockText}>
+                  Share your profile to unlock your circles
+                </Text>
+              </View>
+            </View>
+          ) : smallCommunity ? (
+            // Small community state
+            <View style={styles.smallCommunityContainer}>
+              <View style={styles.circlesGrid}>
+                <TouchableOpacity
+                  style={styles.circleButton}
+                  onPress={() => handleCirclePress(circles[0])}
+                >
+                  <View style={styles.circleCount}>
+                    <Text style={styles.circleCountText}>{circles[0]?.count || 0}</Text>
+                  </View>
+                  <Text style={styles.circleName}>All</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.smallCommunityText}>
+                More circles will appear as your community grows
               </Text>
             </View>
+          ) : (
+            // Normal circles grid
+            <>
+              <View style={styles.circlesGrid}>
+                {visibleCircles.map((circle) => (
+                  <TouchableOpacity
+                    key={circle.id}
+                    style={styles.circleButton}
+                    onPress={() => handleCirclePress(circle)}
+                  >
+                    <View style={styles.circleCount}>
+                      <Text style={styles.circleCountText}>{circle.count}</Text>
+                    </View>
+                    <Text style={styles.circleName} numberOfLines={2}>
+                      {circle.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {hasMoreCircles && (
+                <TouchableOpacity
+                  style={styles.showMoreButton}
+                  onPress={() => setShowAllCircles(!showAllCircles)}
+                >
+                  <Text style={styles.showMoreText}>
+                    {showAllCircles ? 'Show less' : `Show ${circles.length - 4} more`}
+                  </Text>
+                  <Feather
+                    name={showAllCircles ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color="#3b82f6"
+                  />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Icebreakers Section */}
+        {profileStatus === 'sharing' && (
+          <View style={styles.icebreakersSection}>
+            <Text style={styles.sectionTitle}>Icebreakers</Text>
+
+            {loadingIcebreaker ? (
+              <View style={styles.icebreakerLoading}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.icebreakerLoadingText}>Finding your match...</Text>
+              </View>
+            ) : icebreakerMatch ? (
+              <View style={styles.icebreakerCard}>
+                <TouchableOpacity
+                  style={styles.icebreakerHeader}
+                  onPress={handleIcebreakerPress}
+                >
+                  <View style={styles.icebreakerAvatar}>
+                    <Text style={styles.icebreakerInitials}>
+                      {icebreakerMatch.firstName?.[0]?.toUpperCase() || '?'}
+                      {icebreakerMatch.lastName?.[0]?.toUpperCase() || ''}
+                    </Text>
+                  </View>
+                  <View style={styles.icebreakerInfo}>
+                    <Text style={styles.icebreakerName}>
+                      {icebreakerMatch.firstName} {icebreakerMatch.lastName}
+                    </Text>
+                    {icebreakerMatch.sharedInterests.length > 0 && (
+                      <Text style={styles.icebreakerInterests}>
+                        Shared: {icebreakerMatch.sharedInterests.slice(0, 2).join(', ')}
+                      </Text>
+                    )}
+                  </View>
+                  <Feather name="chevron-right" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+
+                <View style={styles.icebreakerQuestions}>
+                  <Text style={styles.icebreakerQuestionsTitle}>Questions to ask:</Text>
+                  {icebreakerMatch.icebreakerQuestions.map((question, index) => (
+                    <Text key={index} style={styles.icebreakerQuestion}>
+                      {index + 1}. {question}
+                    </Text>
+                  ))}
+                </View>
+
+                <View style={styles.icebreakerActions}>
+                  <TouchableOpacity
+                    style={styles.icebreakerButton}
+                    onPress={handleRandomize}
+                  >
+                    <Feather name="refresh-cw" size={16} color="#3b82f6" />
+                    <Text style={styles.icebreakerButtonText}>Randomize</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.icebreakerButton}
+                    onPress={handleIcebreakerPress}
+                  >
+                    <Feather name="user" size={16} color="#3b82f6" />
+                    <Text style={styles.icebreakerButtonText}>View Profile</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.noMatchContainer}>
+                <Feather name="users" size={32} color="#D1D5DB" />
+                <Text style={styles.noMatchText}>
+                  No matches yet. Complete more of your profile to find connections!
+                </Text>
+              </View>
+            )}
           </View>
         )}
-      </View>
-    </ScrollView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -346,34 +483,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
   },
-  membersSection: {
+  circlesSection: {
     marginTop: 24,
     paddingHorizontal: 20,
-    position: 'relative',
-    minHeight: 400,
-  },
-  sharePromptOverlay: {
-    position: 'absolute',
-    top: 80,
-    left: 20,
-    right: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  sharePromptContent: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(249, 250, 251, 0.95)',
-    paddingVertical: 32,
-    paddingHorizontal: 40,
-    borderRadius: 16,
-  },
-  sharePromptOverlayText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -381,28 +493,13 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 16,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  membersList: {
+  circlesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
-  memberCard: {
-    flexDirection: 'row',
+  circleButton: {
+    width: '47%',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     padding: 16,
@@ -410,40 +507,195 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  memberAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#3b82f6',
+  circleCount: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  circleCountText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  circleName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 4,
+  },
+  showMoreText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  lockedContainer: {
+    position: 'relative',
+  },
+  circlesGridDimmed: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    opacity: 0.3,
+  },
+  circleButtonPlaceholder: {
+    width: '47%',
+    alignItems: 'center',
+    backgroundColor: '#E5E7EB',
+    padding: 16,
+    borderRadius: 12,
+  },
+  circleCountPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#D1D5DB',
+    marginBottom: 8,
+  },
+  circleNamePlaceholder: {
+    width: 60,
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: '#D1D5DB',
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+  },
+  lockText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  smallCommunityContainer: {
+    alignItems: 'center',
+  },
+  smallCommunityText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  icebreakersSection: {
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  icebreakerLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 8,
+  },
+  icebreakerLoadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  icebreakerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  icebreakerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  icebreakerAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FEF3C7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  memberInitials: {
-    fontSize: 18,
+  icebreakerInitials: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#92400E',
   },
-  memberInfo: {
+  icebreakerInfo: {
     flex: 1,
   },
-  memberName: {
-    fontSize: 16,
+  icebreakerName: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  memberRole: {
+  icebreakerInterests: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6B7280',
   },
-  membersListDimmed: {
-    opacity: 0.4,
+  icebreakerQuestions: {
+    padding: 16,
+    backgroundColor: '#F9FAFB',
   },
-  memberAvatarDimmed: {
-    opacity: 0.5,
+  icebreakerQuestionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
   },
-  memberTextDimmed: {
-    color: '#D1D5DB',
+  icebreakerQuestion: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  icebreakerActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  icebreakerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    gap: 6,
+  },
+  icebreakerButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+  noMatchContainer: {
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  noMatchText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });
