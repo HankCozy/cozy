@@ -57,7 +57,7 @@ const createSlides = (communityName: string): OnboardingSlide[] => [
   },
   {
     id: '6',
-    title: "You do the talking and we'll turn your words into points of connection.",
+    title: "You tell us about yourself and we'll turn your words into points of connection.",
     description: '',
     placeholderColor: '#a78bfa', // Purple
     placeholderType: 'waveform',
