@@ -112,7 +112,7 @@ export default function SectionQuestionsScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.navigate('QuestionFlow')}
+          onPress={() => navigation.goBack()}
         >
           <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>

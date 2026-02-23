@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
 import ProfileStrengthIndicator from '../components/ProfileStrengthIndicator';
+import CategoriesIcon from '../components/CategoriesIcon';
 import { transcribeAudio } from '../services/api';
 import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
 
@@ -247,9 +248,9 @@ export default function AnswerQuestionScreen() {
           await AsyncStorage.setItem('onboarding_completed', 'true');
           navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
         } else {
-          // Regular flow - mark section complete and go back
+          // Regular flow - mark section complete and go back to Questions tab
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
-          navigation.navigate('QuestionFlow');
+          navigation.navigate('MainTabs', { screen: 'Questions' });
         }
       } else {
         // Reset for next question
@@ -333,6 +334,12 @@ export default function AnswerQuestionScreen() {
             <Text style={styles.questionCounter}>Profile Strength</Text>
           </View>
         )}
+        <TouchableOpacity
+          style={styles.categoriesButton}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Questions' })}
+        >
+          <CategoriesIcon size={24} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -514,6 +521,14 @@ const styles = StyleSheet.create({
     left: 20,
     top: 20,
     padding: 8,
+    zIndex: 1,
+  },
+  categoriesButton: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
+    padding: 8,
+    zIndex: 1,
   },
   progress: {
     fontSize: 16,
@@ -523,8 +538,8 @@ const styles = StyleSheet.create({
   },
   strengthIndicatorContainer: {
     alignItems: 'center',
-    paddingHorizontal: 60,
-    gap: 8,
+    paddingHorizontal: 80,
+    gap: 4,
   },
   questionCounter: {
     fontSize: 14,

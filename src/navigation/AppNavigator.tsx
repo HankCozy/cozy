@@ -64,6 +64,12 @@ export type QuestionFlowParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
+  SectionQuestions: { sectionId: string; sectionName: string };
+  AnswerQuestion: {
+    sectionId: string;
+    questions: string[];
+    isFirstTimeOnboarding?: boolean;
+  };
   MemberProfile: { userId: string };
   CircleDetail: { circleId: string; circleName: string };
   EditCommunity: { communityId: string };
@@ -214,19 +220,13 @@ function TabsNavigator() {
       />
       <AppTabs.Screen
         name="Questions"
-        component={QuestionFlowNavigator}
+        component={QuestionFlowScreen}
         options={{
           tabBarLabel: 'Questions',
           tabBarIcon: ({ color, size }) => (
             <Feather name="mic" size={size} color={color} />
           ),
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('QuestionFlowStack');
-          },
-        })}
       />
       <AppTabs.Screen
         name="Community"
@@ -251,6 +251,8 @@ function AppNavigator() {
     >
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
+      <RootStack.Screen name="SectionQuestions" component={SectionQuestionsScreen} />
+      <RootStack.Screen name="AnswerQuestion" component={AnswerQuestionScreen} />
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
       <RootStack.Screen name="CircleDetail" component={CircleDetailScreen} />
       <RootStack.Screen name="EditCommunity" component={AdminEditCommunityScreen} />
