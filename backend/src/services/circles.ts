@@ -129,11 +129,16 @@ ${JSON.stringify(memberData, null, 2)}
 - NO opinion-only or political groups
 - Prioritize activity-based interests over passive consumption
 
-### For each member in a circle, provide a contextual tagline:
-- 5-10 words explaining their connection to the circle
-- Based on their actual profile answers
-- Warm and conversational tone
-- Examples: "12 years of birding", "Just started hiking last summer", "Looking for chess partners"
+### CRITICAL - Tagline Rules (NO HALLUCINATION):
+For each member in a circle, provide a contextual tagline that is STRICTLY grounded in their actual words:
+- ONLY use facts, details, or phrases that appear in their profile answers
+- If they said "I've been birding for 12 years", you can say "12 years of birding experience"
+- If they said "just getting started with hiking", you can say "Just getting started"
+- NEVER invent timeframes, experience levels, or details they didn't mention
+- NEVER add specifics like years, numbers, or accomplishments unless explicitly stated
+- When in doubt, use a GENERAL tagline like "Enjoys [activity]" or "Interested in [topic]"
+- Keep taglines to 5-10 words
+- If you cannot find specific details in their answers, use: "Shares this interest"
 
 ## Output Format
 Return ONLY valid JSON (no markdown, no explanation) in this exact format:
