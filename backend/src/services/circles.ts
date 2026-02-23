@@ -130,7 +130,9 @@ You must ONLY create circles based on interests/activities that members EXPLICIT
 ### Clustering Constraints:
 - Each circle MUST have at least 3 members who EXPLICITLY mentioned that specific interest
 - Create 2-8 circles (not including "All")
-- Circle names should use the ACTUAL words members used (e.g., "Birders" not "Nature Enthusiasts")
+- Circle names can be creative/engaging, but the underlying interest must be explicitly stated by all members
+- Example: "Backyard Birding Club" is fine IF all members explicitly mentioned birding/bird watching
+- Example: "Nature Lovers" is NOT okay if it groups hikers + gardeners + birders (different activities)
 - If fewer than 3 people explicitly mentioned an interest, do NOT create that circle
 - NO trauma/illness-centered groups
 - NO opinion-only or political groups
