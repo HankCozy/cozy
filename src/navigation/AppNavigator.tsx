@@ -16,6 +16,7 @@ import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
+import CircleDetailScreen from '../screens/CircleDetailScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
@@ -64,6 +65,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
   MemberProfile: { userId: string };
+  CircleDetail: { circleId: string; circleName: string };
   EditCommunity: { communityId: string };
   Onboarding: {
     user?: {
@@ -250,6 +252,7 @@ function AppNavigator() {
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
+      <RootStack.Screen name="CircleDetail" component={CircleDetailScreen} />
       <RootStack.Screen name="EditCommunity" component={AdminEditCommunityScreen} />
       <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
       <RootStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />

@@ -10,6 +10,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx src/seed.ts",
+    "db:seed:circles": "tsx src/seedCirclesTestData.ts",
     "db:studio": "prisma studio"
   },
   "keywords": [
