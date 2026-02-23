@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ViewToken,
   Animated,
+  SafeAreaView,
 } from 'react-native';
 import { useAuth, User } from '../contexts/AuthContext';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
@@ -355,7 +356,7 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -369,7 +370,7 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
       />
 
       {renderDots()}
-    </View>
+    </SafeAreaView>
   );
 }
 
