@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,11 @@ import {
   Dimensions,
   TouchableOpacity,
   ViewToken,
-  Alert,
+  Animated,
 } from 'react-native';
-import { Audio } from 'expo-audio';
 import { useAuth, User } from '../contexts/AuthContext';
-import OnboardingGraphic from '../components/OnboardingGraphic';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
+import Waveform from '../components/Waveform';
 
 const { width } = Dimensions.get('window');
 
@@ -20,41 +19,49 @@ interface OnboardingSlide {
   id: string;
   title: string;
   description: string;
-  subtitle?: string;
-  icon: string;
+  placeholderColor: string;
+  placeholderType: 'single' | 'multiple' | 'waveform';
   showButton?: boolean;
   buttonText?: string;
 }
 
-const slides: OnboardingSlide[] = [
+const createSlides = (communityName: string): OnboardingSlide[] => [
   {
     id: '1',
-    title: '',
-    description: 'Cozy Circle turns your words into a magazine-style profile about you.',
-    icon: '', // Using custom graphic instead
-  },
-  {
-    id: '2',
-    title: 'Your story stays inside your community.',
-    description: 'Only your community members get to enjoy your profile. And you get to see theirs.',
-    subtitle: "It's a simple way to discover your circle.",
-    icon: '⭕',
+    title: 'Welcome to Cozy Circle',
+    description: 'An app that fosters\nreal world connection.',
+    placeholderColor: '#93c5fd', // Light blue
+    placeholderType: 'single',
   },
   {
     id: '3',
-    title: 'No forms. No fuss. Just you, being you.',
-    description: "We'll ask some questions and you simply respond like you're talking to a friend.",
-    icon: '🎙️',
-    showButton: true,
-    buttonText: 'Enable microphone',
+    title: 'Cozy Circle helps you find connection points.',
+    description: '',
+    placeholderColor: '#a78bfa', // Purple
+    placeholderType: 'multiple',
   },
   {
-    id: '4',
-    title: 'Kick back, relax and just be you.',
-    description: 'Take your time. Speak naturally. This is your moment to shine a little. The more you share, the richer your profile.',
-    icon: '🎙️',
+    id: '5',
+    title: 'And foster real, in-person engagement.',
+    description: '',
+    placeholderColor: '#fbbf24', // Yellow
+    placeholderType: 'multiple',
+  },
+  {
+    id: '5b',
+    title: `Cozy Circle brings you closer to the people of ${communityName}`,
+    description: `This is a private community. Only members of ${communityName} can access your Cozy Circle profile.`,
+    placeholderColor: '#fbbf24', // Yellow
+    placeholderType: 'multiple',
+  },
+  {
+    id: '6',
+    title: "You do the talking and we'll turn your words into points of connection.",
+    description: '',
+    placeholderColor: '#a78bfa', // Purple
+    placeholderType: 'waveform',
     showButton: true,
-    buttonText: "Let's get cozy",
+    buttonText: 'Get started',
   },
 ];
 
@@ -72,44 +79,88 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const { completeOnboarding } = useAuth();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim2 = useRef(new Animated.Value(0)).current;
+  const fadeAnim3 = useRef(new Animated.Value(0)).current;
+  const descAnim = useRef(new Animated.Value(0)).current;
 
-  const handleButtonPress = async (slide: OnboardingSlide) => {
-    if (slide.id === '3') {
-      // Enable microphone button - request permissions
-      try {
-        const { status } = await Audio.requestPermissionsAsync();
-        if (status === 'granted') {
-          Alert.alert('Success', 'Microphone access granted!');
-        } else {
-          Alert.alert(
-            'Permission Denied',
-            "No worries! We'll ask again when you start recording."
-          );
-        }
-      } catch (error) {
-        console.error('Error requesting microphone permission:', error);
-      }
-      // Move to next slide regardless of permission result
-      if (currentIndex < slides.length - 1) {
-        flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
-      }
-    } else if (slide.id === '4') {
-      // Let's get cozy button - navigate to first question
-      if (route.params?.user && route.params?.token) {
-        // Coming from registration - complete onboarding and authenticate first
-        await completeOnboarding(route.params.user, route.params.token);
-      }
-
-      // Navigate to all 16 questions for first-time onboarding
-      navigation.navigate('QuestionFlowStack', {
-        screen: 'AnswerQuestion',
-        params: {
-          sectionId: 'all',
-          questions: ALL_QUESTIONS_ORDERED,
-          isFirstTimeOnboarding: true,
-        },
-      });
+  // Fade animation for slide 2 (index 1): frame1 → frame2
+  useEffect(() => {
+    if (currentIndex === 1) {
+      fadeAnim.setValue(0);
+      const timeout = setTimeout(() => {
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
+  }, [currentIndex, fadeAnim]);
+
+  // Fade animation for slide 3 (index 2): frame2 → frame3
+  useEffect(() => {
+    if (currentIndex === 2) {
+      fadeAnim2.setValue(0);
+      const timeout = setTimeout(() => {
+        Animated.timing(fadeAnim2, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+      }, 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [currentIndex, fadeAnim2]);
+
+  // Pan/zoom animation for slide 4 (index 3): frame3 → frame4
+  useEffect(() => {
+    if (currentIndex === 3) {
+      fadeAnim3.setValue(0);
+      descAnim.setValue(0);
+      const timeout = setTimeout(() => {
+        Animated.timing(fadeAnim3, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start();
+      }, 800);
+      // Description pulse in after 1.5s
+      const descTimeout = setTimeout(() => {
+        Animated.spring(descAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8,
+        }).start();
+      }, 1500);
+      return () => {
+        clearTimeout(timeout);
+        clearTimeout(descTimeout);
+      };
+    }
+  }, [currentIndex, fadeAnim3, descAnim]);
+
+  // Get community name from route params
+  const communityName = route.params?.user?.community?.organization || 'Your Community';
+  const slides = createSlides(communityName);
+
+  const handleGetStarted = async () => {
+    if (route.params?.user && route.params?.token) {
+      // Coming from registration - complete onboarding and authenticate first
+      await completeOnboarding(route.params.user, route.params.token);
+    }
+
+    // Navigate to all 16 questions for first-time onboarding
+    navigation.navigate('QuestionFlowStack', {
+      screen: 'AnswerQuestion',
+      params: {
+        sectionId: 'all',
+        questions: ALL_QUESTIONS_ORDERED,
+        isFirstTimeOnboarding: true,
+      },
+    });
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -122,29 +173,167 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
     itemVisiblePercentThreshold: 50,
   }).current;
 
+  const renderPlaceholder = (item: OnboardingSlide) => {
+    // Slide 3 (id '3') - fade animation: frame1 → frame2
+    if (item.id === '3') {
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={styles.fadeImageContainer}>
+            <Animated.Image
+              source={require('../../assets/frame1.png')}
+              style={[
+                styles.fadeImage,
+                { opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+              ]}
+              resizeMode="contain"
+            />
+            <Animated.Image
+              source={require('../../assets/frame2.png')}
+              style={[
+                styles.fadeImage,
+                styles.fadeImageAbsolute,
+                { opacity: fadeAnim },
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      );
+    }
+
+    // Slide 3 (id '5') - fade animation: frame2 → frame3
+    if (item.id === '5') {
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={styles.fadeImageContainer}>
+            <Animated.Image
+              source={require('../../assets/frame2.png')}
+              style={[
+                styles.fadeImage,
+                { opacity: fadeAnim2.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+              ]}
+              resizeMode="contain"
+            />
+            <Animated.Image
+              source={require('../../assets/frame3.png')}
+              style={[
+                styles.fadeImage,
+                styles.fadeImageAbsolute,
+                { opacity: fadeAnim2 },
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      );
+    }
+
+    // Slide 4 (id '5b') - pan/zoom animation: frame3 → frame4
+    if (item.id === '5b') {
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={styles.fadeImageContainer}>
+            <Animated.Image
+              source={require('../../assets/frame3.png')}
+              style={[
+                styles.fadeImage,
+                {
+                  opacity: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+                  transform: [
+                    { translateY: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [66, 126] }) },
+                    { translateX: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -100] }) },
+                    { scale: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }) },
+                  ],
+                },
+              ]}
+              resizeMode="contain"
+            />
+            <Animated.Image
+              source={require('../../assets/frame4.png')}
+              style={[
+                styles.fadeImage,
+                styles.fadeImageAbsolute,
+                {
+                  opacity: fadeAnim3,
+                  transform: [
+                    { scale: 1.7 },
+                    { translateY: 56 },
+                  ],
+                },
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (item.placeholderType === 'single') {
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={[styles.singleCircle, { backgroundColor: item.placeholderColor }]} />
+        </View>
+      );
+    } else if (item.placeholderType === 'multiple') {
+      const secondColor = item.id === '5' ? '#fbbf24' : item.placeholderColor;
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={styles.multipleCirclesRow}>
+            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
+            <View style={[styles.smallCircle, { backgroundColor: secondColor }]} />
+            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
+          </View>
+        </View>
+      );
+    } else {
+      // Waveform placeholder - uses shared Waveform component
+      return (
+        <View style={styles.placeholderContainer}>
+          <View style={{ marginTop: 320 }}>
+            <Waveform isRecording alwaysShow scale={1.25} />
+          </View>
+        </View>
+      );
+    }
+  };
+
   const renderSlide = ({ item }: { item: OnboardingSlide }) => (
     <View style={styles.slide}>
       <View style={styles.content}>
-        {item.id === '1' ? (
-          <OnboardingGraphic />
+        {renderPlaceholder(item)}
+        {item.id === '5b' ? (
+          <Text style={[styles.title, { marginTop: 80 }]}>
+            Cozy Circle brings you closer to the people of{' '}
+            <Text style={styles.underline}>{communityName}</Text>
+          </Text>
         ) : (
-          <Text style={styles.icon}>{item.icon}</Text>
+          <Text style={[styles.title, item.id === '6' && { marginTop: 80 }]}>{item.title}</Text>
         )}
-        {item.title !== '' && (
-          <Text style={styles.title}>{item.title}</Text>
-        )}
-        <Text style={styles.description}>{item.description}</Text>
-        {item.subtitle && (
-          <Text style={styles.subtitle}>{item.subtitle}</Text>
-        )}
+        {item.id === '5b' ? (
+          <Animated.Text
+            style={[
+              styles.description,
+              {
+                opacity: descAnim,
+                transform: [
+                  { scale: descAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
+                ],
+              },
+            ]}
+          >
+            This is a private community. Only members of{' '}
+            <Animated.Text style={styles.underline}>{communityName}</Animated.Text>
+            {' '}can access your Cozy Circle profile.
+          </Animated.Text>
+        ) : item.description !== '' ? (
+          <Text style={styles.description}>{item.description}</Text>
+        ) : null}
         {item.showButton && item.buttonText && (
           <TouchableOpacity
-            style={item.id === '4' ? styles.primaryButton : styles.secondaryButton}
-            onPress={() => handleButtonPress(item)}
+            style={styles.primaryButton}
+            onPress={handleGetStarted}
           >
-            <Text style={item.id === '4' ? styles.primaryButtonText : styles.secondaryButtonText}>
-              {item.buttonText}
-            </Text>
+            <Text style={styles.primaryButtonText}>{item.buttonText}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -200,9 +389,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     maxWidth: 360,
   },
-  icon: {
-    fontSize: 120,
+  placeholderContainer: {
+    height: 200,
     marginBottom: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fadeImageContainer: {
+    width: 200,
+    height: 200,
+    position: 'relative',
+  },
+  fadeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  fadeImageAbsolute: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  singleCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  multipleCirclesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  smallCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   title: {
     fontSize: 22,
@@ -218,28 +438,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 26,
     marginBottom: 12,
+    maxWidth: 288,
   },
-  subtitle: {
-    fontSize: 17,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 26,
-    marginTop: 8,
-  },
-  secondaryButton: {
-    marginTop: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
+  underline: {
+    textDecorationLine: 'underline',
+    textDecorationColor: '#6b7280',
   },
   primaryButton: {
     marginTop: 40,
@@ -261,10 +464,10 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   dot: {
-    width: 60,
+    width: 40,
     height: 3,
     backgroundColor: '#e5e7eb',
-    marginHorizontal: 4,
+    marginHorizontal: 3,
   },
   activeDot: {
     backgroundColor: '#111827',

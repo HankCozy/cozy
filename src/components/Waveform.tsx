@@ -2,10 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 
 interface WaveformProps {
-  isRecording: boolean;
+  isRecording?: boolean;
+  alwaysShow?: boolean;
+  scale?: number;
 }
 
-export default function Waveform({ isRecording }: WaveformProps) {
+export default function Waveform({ isRecording = false, alwaysShow = false, scale = 1 }: WaveformProps) {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -30,16 +32,19 @@ export default function Waveform({ isRecording }: WaveformProps) {
     }
   }, [isRecording, opacity]);
 
-  if (!isRecording) return null;
+  if (!isRecording && !alwaysShow) return null;
+
+  const heights = [5, 10, 14, 10, 5].map(h => h * scale);
 
   return (
-    <View style={styles.container}>
-      <Animated.View style={[styles.waveContainer, { opacity }]}>
-        <View style={[styles.dot, { height: 5 }]} />
-        <View style={[styles.dot, { height: 10 }]} />
-        <View style={[styles.dot, { height: 14 }]} />
-        <View style={[styles.dot, { height: 10 }]} />
-        <View style={[styles.dot, { height: 5 }]} />
+    <View style={[styles.container, { height: 24 * scale }]}>
+      <Animated.View style={[styles.waveContainer, { opacity, gap: 5 * scale, height: 24 * scale }]}>
+        {heights.map((h, index) => (
+          <View
+            key={index}
+            style={[styles.dot, { height: h, width: 4 * scale, borderRadius: 2 * scale }]}
+          />
+        ))}
       </Animated.View>
     </View>
   );
