@@ -107,54 +107,28 @@ async function generateCircles(members: MemberProfile[]): Promise<CirclesResult>
     answers: extractAnswersForClustering(m.profileAnswers),
   }));
 
-  const prompt = `You are analyzing community member profiles to group people into interest-based "circles" for meaningful connections.
+  const prompt = `Group these community members into interest-based circles.
 
 ## Member Profiles
 ${JSON.stringify(memberData, null, 2)}
 
-## CRITICAL: NO HALLUCINATION - STRICT GROUNDING RULES
+## Rules
 
-You must ONLY create circles based on interests/activities that members EXPLICITLY mentioned in their profile answers.
+GROUNDING REQUIREMENT: Only create circles for interests members EXPLICITLY stated. If someone said "I love birding" or "I hike every weekend", that counts. Do NOT infer interests they didn't mention.
 
-### What counts as "explicitly mentioned":
-- They used the exact word or a clear synonym (e.g., "birding", "bird watching", "I watch birds")
-- They described doing the activity (e.g., "I hike every weekend", "I bake cookies")
-- They expressed clear interest (e.g., "I love woodworking", "I'm passionate about gardening")
+CIRCLE RULES:
+- Create 2-8 circles based on shared interests explicitly mentioned by 3+ members
+- Circle names can be creative (e.g., "Backyard Birding Club") but all members must have explicitly mentioned that interest
+- Do NOT combine different activities into one circle (hiking and gardening are separate interests)
 
-### What does NOT count:
-- Inferred interests (e.g., assuming someone likes "nature" because they mentioned hiking once)
-- Vague associations (e.g., grouping someone in "crafts" because they mentioned sewing once)
-- Generalized categories that combine different activities
-- Interests you think they MIGHT have based on other traits
+TAGLINE RULES:
+- Each member needs a 5-10 word tagline about their connection to that circle
+- ONLY use details they actually stated (e.g., "12 years of birding" only if they said that)
+- If no specific details available, use generic: "Enjoys birding" or "Shares this interest"
+- NEVER invent timeframes, numbers, or details
 
-### Clustering Constraints:
-- Each circle MUST have at least 3 members who EXPLICITLY mentioned that specific interest
-- Create 2-8 circles (not including "All")
-- Circle names can be creative/engaging, but the underlying interest must be explicitly stated by all members
-- Example: "Backyard Birding Club" is fine IF all members explicitly mentioned birding/bird watching
-- Example: "Nature Lovers" is NOT okay if it groups hikers + gardeners + birders (different activities)
-- If fewer than 3 people explicitly mentioned an interest, do NOT create that circle
-- NO trauma/illness-centered groups
-- NO opinion-only or political groups
-
-### Priority for circle creation:
-1. Activities multiple people explicitly said they DO (hiking, baking, woodworking)
-2. Specific hobbies multiple people explicitly named (birding, photography, book clubs)
-3. Life stages multiple people explicitly described (grandparents, empty nesters)
-
-### CRITICAL - Tagline Rules (NO HALLUCINATION):
-For each member in a circle, provide a contextual tagline that is STRICTLY grounded in their actual words:
-- ONLY use facts, details, or phrases that appear in their profile answers
-- If they said "I've been birding for 12 years", you can say "12 years of birding experience"
-- If they said "just getting started with hiking", you can say "Just getting started"
-- NEVER invent timeframes, experience levels, or details they didn't mention
-- NEVER add specifics like years, numbers, or accomplishments unless explicitly stated
-- When in doubt, use a GENERAL tagline like "Enjoys [activity]" or "Interested in [topic]"
-- Keep taglines to 5-10 words
-- If you cannot find specific details in their answers, use: "Shares this interest"
-
-## Output Format
-Return ONLY valid JSON (no markdown, no explanation) in this exact format:
+## Output
+Return ONLY valid JSON:
 {
   "circles": [
     {
