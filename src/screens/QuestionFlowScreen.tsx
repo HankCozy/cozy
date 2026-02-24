@@ -73,7 +73,7 @@ export default function QuestionFlowScreen() {
               key={section.id}
               style={styles.sectionCard}
               onPress={() =>
-                navigation.getParent()?.navigate('SectionQuestions', {
+                navigation.navigate('SectionQuestions', {
                   sectionId: section.id,
                   sectionName: section.name,
                 })

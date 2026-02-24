@@ -18,6 +18,7 @@ import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../servic
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
+import ResponseCard, { ResponseCardData } from '../components/ResponseCard';
 import { compressProfilePicture } from '../utils/imageCompression';
 import { API_BASE_URL } from '../config/api';
 import { getStrengthLevel, getStrengthColor, getStrengthLabel } from '../utils/profileStrength';
@@ -79,6 +80,11 @@ export default function ProfileScreen() {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [shareProfileSummary, setShareProfileSummary] = useState(true);
   const [shareResponses, setShareResponses] = useState(false);
+  const [responseCard, setResponseCard] = useState<ResponseCardData | null>(null);
+  const [isEditingCard, setIsEditingCard] = useState(false);
+  const [editHeadline, setEditHeadline] = useState('');
+  const [editTagsInput, setEditTagsInput] = useState('');
+  const [editFunFact, setEditFunFact] = useState('');
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -118,6 +124,7 @@ export default function ProfileScreen() {
     React.useCallback(() => {
       loadAnswers();
       loadProfileSummary();
+      loadResponseCard();
 
       // Load profile picture signed URL
       if (auth.user?.id && token) {
@@ -150,6 +157,49 @@ export default function ProfileScreen() {
       setIsPublished(publishedStatus === 'true');
     } catch (error) {
       console.error('Failed to load profile summary:', error);
+    }
+  };
+
+  const loadResponseCard = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('response_card');
+      if (saved) setResponseCard(JSON.parse(saved));
+    } catch (error) {
+      console.error('Failed to load response card:', error);
+    }
+  };
+
+  const handleCreateCard = () => {
+    // Seed headline and funFact from existing summary if available
+    if (profileSummary) {
+      const cleaned = stripIcebreakerQuestions(profileSummary);
+      const sentences = cleaned.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 15);
+      setEditHeadline(sentences[0]?.trim() || '');
+      setEditFunFact(sentences[2]?.trim() || sentences[1]?.trim() || '');
+    } else {
+      setEditHeadline('');
+      setEditFunFact('');
+    }
+    setEditTagsInput(responseCard?.tags.join(', ') || '');
+    setIsEditingCard(true);
+  };
+
+  const handleSaveCard = async () => {
+    const tags = editTagsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const card: ResponseCardData = {
+      headline: editHeadline.trim(),
+      tags,
+      funFact: editFunFact.trim(),
+    };
+    try {
+      await AsyncStorage.setItem('response_card', JSON.stringify(card));
+      setResponseCard(card);
+      setIsEditingCard(false);
+    } catch (error) {
+      console.error('Failed to save response card:', error);
     }
   };
 
@@ -231,7 +281,8 @@ export default function ProfileScreen() {
                   key.startsWith('answer_') ||
                   key.startsWith('section_') ||
                   key === 'profile_summary' ||
-                  key === 'profile_published'
+                  key === 'profile_published' ||
+                  key === 'response_card'
               );
 
               // Remove all filtered keys
@@ -242,6 +293,7 @@ export default function ProfileScreen() {
               setAnswerCounts({});
               setProfileSummary(null);
               setIsPublished(false);
+              setResponseCard(null);
 
               Alert.alert('Success', 'All answers and profile data have been cleared');
             } catch (error) {
@@ -635,6 +687,72 @@ export default function ProfileScreen() {
               <Text style={styles.answerMoreButtonText}>Answer more questions</Text>
             </View>
           </TouchableOpacity>
+
+          {/* Response Card */}
+          {isEditingCard ? (
+            <View style={styles.cardEditContainer}>
+              <Text style={styles.cardEditTitle}>Your Card</Text>
+
+              <Text style={styles.cardFieldLabel}>Headline</Text>
+              <TextInput
+                style={styles.cardFieldInput}
+                value={editHeadline}
+                onChangeText={setEditHeadline}
+                placeholder="e.g. Retired engineer from Denver, passionate about woodworking"
+                multiline
+              />
+
+              <Text style={styles.cardFieldLabel}>Interests (comma-separated)</Text>
+              <TextInput
+                style={styles.cardFieldInput}
+                value={editTagsInput}
+                onChangeText={setEditTagsInput}
+                placeholder="e.g. hiking, jazz, cooking"
+              />
+
+              <Text style={styles.cardFieldLabel}>Fun fact or quote</Text>
+              <TextInput
+                style={styles.cardFieldInput}
+                value={editFunFact}
+                onChangeText={setEditFunFact}
+                placeholder="One memorable thing about you"
+                multiline
+              />
+
+              <View style={styles.cardEditActions}>
+                <TouchableOpacity
+                  style={styles.cardCancelButton}
+                  onPress={() => setIsEditingCard(false)}
+                >
+                  <Text style={styles.cardCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cardSaveButton} onPress={handleSaveCard}>
+                  <Text style={styles.cardSaveText}>Save Card</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : responseCard ? (
+            <View style={styles.cardContainer}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardSectionLabel}>Your Card</Text>
+                <TouchableOpacity onPress={handleCreateCard}>
+                  <Text style={styles.cardEditLink}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+              <ResponseCard
+                firstName={auth.user?.firstName}
+                lastName={auth.user?.lastName}
+                headline={responseCard.headline}
+                tags={responseCard.tags}
+                funFact={responseCard.funFact}
+              />
+            </View>
+          ) : hasAnswers ? (
+            <TouchableOpacity style={styles.createCardButton} onPress={handleCreateCard}>
+              <Feather name="credit-card" size={18} color="#3b82f6" />
+              <Text style={styles.createCardButtonText}>Create your card</Text>
+            </TouchableOpacity>
+          ) : null}
 
           {/* Published Status Badge */}
           {isPublished && (
@@ -1484,5 +1602,107 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     fontWeight: '500',
+  },
+
+  // Response Card
+  cardContainer: {
+    marginBottom: 24,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cardSectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  cardEditLink: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  createCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingVertical: 16,
+    marginBottom: 24,
+  },
+  createCardButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+  cardEditContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    gap: 8,
+  },
+  cardEditTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  cardFieldLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginTop: 8,
+  },
+  cardFieldInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+    backgroundColor: '#f9fafb',
+  },
+  cardEditActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cardCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  cardCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  cardSaveButton: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+  },
+  cardSaveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
 });

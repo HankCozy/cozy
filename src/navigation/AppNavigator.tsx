@@ -89,6 +89,7 @@ export type RootStackParamList = {
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppTabs = createBottomTabNavigator<AppTabsParamList>();
 const QuestionFlowStack = createNativeStackNavigator<QuestionFlowParamList>();
+const QuestionsTabStack = createNativeStackNavigator<QuestionFlowParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function AuthNavigator() {
@@ -104,6 +105,16 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function QuestionsTabNavigator() {
+  return (
+    <QuestionsTabStack.Navigator screenOptions={{ headerShown: false }}>
+      <QuestionsTabStack.Screen name="QuestionFlow" component={QuestionFlowScreen} />
+      <QuestionsTabStack.Screen name="SectionQuestions" component={SectionQuestionsScreen} />
+      <QuestionsTabStack.Screen name="AnswerQuestion" component={AnswerQuestionScreen} />
+    </QuestionsTabStack.Navigator>
   );
 }
 
@@ -220,7 +231,7 @@ function TabsNavigator() {
       />
       <AppTabs.Screen
         name="Questions"
-        component={QuestionFlowScreen}
+        component={QuestionsTabNavigator}
         options={{
           tabBarLabel: 'Questions',
           tabBarIcon: ({ color, size }) => (
