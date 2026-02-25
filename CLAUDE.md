@@ -166,6 +166,12 @@ npx expo start --web   # Web browser testing
 - Community-scoped user accounts
 - Role-based access (MEMBER/MANAGER)
 
+### Navigation Rules
+- **No dead-ends** — every screen must have a way out: bottom tab bar, back button, or explicit close action
+- **Prefer tab navigation** — use `navigation.navigate('Questions')` (tab switch) over `navigation.navigate('QuestionFlowStack')` (rootstack modal) unless the flow explicitly requires a full-screen takeover with no tab bar
+- **`QuestionFlowStack` is for onboarding only** — do not send users there from in-app nudges or contextual CTAs; it has no tab bar and no back button
+- **CTA actions navigate to tabs**, not standalone stacks
+
 ### State Management
 - React Context for authentication state
 - AsyncStorage for persistent token storage

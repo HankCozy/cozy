@@ -214,6 +214,7 @@ function TabsNavigator() {
   // MEMBER: Regular experience (Profile + Answer Questions + Your Circle)
   return (
     <AppTabs.Navigator
+      initialRouteName="Profile"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#3b82f6',

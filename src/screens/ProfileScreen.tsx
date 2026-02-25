@@ -18,10 +18,10 @@ import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../servic
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
+import ProfileNudge from '../components/ProfileNudge';
 import ResponseCard, { ResponseCardData } from '../components/ResponseCard';
 import { compressProfilePicture } from '../utils/imageCompression';
 import { API_BASE_URL } from '../config/api';
-import { getStrengthLevel, getStrengthColor, getStrengthLabel } from '../utils/profileStrength';
 
 interface Answer {
   sectionId: string;
@@ -61,6 +61,29 @@ function stripIcebreakerQuestions(summary: string): string {
   return summary;
 }
 
+interface NudgeData {
+  id: string;
+  headline: string;
+  message: string;
+  actionTarget?: 'questions';
+}
+
+function computeNudge(totalAnswers: number, profileSummary: string | null, isPublished: boolean): NudgeData | null {
+  if (totalAnswers === 0) {
+    return { id: 'zero', headline: "Let's get started", message: "Tap here to answer your first question", actionTarget: 'questions' };
+  }
+  if (totalAnswers <= 3 && !profileSummary) {
+    return { id: 'getting_started', headline: "You're almost there", message: "Answer 4 questions to complete your profile and reveal your Circle", actionTarget: 'questions' };
+  }
+  if (totalAnswers <= 11 && profileSummary && !isPublished) {
+    return { id: 'share_profile', headline: "Share your profile", message: "Share your profile to reveal your Cozy Circle" };
+  }
+  if (totalAnswers <= 11 && profileSummary && isPublished) {
+    return { id: 'more_responses', headline: "Complete your profile", message: "Tell your community more about yourself and we'll find even more connections.", actionTarget: 'questions' };
+  }
+  return null;
+}
+
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { auth, logout, dispatch } = useAuth();
@@ -85,6 +108,7 @@ export default function ProfileScreen() {
   const [editHeadline, setEditHeadline] = useState('');
   const [editTagsInput, setEditTagsInput] = useState('');
   const textInputRef = useRef<TextInput>(null);
+  const [dismissedNudgeId, setDismissedNudgeId] = useState<string | null>(null);
 
   // Calculate total answers across all sections
   const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
@@ -124,6 +148,11 @@ export default function ProfileScreen() {
       loadAnswers();
       loadProfileSummary();
       loadResponseCard();
+
+      // Load dismissed nudge
+      AsyncStorage.getItem('nudge_dismissed_id').then((id) => {
+        setDismissedNudgeId(id);
+      });
 
       // Load profile picture signed URL
       if (auth.user?.id && token) {
@@ -692,34 +721,26 @@ export default function ProfileScreen() {
             <Text style={styles.uploadPhotoHint}>Tap photo to change</Text>
           </View>
 
-          {/* Progress Tracker */}
-          <TouchableOpacity
-            style={styles.progressCard}
-            onPress={() => navigation.navigate('QuestionFlowStack')}
-            activeOpacity={0.7}
-          >
-            {/* Profile Strength Indicator */}
-            <View style={styles.strengthContainer}>
-              <Text style={styles.strengthLabel}>Profile Strength</Text>
-              <View style={styles.strengthBar}>
-                <View
-                  style={[
-                    styles.strengthFill,
-                    {
-                      width: `${(totalAnswers / 16) * 100}%`,
-                      backgroundColor: getStrengthColor(getStrengthLevel(totalAnswers)),
-                    },
-                  ]}
-                />
-              </View>
-            </View>
+          {/* Contextual Nudge Banner */}
+          {(() => {
+            const nudge = computeNudge(totalAnswers, profileSummary, isPublished);
+            const showNudge = nudge !== null && nudge.id !== dismissedNudgeId;
+            if (!showNudge || !nudge) return null;
+            return (
+              <ProfileNudge
+                headline={nudge.headline}
+                message={nudge.message}
+                onAction={nudge.actionTarget === 'questions'
+                  ? () => navigation.navigate('Questions')
+                  : undefined}
+                onDismiss={async () => {
+                  await AsyncStorage.setItem('nudge_dismissed_id', nudge.id);
+                  setDismissedNudgeId(nudge.id);
+                }}
+              />
+            );
+          })()}
 
-            {/* Answer More Questions Button */}
-            <View style={styles.answerMoreButton}>
-              <Feather name="plus-circle" size={16} color="#9ca3af" />
-              <Text style={styles.answerMoreButtonText}>Answer more questions</Text>
-            </View>
-          </TouchableOpacity>
 
           {/* Response Card */}
           {isEditingCard ? (
@@ -1194,71 +1215,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 12,
     textAlign: 'center',
-  },
-  progressCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  progressHeadline: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  strengthContainer: {
-    marginBottom: 16,
-  },
-  strengthLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  answerMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
-  },
-  answerMoreButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#9ca3af',
-  },
-  strengthBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  strengthFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  strengthText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'left',
   },
   categoryLabel: {
     fontSize: 14,

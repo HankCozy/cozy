@@ -43,7 +43,7 @@ export interface IcebreakerMatch {
 
 // In-memory cache for circles (per community)
 const circlesCache = new Map<string, { data: CirclesResult; timestamp: number }>();
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
 /**
  * Get circles for a community, using cache if available
@@ -146,19 +146,23 @@ Analyze the profiles and create meaningful circles now.`;
   try {
     console.log('[Circles] Sending clustering request to Claude API...');
 
-    const message = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const message = await client.messages.create(
+      {
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }],
+      },
+      { timeout: 30000 }
+    );
 
     const textContent = message.content.find((block) => block.type === 'text');
     if (!textContent || textContent.type !== 'text') {
       throw new Error('No text content in Claude response');
     }
 
-    // Parse AI response
-    const aiResult = JSON.parse(textContent.text);
+    // Strip markdown fences if present, then parse
+    const rawText = textContent.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const aiResult = JSON.parse(rawText);
 
     // Build full member data for circles
     const memberMap = new Map(members.map((m) => [m.id, m]));
@@ -190,8 +194,8 @@ Analyze the profiles and create meaningful circles now.`;
       expiresAt: expiresAt.toISOString(),
     };
   } catch (error) {
-    console.error('[Circles] Claude API error:', error);
-    // Fallback to just "All" circle
+    const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error('[Circles] Generation failed, falling back to All circle. Reason:', reason);
     return {
       circles: [createAllCircle(members)],
       generatedAt: now.toISOString(),
