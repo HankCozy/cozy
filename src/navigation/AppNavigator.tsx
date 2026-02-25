@@ -221,21 +221,21 @@ function TabsNavigator() {
       }}
     >
       <AppTabs.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
-        }}
-      />
-      <AppTabs.Screen
         name="Questions"
         component={QuestionsTabNavigator}
         options={{
           tabBarLabel: 'Questions',
           tabBarIcon: ({ color, size }) => (
             <Feather name="mic" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="user" size={size} color={color} />
           ),
         }}
       />

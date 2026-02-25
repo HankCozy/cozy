@@ -158,3 +158,43 @@ The primary goal is that this profile leads to real-world connections - help rea
     throw new Error('Failed to generate profile summary');
   }
 }
+
+/**
+ * Extract interest tags from a profile summary using Claude
+ */
+export async function extractInterestTags(summary: string): Promise<string[]> {
+  const prompt = `From the following community profile summary, extract 5-8 short interest or hobby tags.
+
+Rules:
+- Only include interests, hobbies, or passions that are explicitly mentioned in the text
+- Tags should be 1-3 words, lowercase (e.g. "woodworking", "jazz music", "hiking")
+- Do not invent or infer anything not clearly stated
+- Return ONLY a JSON array of strings, no other text
+
+Profile summary:
+${summary}
+
+Return format: ["tag1", "tag2", "tag3"]`;
+
+  try {
+    const message = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const textContent = message.content.find((block) => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      return [];
+    }
+
+    const parsed = JSON.parse(textContent.text.trim());
+    if (Array.isArray(parsed)) {
+      return parsed.filter((t) => typeof t === 'string').slice(0, 8);
+    }
+    return [];
+  } catch (error) {
+    console.error('Tag extraction error:', error);
+    return [];
+  }
+}

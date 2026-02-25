@@ -84,7 +84,6 @@ export default function ProfileScreen() {
   const [isEditingCard, setIsEditingCard] = useState(false);
   const [editHeadline, setEditHeadline] = useState('');
   const [editTagsInput, setEditTagsInput] = useState('');
-  const [editFunFact, setEditFunFact] = useState('');
   const textInputRef = useRef<TextInput>(null);
 
   // Calculate total answers across all sections
@@ -169,18 +168,40 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleCreateCard = () => {
-    // Seed headline and funFact from existing summary if available
+  const handleCreateCard = async () => {
+    // Seed headline from existing summary
     if (profileSummary) {
       const cleaned = stripIcebreakerQuestions(profileSummary);
       const sentences = cleaned.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 15);
       setEditHeadline(sentences[0]?.trim() || '');
-      setEditFunFact(sentences[2]?.trim() || sentences[1]?.trim() || '');
     } else {
       setEditHeadline('');
-      setEditFunFact('');
     }
-    setEditTagsInput(responseCard?.tags.join(', ') || '');
+
+    // Auto-extract tags from summary if user has no saved tags yet
+    if (profileSummary && (!responseCard || responseCard.tags.length === 0)) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/profile/extract-tags`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ summary: stripIcebreakerQuestions(profileSummary) }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setEditTagsInput((data.tags as string[]).join(', '));
+        } else {
+          setEditTagsInput('');
+        }
+      } catch {
+        setEditTagsInput('');
+      }
+    } else {
+      setEditTagsInput(responseCard?.tags.join(', ') || '');
+    }
+
     setIsEditingCard(true);
   };
 
@@ -192,7 +213,6 @@ export default function ProfileScreen() {
     const card: ResponseCardData = {
       headline: editHeadline.trim(),
       tags,
-      funFact: editFunFact.trim(),
     };
     try {
       await AsyncStorage.setItem('response_card', JSON.stringify(card));
@@ -522,6 +542,19 @@ export default function ProfileScreen() {
     }
   };
 
+  // Derive quote from shortest answer transcript
+  const answersWithTranscripts = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
+  const shortestAnswer = answersWithTranscripts.reduce<Answer | null>((shortest, a) => {
+    if (!shortest) return a;
+    const wordCount = (t: string) => t.trim().split(/\s+/).length;
+    return wordCount(a.transcript!) < wordCount(shortest.transcript!) ? a : shortest;
+  }, null);
+  const quoteWords = shortestAnswer?.transcript?.trim().split(/\s+/) ?? [];
+  const quoteText = shortestAnswer
+    ? quoteWords.slice(0, 20).join(' ') + (quoteWords.length > 20 ? '...' : '')
+    : undefined;
+  const quoteQuestion = shortestAnswer?.question;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -691,7 +724,7 @@ export default function ProfileScreen() {
           {/* Response Card */}
           {isEditingCard ? (
             <View style={styles.cardEditContainer}>
-              <Text style={styles.cardEditTitle}>Your Card</Text>
+              <Text style={styles.cardEditTitle}>Your Response Summary</Text>
 
               <Text style={styles.cardFieldLabel}>Headline</Text>
               <TextInput
@@ -710,15 +743,6 @@ export default function ProfileScreen() {
                 placeholder="e.g. hiking, jazz, cooking"
               />
 
-              <Text style={styles.cardFieldLabel}>Fun fact or quote</Text>
-              <TextInput
-                style={styles.cardFieldInput}
-                value={editFunFact}
-                onChangeText={setEditFunFact}
-                placeholder="One memorable thing about you"
-                multiline
-              />
-
               <View style={styles.cardEditActions}>
                 <TouchableOpacity
                   style={styles.cardCancelButton}
@@ -734,7 +758,7 @@ export default function ProfileScreen() {
           ) : responseCard ? (
             <View style={styles.cardContainer}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardSectionLabel}>Your Card</Text>
+                <Text style={styles.cardSectionLabel}>Your Response Summary</Text>
                 <TouchableOpacity onPress={handleCreateCard}>
                   <Text style={styles.cardEditLink}>Edit</Text>
                 </TouchableOpacity>
@@ -742,9 +766,12 @@ export default function ProfileScreen() {
               <ResponseCard
                 firstName={auth.user?.firstName}
                 lastName={auth.user?.lastName}
+                profilePictureUrl={profilePictureUrl}
                 headline={responseCard.headline}
                 tags={responseCard.tags}
-                funFact={responseCard.funFact}
+                funFact={quoteText}
+                funFactQuestion={quoteQuestion}
+                onViewProfile={isPublished ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
               />
             </View>
           ) : hasAnswers ? (
