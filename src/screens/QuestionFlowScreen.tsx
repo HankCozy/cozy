@@ -54,17 +54,9 @@ export default function QuestionFlowScreen() {
     }
   };
 
-  const hasAnyAnswers = Object.values(answerCounts).some(count => count > 0);
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Feather name="arrow-left" size={24} color="#374151" />
-        </TouchableOpacity>
         <Text style={styles.title}>Build Your Profile</Text>
         <Text style={styles.subtitle}>
           Choose a section to start answering questions
@@ -107,20 +99,6 @@ export default function QuestionFlowScreen() {
           );
         })}
       </ScrollView>
-
-      {hasAnyAnswers && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.returnButton}
-            onPress={() => {
-              // Navigate back to Profile tab in main tabs
-              navigation.navigate('MainTabs', { screen: 'Profile' });
-            }}
-          >
-            <Text style={styles.returnButtonText}>Return to Profile</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -135,13 +113,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
-    position: 'relative',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 20,
-    padding: 8,
   },
   title: {
     fontSize: 28,
@@ -157,7 +128,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     gap: 16,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   sectionCard: {
     backgroundColor: 'white',
@@ -202,34 +173,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  completedBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#ecfdf5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  returnButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  returnButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
 import ProfileStrengthIndicator from '../components/ProfileStrengthIndicator';
+import CategoriesIcon from '../components/CategoriesIcon';
 import { transcribeAudio } from '../services/api';
 import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
 
@@ -247,9 +248,9 @@ export default function AnswerQuestionScreen() {
           await AsyncStorage.setItem('onboarding_completed', 'true');
           navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
         } else {
-          // Regular flow - mark section complete and go back
+          // Regular flow - mark section complete and go back to Questions tab
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
-          navigation.navigate('QuestionFlow');
+          navigation.popToTop();
         }
       } else {
         // Reset for next question
@@ -333,11 +334,17 @@ export default function AnswerQuestionScreen() {
             <Text style={styles.questionCounter}>Profile Strength</Text>
           </View>
         )}
+        <TouchableOpacity
+          style={styles.categoriesButton}
+          onPress={() => navigation.popToTop()}
+        >
+          <CategoriesIcon size={24} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
         {/* Question at top */}
-        <Text style={styles.question}>{currentQuestion}</Text>
+        <Text style={styles.question} maxFontSizeMultiplier={1.2}>{currentQuestion}</Text>
 
         {/* Center content area - scrollable */}
         <View style={styles.centerContent}>
@@ -357,21 +364,21 @@ export default function AnswerQuestionScreen() {
                   color="white"
                 />
               </TouchableOpacity>
-              {!isRecording && (
-                <View style={styles.hintTextContainer}>
-                  <Text style={styles.buttonHintText}>Tap to start recording or </Text>
-                  <TouchableOpacity onPress={handleTypeInstead}>
-                    <Text style={styles.typeLink}>type instead</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
               {isRecording && (
                 <Text style={styles.centerHintText}>Recording</Text>
               )}
               <Waveform isRecording={isRecording} />
               {isFirstTimeOnboarding && currentQuestionIndex === 0 && !isRecording && (
                 <View style={styles.privacyBox}>
-                  <Text style={styles.privacyLabel}>Remember: your audio is not saved or shared</Text>
+                  <Text style={styles.privacyLabel}>We transcribe your audio to find connection points. We do not share or save your voice recording.</Text>
+                </View>
+              )}
+              {!isRecording && (
+                <View style={styles.hintTextContainer}>
+                  <Text style={styles.buttonHintText}>Tap to start recording or </Text>
+                  <TouchableOpacity onPress={handleTypeInstead}>
+                    <Text style={styles.typeLink}>type instead</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -514,6 +521,14 @@ const styles = StyleSheet.create({
     left: 20,
     top: 20,
     padding: 8,
+    zIndex: 1,
+  },
+  categoriesButton: {
+    position: 'absolute',
+    right: 20,
+    top: 20,
+    padding: 8,
+    zIndex: 1,
   },
   progress: {
     fontSize: 16,
@@ -523,8 +538,8 @@ const styles = StyleSheet.create({
   },
   strengthIndicatorContainer: {
     alignItems: 'center',
-    paddingHorizontal: 60,
-    gap: 8,
+    paddingHorizontal: 80,
+    gap: 4,
   },
   questionCounter: {
     fontSize: 14,
@@ -537,12 +552,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   question: {
-    fontSize: 36,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '400',
     color: '#111827',
     textAlign: 'center',
     marginTop: 40,
-    marginBottom: 60,
+    marginBottom: 32,
     paddingHorizontal: 20,
   },
   centerContent: {

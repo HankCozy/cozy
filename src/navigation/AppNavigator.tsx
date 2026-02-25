@@ -64,6 +64,12 @@ export type QuestionFlowParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   QuestionFlowStack: undefined;
+  SectionQuestions: { sectionId: string; sectionName: string };
+  AnswerQuestion: {
+    sectionId: string;
+    questions: string[];
+    isFirstTimeOnboarding?: boolean;
+  };
   MemberProfile: { userId: string };
   CircleDetail: { circleId: string; circleName: string };
   EditCommunity: { communityId: string };
@@ -83,6 +89,7 @@ export type RootStackParamList = {
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppTabs = createBottomTabNavigator<AppTabsParamList>();
 const QuestionFlowStack = createNativeStackNavigator<QuestionFlowParamList>();
+const QuestionsTabStack = createNativeStackNavigator<QuestionFlowParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function AuthNavigator() {
@@ -98,6 +105,16 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
+  );
+}
+
+function QuestionsTabNavigator() {
+  return (
+    <QuestionsTabStack.Navigator screenOptions={{ headerShown: false }}>
+      <QuestionsTabStack.Screen name="QuestionFlow" component={QuestionFlowScreen} />
+      <QuestionsTabStack.Screen name="SectionQuestions" component={SectionQuestionsScreen} />
+      <QuestionsTabStack.Screen name="AnswerQuestion" component={AnswerQuestionScreen} />
+    </QuestionsTabStack.Navigator>
   );
 }
 
@@ -204,6 +221,16 @@ function TabsNavigator() {
       }}
     >
       <AppTabs.Screen
+        name="Questions"
+        component={QuestionsTabNavigator}
+        options={{
+          tabBarLabel: 'Questions',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="mic" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
@@ -211,22 +238,6 @@ function TabsNavigator() {
             <Feather name="user" size={size} color={color} />
           ),
         }}
-      />
-      <AppTabs.Screen
-        name="Questions"
-        component={QuestionFlowNavigator}
-        options={{
-          tabBarLabel: 'Questions',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="mic" size={size} color={color} />
-          ),
-        }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('QuestionFlowStack');
-          },
-        })}
       />
       <AppTabs.Screen
         name="Community"
@@ -251,6 +262,8 @@ function AppNavigator() {
     >
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />
+      <RootStack.Screen name="SectionQuestions" component={SectionQuestionsScreen} />
+      <RootStack.Screen name="AnswerQuestion" component={AnswerQuestionScreen} />
       <RootStack.Screen name="MemberProfile" component={MemberProfileScreen} />
       <RootStack.Screen name="CircleDetail" component={CircleDetailScreen} />
       <RootStack.Screen name="EditCommunity" component={AdminEditCommunityScreen} />
