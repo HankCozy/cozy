@@ -224,7 +224,8 @@ router.get('/circles/:circleId', authenticateToken, async (req: AuthRequest, res
   }
 });
 
-// GET /api/communities/icebreaker - Get personalized icebreaker match
+// GET /api/communities/icebreaker - Get personalized member spotlight match
+// Query params: ?exclude=userId1,userId2  (comma-separated IDs of recently seen members)
 router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { communityId, userId } = req;
@@ -232,6 +233,10 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
     if (!communityId || !userId) {
       return res.status(400).json({ error: 'Community ID or User ID not found' });
     }
+
+    // Parse exclude list from query param
+    const excludeParam = typeof req.query.exclude === 'string' ? req.query.exclude : '';
+    const excludeUserIds = excludeParam ? excludeParam.split(',').filter(Boolean) : [];
 
     // Fetch current user's profile
     const currentUser = await prisma.user.findUnique({
@@ -253,7 +258,7 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       });
     }
 
-    // Fetch all other published members
+    // Fetch all other published members (include profilePictureUrl for the card)
     const otherMembers = await prisma.user.findMany({
       where: {
         communityId: communityId,
@@ -266,7 +271,8 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
         firstName: true,
         lastName: true,
         profileSummary: true,
-        profileAnswers: true
+        profileAnswers: true,
+        profilePictureUrl: true
       }
     });
 
@@ -294,11 +300,17 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       profileSummary: m.profileSummary
     }));
 
-    const match = await findIcebreakerMatch(userId, userProfile, memberProfiles);
+    const match = await findIcebreakerMatch(userId, userProfile, memberProfiles, excludeUserIds);
+
+    // Attach profilePictureUrl from the DB result
+    const matchedDbMember = match ? otherMembers.find(m => m.id === match.userId) : null;
 
     res.json({
       success: true,
-      match
+      match: match ? {
+        ...match,
+        profilePictureUrl: matchedDbMember?.profilePictureUrl ?? null,
+      } : null
     });
   } catch (error) {
     console.error('Icebreaker match error:', error);

@@ -4,12 +4,15 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 export interface ResponseCardData {
   headline: string;
   tags: string[];
+  icebreakerQuestions?: string[];
 }
 
 interface ResponseCardProps extends ResponseCardData {
   firstName?: string;
   lastName?: string;
   profilePictureUrl?: string | null;
+  funFact?: string;
+  funFactQuestion?: string;
   onViewProfile?: () => void;
 }
 
@@ -45,6 +48,7 @@ export default function ResponseCard({
   tags,
   funFact,
   funFactQuestion,
+  icebreakerQuestions,
   onViewProfile,
 }: ResponseCardProps) {
   const name = [firstName, lastName].filter(Boolean).join(' ');
@@ -55,7 +59,7 @@ export default function ResponseCard({
     firstName,
     lastName
   );
-  const displayFunFact = replaceFullNameWithFirst(funFact, firstName, lastName);
+  const displayFunFact = replaceFullNameWithFirst(funFact ?? '', firstName, lastName);
 
   return (
     <View style={styles.card}>
@@ -98,6 +102,15 @@ export default function ResponseCard({
             <Text style={styles.funFactText}>"{displayFunFact}"</Text>
           </View>
         ) : null}
+
+        {icebreakerQuestions && icebreakerQuestions.length > 0 && (
+          <View style={styles.icebreakerSection}>
+            <Text style={styles.icebreakerLabel}>Questions to break the ice:</Text>
+            {icebreakerQuestions.map((q, i) => (
+              <Text key={i} style={styles.icebreakerQuestion}>• {q}</Text>
+            ))}
+          </View>
+        )}
 
         {onViewProfile ? (
           <TouchableOpacity onPress={onViewProfile} style={styles.viewProfileRow}>
@@ -198,6 +211,21 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontStyle: 'italic',
     lineHeight: 30,
+  },
+  icebreakerSection: {
+    gap: 6,
+  },
+  icebreakerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  icebreakerQuestion: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
   },
   viewProfileRow: {
     alignItems: 'flex-end',

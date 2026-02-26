@@ -9,10 +9,12 @@ import {
   RefreshControl,
   Alert,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import ResponseCard from '../components/ResponseCard';
 import { API_BASE_URL } from '../config/api';
 
 interface CircleMember {
@@ -28,12 +30,23 @@ interface Circle {
   members: CircleMember[];
 }
 
+interface MemberDetail {
+  profileSummary: string | null;
+  profilePictureUrl: string | null;
+}
+
 type RouteParams = {
   CircleDetail: {
     circleId: string;
     circleName: string;
   };
 };
+
+function extractHeadline(summary: string | null, fallback: string): string {
+  if (!summary) return fallback;
+  const sentences = summary.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 10);
+  return sentences[0]?.trim() || fallback;
+}
 
 export default function CircleDetailScreen() {
   const navigation = useNavigation<any>();
@@ -44,6 +57,11 @@ export default function CircleDetailScreen() {
   const [circle, setCircle] = useState<Circle | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Member card modal state
+  const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
+  const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
+  const [loadingMemberCard, setLoadingMemberCard] = useState(false);
 
   const fetchCircleDetails = async () => {
     try {
@@ -65,7 +83,6 @@ export default function CircleDetailScreen() {
       }
 
       const data = await response.json();
-
       if (data.success) {
         setCircle(data.circle);
       }
@@ -74,6 +91,32 @@ export default function CircleDetailScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchMemberDetail = async (userId: string) => {
+    setLoadingMemberCard(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/communities/members/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.user) {
+          setMemberDetail({
+            profileSummary: data.user.profileSummary ?? null,
+            profilePictureUrl: data.user.profilePictureUrl ?? null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch member detail:', error);
+    } finally {
+      setLoadingMemberCard(false);
     }
   };
 
@@ -87,7 +130,21 @@ export default function CircleDetailScreen() {
   };
 
   const handleMemberPress = (member: CircleMember) => {
-    navigation.navigate('MemberProfile', { userId: member.userId });
+    setSelectedMember(member);
+    setMemberDetail(null);
+    fetchMemberDetail(member.userId);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedMember(null);
+    setMemberDetail(null);
+  };
+
+  const handleViewFullProfile = () => {
+    if (!selectedMember) return;
+    const userId = selectedMember.userId;
+    handleCloseModal();
+    navigation.navigate('MemberProfile', { userId });
   };
 
   const handleBack = () => {
@@ -158,6 +215,44 @@ export default function CircleDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Member Card Modal */}
+      <Modal
+        visible={selectedMember !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseModal}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleCloseModal}
+        >
+          <TouchableOpacity
+            style={styles.modalSheet}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            {/* Drag handle */}
+            <View style={styles.dragHandle} />
+
+            {loadingMemberCard ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color="#3b82f6" />
+              </View>
+            ) : selectedMember ? (
+              <ResponseCard
+                firstName={selectedMember.firstName}
+                lastName={selectedMember.lastName}
+                profilePictureUrl={memberDetail?.profilePictureUrl ?? null}
+                headline={extractHeadline(memberDetail?.profileSummary ?? null, selectedMember.tagline)}
+                tags={[]}
+                onViewProfile={handleViewFullProfile}
+              />
+            ) : null}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -277,5 +372,30 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 16,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#f9fafb',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  modalLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
   },
 });

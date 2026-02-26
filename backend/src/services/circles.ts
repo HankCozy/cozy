@@ -36,6 +36,7 @@ export interface IcebreakerMatch {
   userId: string;
   firstName: string;
   lastName: string;
+  profileSummary: string | null;
   matchScore: number;
   sharedInterests: string[];
   icebreakerQuestions: string[];
@@ -253,119 +254,140 @@ function extractAnswersForClustering(profileAnswers: any): string {
 }
 
 /**
- * Find icebreaker matches for a specific user
+ * Find icebreaker matches for a specific user.
+ * Returns top 5 candidates with scores, then picks one via weighted random
+ * (higher scores = higher probability) to ensure variety over time.
+ * Members in excludeUserIds are excluded; falls back to full pool if all excluded.
  */
 export async function findIcebreakerMatch(
   userId: string,
   userProfile: MemberProfile,
-  communityMembers: MemberProfile[]
+  communityMembers: MemberProfile[],
+  excludeUserIds: string[] = []
 ): Promise<IcebreakerMatch | null> {
-  // Filter out the current user
-  const otherMembers = communityMembers.filter((m) => m.id !== userId);
+  // Start with members other than self, then apply exclude list
+  const allOthers = communityMembers.filter((m) => m.id !== userId);
+  if (allOthers.length === 0) return null;
 
-  if (otherMembers.length === 0) {
-    return null;
-  }
+  // Exclude recently-seen members, but fall back to full pool if everyone is excluded
+  const candidates = allOthers.filter((m) => !excludeUserIds.includes(m.id));
+  const pool = candidates.length > 0 ? candidates : allOthers;
 
   const userAnswers = extractAnswersForClustering(userProfile.profileAnswers);
 
-  const prompt = `You are finding the best connection match for a community member.
+  // Use sequential indices so Claude reliably copies them back
+  const memberData = pool.map((m, idx) => ({
+    memberId: idx + 1,
+    name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'Anonymous',
+    answers: extractAnswersForClustering(m.profileAnswers),
+  }));
+
+  const prompt = `You are finding the top 5 connection matches for a community member.
 
 ## Current User
 Name: ${userProfile.firstName || ''} ${userProfile.lastName || ''}
 Profile Answers:
 ${userAnswers}
 
-## Other Community Members
-${otherMembers
-  .map(
-    (m) => `
-ID: ${m.id}
-Name: ${m.firstName || ''} ${m.lastName || ''}
-Profile Answers:
-${extractAnswersForClustering(m.profileAnswers)}
----`
-  )
-  .join('\n')}
+## Community Members
+${JSON.stringify(memberData, null, 2)}
 
 ## Task
-Find the SINGLE best match for the current user based on:
+Rank the top 5 members (or fewer if less than 5 exist) based on:
 1. Shared interests and hobbies
 2. Similar life experiences or stages
 3. Complementary skills (one can teach, other wants to learn)
 4. Potential for meaningful conversation
 
-## Output Format
-Return ONLY valid JSON (no markdown, no explanation):
+## Output
+CRITICAL: Output ONLY the raw JSON object — no preamble, no explanation, no markdown.
+Use the exact integer memberId values from the Community Members list above.
 {
-  "matchUserId": "the-best-match-user-id",
-  "matchScore": 0.85,
-  "sharedInterests": ["interest1", "interest2"],
-  "icebreakerQuestions": [
-    "Question they could ask this person?",
-    "Another conversation starter?",
-    "A third icebreaker question?"
+  "candidates": [
+    {
+      "memberId": 3,
+      "matchScore": 0.92,
+      "sharedInterests": ["hiking", "photography"],
+      "icebreakerQuestions": [
+        "Specific question about their shared interest?",
+        "Another personalized conversation starter?",
+        "A third icebreaker question?"
+      ]
+    }
   ]
 }
 
-Provide 3 specific, personalized icebreaker questions based on their shared interests.`;
+Provide 3 specific, personalized icebreaker questions per candidate based on their actual profile answers.`;
+
+  const fallbackMember = pool[Math.floor(Math.random() * pool.length)];
+  const fallbackResult: IcebreakerMatch = {
+    userId: fallbackMember.id,
+    firstName: fallbackMember.firstName || 'Unknown',
+    lastName: fallbackMember.lastName || '',
+    profileSummary: fallbackMember.profileSummary || null,
+    matchScore: 0.5,
+    sharedInterests: [],
+    icebreakerQuestions: [
+      "What brought you to this community?",
+      "What do you enjoy doing in your free time?",
+      "What's something you've been wanting to learn?",
+    ],
+  };
 
   try {
     const message = await client.messages.create({
       model: 'claude-3-haiku-20240307',
-      max_tokens: 512,
+      max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const textContent = message.content.find((block) => block.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      return null;
-    }
+    if (!textContent || textContent.type !== 'text') return fallbackResult;
 
-    const result = JSON.parse(textContent.text);
-    const matchedMember = otherMembers.find((m) => m.id === result.matchUserId);
+    // Extract JSON — handles prose preamble and markdown fences
+    const rawText = textContent.text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return fallbackResult;
 
-    if (!matchedMember) {
-      // Fallback to random member if AI response is invalid
-      const randomMember = otherMembers[Math.floor(Math.random() * otherMembers.length)];
-      return {
-        userId: randomMember.id,
-        firstName: randomMember.firstName || 'Unknown',
-        lastName: randomMember.lastName || '',
-        matchScore: 0.5,
-        sharedInterests: [],
-        icebreakerQuestions: [
-          "What brought you to this community?",
-          "What do you enjoy doing in your free time?",
-          "What's something you've been wanting to learn?"
-        ],
-      };
+    const result = JSON.parse(jsonMatch[0]);
+    const aiCandidates: Array<{
+      memberId: number;
+      matchScore: number;
+      sharedInterests: string[];
+      icebreakerQuestions: string[];
+    }> = Array.isArray(result.candidates) ? result.candidates : [];
+
+    // Map back via index, filter invalid entries
+    const validCandidates = aiCandidates
+      .filter((c) => typeof c.memberId === 'number' && c.memberId >= 1 && c.memberId <= pool.length)
+      .map((c) => ({ ...c, member: pool[c.memberId - 1] }));
+
+    if (validCandidates.length === 0) return fallbackResult;
+
+    // Weighted random selection: probability ∝ matchScore
+    const totalWeight = validCandidates.reduce((sum, c) => sum + (c.matchScore || 0.5), 0);
+    let rand = Math.random() * totalWeight;
+    let chosen = validCandidates[0];
+    for (const c of validCandidates) {
+      rand -= c.matchScore || 0.5;
+      if (rand <= 0) {
+        chosen = c;
+        break;
+      }
     }
 
     return {
-      userId: matchedMember.id,
-      firstName: matchedMember.firstName || 'Unknown',
-      lastName: matchedMember.lastName || '',
-      matchScore: result.matchScore || 0.7,
-      sharedInterests: result.sharedInterests || [],
-      icebreakerQuestions: result.icebreakerQuestions || [],
+      userId: chosen.member.id,
+      firstName: chosen.member.firstName || 'Unknown',
+      lastName: chosen.member.lastName || '',
+      profileSummary: chosen.member.profileSummary || null,
+      matchScore: chosen.matchScore || 0.7,
+      sharedInterests: chosen.sharedInterests || [],
+      icebreakerQuestions: chosen.icebreakerQuestions || [],
     };
   } catch (error) {
     console.error('[Circles] Icebreaker matching error:', error);
-    // Fallback to random member
-    const randomMember = otherMembers[Math.floor(Math.random() * otherMembers.length)];
-    return {
-      userId: randomMember.id,
-      firstName: randomMember.firstName || 'Unknown',
-      lastName: randomMember.lastName || '',
-      matchScore: 0.5,
-      sharedInterests: [],
-      icebreakerQuestions: [
-        "What brought you to this community?",
-        "What do you enjoy doing in your free time?",
-        "What's something you've been wanting to learn?"
-      ],
-    };
+    return fallbackResult;
   }
 }
 

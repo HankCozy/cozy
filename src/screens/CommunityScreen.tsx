@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,12 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
+import ResponseCard from '../components/ResponseCard';
 import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
+
+const SPOTLIGHT_SEEN_KEY = 'spotlight_seen_ids';
+const MAX_SEEN = 8;
 
 interface CircleOverview {
   id: string;
@@ -24,13 +28,21 @@ interface CircleOverview {
   count: number;
 }
 
-interface IcebreakerMatch {
+interface SpotlightMatch {
   userId: string;
   firstName: string;
   lastName: string;
+  profileSummary: string | null;
+  profilePictureUrl: string | null;
   matchScore: number;
   sharedInterests: string[];
   icebreakerQuestions: string[];
+}
+
+function extractHeadline(summary: string | null): string {
+  if (!summary) return '';
+  const sentences = summary.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 10);
+  return sentences[0]?.trim() || '';
 }
 
 export default function CommunityScreen() {
@@ -38,15 +50,16 @@ export default function CommunityScreen() {
   const { auth, logout } = useAuth();
   const { user, token } = auth;
   const [circles, setCircles] = useState<CircleOverview[]>([]);
-  const [icebreakerMatch, setIcebreakerMatch] = useState<IcebreakerMatch | null>(null);
+  const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingIcebreaker, setLoadingIcebreaker] = useState(false);
+  const [loadingSpotlight, setLoadingSpotlight] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
   const [answerCount, setAnswerCount] = useState(0);
   const [userProfilePictureUrl, setUserProfilePictureUrl] = useState<string | null>(null);
   const [showAllCircles, setShowAllCircles] = useState(false);
   const [smallCommunity, setSmallCommunity] = useState(false);
+  const spotlightFetchedRef = useRef(false);
 
   const fetchCircles = async () => {
     try {
@@ -59,7 +72,6 @@ export default function CommunityScreen() {
       });
 
       if (response.status === 401 || response.status === 403) {
-        // User's profile isn't published - this is expected
         if (response.status === 403) {
           setCircles([]);
           return;
@@ -73,10 +85,8 @@ export default function CommunityScreen() {
       }
 
       const data = await response.json();
-
       if (data.success) {
         setCircles(data.circles);
-        // Check if small community (only "All" circle returned)
         setSmallCommunity(data.circles.length === 1 && data.circles[0].id === 'all');
       }
     } catch (error) {
@@ -84,10 +94,15 @@ export default function CommunityScreen() {
     }
   };
 
-  const fetchIcebreakerMatch = async () => {
-    setLoadingIcebreaker(true);
+  const fetchSpotlight = async () => {
+    setLoadingSpotlight(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/communities/icebreaker`, {
+      // Load recently seen member IDs and exclude them
+      const seenJson = await AsyncStorage.getItem(SPOTLIGHT_SEEN_KEY);
+      const seenIds: string[] = seenJson ? JSON.parse(seenJson) : [];
+      const excludeParam = seenIds.length > 0 ? `?exclude=${seenIds.join(',')}` : '';
+
+      const response = await fetch(`${API_BASE_URL}/api/communities/icebreaker${excludeParam}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -98,13 +113,19 @@ export default function CommunityScreen() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.match) {
-          setIcebreakerMatch(data.match);
+          setSpotlightMatch(data.match);
+
+          // Track this person as seen (rolling window of MAX_SEEN)
+          const newSeen = seenIds.filter((id) => id !== data.match.userId);
+          newSeen.push(data.match.userId);
+          if (newSeen.length > MAX_SEEN) newSeen.splice(0, newSeen.length - MAX_SEEN);
+          await AsyncStorage.setItem(SPOTLIGHT_SEEN_KEY, JSON.stringify(newSeen));
         }
       }
     } catch (error) {
-      console.error('Failed to fetch icebreaker match:', error);
+      console.error('Failed to fetch spotlight:', error);
     } finally {
-      setLoadingIcebreaker(false);
+      setLoadingSpotlight(false);
     }
   };
 
@@ -125,6 +146,11 @@ export default function CommunityScreen() {
 
       if (isPublished) {
         setProfileStatus('sharing');
+        // Fetch spotlight once per session (not on every tab focus)
+        if (!spotlightFetchedRef.current) {
+          spotlightFetchedRef.current = true;
+          fetchSpotlight();
+        }
       } else {
         setProfileStatus('draft');
       }
@@ -143,9 +169,7 @@ export default function CommunityScreen() {
 
       if (user?.id && token) {
         getProfilePictureUrl(user.id, token)
-          .then(url => {
-            setUserProfilePictureUrl(url);
-          })
+          .then(url => setUserProfilePictureUrl(url))
           .catch(error => {
             if (error.message === 'TOKEN_EXPIRED') {
               Alert.alert(
@@ -161,37 +185,20 @@ export default function CommunityScreen() {
     }, [token, user?.id])
   );
 
-  // Fetch icebreaker when profile is sharing
-  useFocusEffect(
-    React.useCallback(() => {
-      if (profileStatus === 'sharing') {
-        fetchIcebreakerMatch();
-      }
-    }, [profileStatus, token])
-  );
-
   const onRefresh = () => {
     setRefreshing(true);
     determineProfileStatus();
     fetchCircles();
-    if (profileStatus === 'sharing') {
-      fetchIcebreakerMatch();
-    }
     setRefreshing(false);
+  };
+
+  const handleMeetSomeoneNew = () => {
+    setSpotlightMatch(null);
+    fetchSpotlight();
   };
 
   const handleCirclePress = (circle: CircleOverview) => {
     navigation.navigate('CircleDetail', { circleId: circle.id, circleName: circle.name });
-  };
-
-  const handleIcebreakerPress = () => {
-    if (icebreakerMatch) {
-      navigation.navigate('MemberProfile', { userId: icebreakerMatch.userId });
-    }
-  };
-
-  const handleRandomize = () => {
-    fetchIcebreakerMatch();
   };
 
   const getStatusText = () => {
@@ -201,7 +208,6 @@ export default function CommunityScreen() {
     return 'Profile not shared';
   };
 
-  // Determine which circles to show (first 4 or all)
   const visibleCircles = showAllCircles ? circles : circles.slice(0, 4);
   const hasMoreCircles = circles.length > 4;
 
@@ -266,7 +272,6 @@ export default function CommunityScreen() {
           <Text style={styles.sectionTitle}>Your circles:</Text>
 
           {profileStatus !== 'sharing' ? (
-            // Locked state - show dimmed circles with lock overlay
             <View style={styles.lockedContainer}>
               <View style={styles.circlesGridDimmed}>
                 {[1, 2, 3, 4].map((i) => (
@@ -284,7 +289,6 @@ export default function CommunityScreen() {
               </View>
             </View>
           ) : smallCommunity ? (
-            // Small community state
             <View style={styles.smallCommunityContainer}>
               <View style={styles.circlesGrid}>
                 <TouchableOpacity
@@ -302,7 +306,6 @@ export default function CommunityScreen() {
               </Text>
             </View>
           ) : (
-            // Normal circles grid
             <>
               <View style={styles.circlesGrid}>
                 {visibleCircles.map((circle) => (
@@ -339,67 +342,36 @@ export default function CommunityScreen() {
           )}
         </View>
 
-        {/* Icebreakers Section */}
+        {/* Member Spotlight Section */}
         {profileStatus === 'sharing' && (
-          <View style={styles.icebreakersSection}>
-            <Text style={styles.sectionTitle}>Icebreakers</Text>
-
-            {loadingIcebreaker ? (
-              <View style={styles.icebreakerLoading}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-                <Text style={styles.icebreakerLoadingText}>Finding your match...</Text>
-              </View>
-            ) : icebreakerMatch ? (
-              <View style={styles.icebreakerCard}>
-                <TouchableOpacity
-                  style={styles.icebreakerHeader}
-                  onPress={handleIcebreakerPress}
-                >
-                  <View style={styles.icebreakerAvatar}>
-                    <Text style={styles.icebreakerInitials}>
-                      {icebreakerMatch.firstName?.[0]?.toUpperCase() || '?'}
-                      {icebreakerMatch.lastName?.[0]?.toUpperCase() || ''}
-                    </Text>
-                  </View>
-                  <View style={styles.icebreakerInfo}>
-                    <Text style={styles.icebreakerName}>
-                      {icebreakerMatch.firstName} {icebreakerMatch.lastName}
-                    </Text>
-                    {icebreakerMatch.sharedInterests.length > 0 && (
-                      <Text style={styles.icebreakerInterests}>
-                        Shared: {icebreakerMatch.sharedInterests.slice(0, 2).join(', ')}
-                      </Text>
-                    )}
-                  </View>
-                  <Feather name="chevron-right" size={20} color="#9CA3AF" />
+          <View style={styles.spotlightSection}>
+            <View style={styles.spotlightHeaderRow}>
+              <Text style={styles.spotlightTitle}>Member spotlight</Text>
+              {spotlightMatch && !loadingSpotlight && (
+                <TouchableOpacity style={styles.meetNewButton} onPress={handleMeetSomeoneNew}>
+                  <Feather name="refresh-cw" size={14} color="#3b82f6" />
+                  <Text style={styles.meetNewText}>Meet someone new</Text>
                 </TouchableOpacity>
+              )}
+            </View>
 
-                <View style={styles.icebreakerQuestions}>
-                  <Text style={styles.icebreakerQuestionsTitle}>Questions to ask:</Text>
-                  {icebreakerMatch.icebreakerQuestions.map((question, index) => (
-                    <Text key={index} style={styles.icebreakerQuestion}>
-                      {index + 1}. {question}
-                    </Text>
-                  ))}
-                </View>
-
-                <View style={styles.icebreakerActions}>
-                  <TouchableOpacity
-                    style={styles.icebreakerButton}
-                    onPress={handleRandomize}
-                  >
-                    <Feather name="refresh-cw" size={16} color="#3b82f6" />
-                    <Text style={styles.icebreakerButtonText}>Randomize</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.icebreakerButton}
-                    onPress={handleIcebreakerPress}
-                  >
-                    <Feather name="user" size={16} color="#3b82f6" />
-                    <Text style={styles.icebreakerButtonText}>View Profile</Text>
-                  </TouchableOpacity>
-                </View>
+            {loadingSpotlight ? (
+              <View style={styles.spotlightLoading}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.spotlightLoadingText}>Finding someone to meet...</Text>
               </View>
+            ) : spotlightMatch ? (
+              <ResponseCard
+                firstName={spotlightMatch.firstName}
+                lastName={spotlightMatch.lastName}
+                profilePictureUrl={spotlightMatch.profilePictureUrl}
+                headline={extractHeadline(spotlightMatch.profileSummary)}
+                tags={spotlightMatch.sharedInterests}
+                icebreakerQuestions={spotlightMatch.icebreakerQuestions}
+                onViewProfile={() =>
+                  navigation.navigate('MemberProfile', { userId: spotlightMatch.userId })
+                }
+              />
             ) : (
               <View style={styles.noMatchContainer}>
                 <Feather name="users" size={32} color="#D1D5DB" />
@@ -594,95 +566,41 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  icebreakersSection: {
+  spotlightSection: {
     marginTop: 32,
     paddingHorizontal: 20,
   },
-  icebreakerLoading: {
+  spotlightTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  spotlightHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  meetNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  meetNewText: {
+    fontSize: 13,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  spotlightLoading: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
     gap: 8,
   },
-  icebreakerLoadingText: {
+  spotlightLoadingText: {
     fontSize: 14,
     color: '#6B7280',
-  },
-  icebreakerCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  icebreakerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  icebreakerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  icebreakerInitials: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#92400E',
-  },
-  icebreakerInfo: {
-    flex: 1,
-  },
-  icebreakerName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  icebreakerInterests: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  icebreakerQuestions: {
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  icebreakerQuestionsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  icebreakerQuestion: {
-    fontSize: 14,
-    color: '#4B5563',
-    marginBottom: 4,
-    lineHeight: 20,
-  },
-  icebreakerActions: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-  },
-  icebreakerButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    gap: 6,
-  },
-  icebreakerButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#3b82f6',
   },
   noMatchContainer: {
     alignItems: 'center',
