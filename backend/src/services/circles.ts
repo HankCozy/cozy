@@ -100,9 +100,9 @@ async function generateCircles(members: MemberProfile[]): Promise<CirclesResult>
     };
   }
 
-  // Prepare member data for AI
+  // Prepare member data for AI — use 'userId' to match the expected output field
   const memberData = members.map((m) => ({
-    id: m.id,
+    userId: m.id,
     name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'Anonymous',
     answers: extractAnswersForClustering(m.profileAnswers),
   }));
