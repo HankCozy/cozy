@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../services/api';
 import { resetOnboardingFlags } from '../utils/resetOnboarding';
+import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import ProfileNudge from '../components/ProfileNudge';
@@ -148,6 +149,23 @@ export default function ProfileScreen() {
       loadAnswers();
       loadProfileSummary();
       loadResponseCard();
+
+      // After new-user registration, OnboardingScreen sets this flag before
+      // switching auth state. We pick it up here (correct navigation tree)
+      // and launch the question flow.
+      AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
+        if (pending === 'true') {
+          await AsyncStorage.removeItem('pending_question_flow');
+          navigation.getParent()?.navigate('QuestionFlowStack', {
+            screen: 'AnswerQuestion',
+            params: {
+              sectionId: 'all',
+              questions: ALL_QUESTIONS_ORDERED,
+              isFirstTimeOnboarding: true,
+            },
+          });
+        }
+      });
 
       // Load dismissed nudge
       AsyncStorage.getItem('nudge_dismissed_id').then((id) => {

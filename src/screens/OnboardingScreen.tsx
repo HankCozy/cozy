@@ -10,6 +10,7 @@ import {
   Animated,
   SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, User } from '../contexts/AuthContext';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 import Waveform from '../components/Waveform';
@@ -149,19 +150,24 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
 
   const handleGetStarted = async () => {
     if (route.params?.user && route.params?.token) {
-      // Coming from registration - complete onboarding and authenticate first
+      // Coming from registration — set a flag BEFORE switching auth state.
+      // When completeOnboarding fires, the navigation tree swaps from
+      // AuthNavigator → AppNavigator and this screen unmounts. The flag is
+      // picked up by ProfileScreen's useFocusEffect on the new tree.
+      await AsyncStorage.setItem('pending_question_flow', 'true');
       await completeOnboarding(route.params.user, route.params.token);
+      // Do NOT navigate here — the navigation tree has already switched.
+    } else {
+      // Already authenticated (returning user). Navigate directly.
+      navigation.navigate('QuestionFlowStack', {
+        screen: 'AnswerQuestion',
+        params: {
+          sectionId: 'all',
+          questions: ALL_QUESTIONS_ORDERED,
+          isFirstTimeOnboarding: true,
+        },
+      });
     }
-
-    // Navigate to all 16 questions for first-time onboarding
-    navigation.navigate('QuestionFlowStack', {
-      screen: 'AnswerQuestion',
-      params: {
-        sectionId: 'all',
-        questions: ALL_QUESTIONS_ORDERED,
-        isFirstTimeOnboarding: true,
-      },
-    });
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {

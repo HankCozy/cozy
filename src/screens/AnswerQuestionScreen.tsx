@@ -252,6 +252,21 @@ export default function AnswerQuestionScreen() {
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();
         }
+      } else if (isFirstTimeOnboarding && currentQuestionIndex === 0) {
+        // After Q1 of onboarding, transition into the tab navigator so Q2+
+        // shows the bottom nav bar. Keep isFirstTimeOnboarding: true so the
+        // final question still navigates to Profile and marks onboarding done.
+        navigation.getParent()?.navigate('MainTabs', {
+          screen: 'Questions',
+          params: {
+            screen: 'AnswerQuestion',
+            params: {
+              sectionId: 'all',
+              questions: questions.slice(1),
+              isFirstTimeOnboarding: true,
+            },
+          },
+        });
       } else {
         // Reset for next question
         setCurrentQuestionIndex((prev) => prev + 1);
@@ -324,22 +339,24 @@ export default function AnswerQuestionScreen() {
         >
           <Feather name="arrow-left" size={24} color="#374151" />
         </TouchableOpacity>
-        {!(isFirstTimeOnboarding && currentQuestionIndex === 0) && (
+        {totalAnswers > 0 && (
           <View style={styles.strengthIndicatorContainer}>
             <ProfileStrengthIndicator
               totalAnswers={totalAnswers}
               showLabel={false}
               compact={true}
             />
-            <Text style={styles.questionCounter}>Profile Strength</Text>
+            <Text style={styles.questionCounter}>{totalAnswers}/15 questions answered</Text>
           </View>
         )}
-        <TouchableOpacity
-          style={styles.categoriesButton}
-          onPress={() => navigation.popToTop()}
-        >
-          <CategoriesIcon size={24} />
-        </TouchableOpacity>
+        {!isFirstTimeOnboarding && (
+          <TouchableOpacity
+            style={styles.categoriesButton}
+            onPress={() => navigation.popToTop()}
+          >
+            <CategoriesIcon size={24} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.content}>

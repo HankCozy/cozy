@@ -1,25 +1,24 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { getStrengthLevel, getStrengthColor, getStrengthLabel } from '../utils/profileStrength';
+
+const MAX_QUESTIONS = 15;
 
 interface ProfileStrengthIndicatorProps {
   totalAnswers: number;
-  maxAnswers?: number;
   showLabel?: boolean;
   compact?: boolean;
 }
 
 export default function ProfileStrengthIndicator({
   totalAnswers,
-  maxAnswers = 16,
   showLabel = true,
   compact = false,
 }: ProfileStrengthIndicatorProps) {
   const level = getStrengthLevel(totalAnswers);
   const color = getStrengthColor(level);
   const label = getStrengthLabel(level);
-  const progress = Math.min(totalAnswers / maxAnswers, 1);
+  const progress = Math.min(totalAnswers / MAX_QUESTIONS, 1);
 
   return (
     <View style={styles.container}>
@@ -33,11 +32,6 @@ export default function ProfileStrengthIndicator({
             ]}
           />
         </View>
-
-        {/* Star icon for complete */}
-        {totalAnswers >= 16 && (
-          <Feather name="star" size={16} color="#14532d" style={styles.star} />
-        )}
       </View>
 
       {/* Label and count */}
@@ -45,7 +39,7 @@ export default function ProfileStrengthIndicator({
         <View style={styles.labelRow}>
           <Text style={styles.label}>{label}</Text>
           <Text style={styles.count}>
-            {totalAnswers}/{maxAnswers}
+            {totalAnswers}/{MAX_QUESTIONS}
           </Text>
         </View>
       )}
@@ -72,11 +66,6 @@ const styles = StyleSheet.create({
   barFill: {
     height: 8,
     borderRadius: 4,
-  },
-  star: {
-    position: 'absolute',
-    right: -20,
-    top: -4,
   },
   labelRow: {
     flexDirection: 'row',
