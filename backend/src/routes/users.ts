@@ -4,6 +4,7 @@ import multer from 'multer';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import { validateProfileInput } from '../middleware/validation';
+import { invalidateCirclesCache } from '../services/circles';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -114,6 +115,15 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
       data: updateData,
       include: { community: true }
     });
+
+    // Invalidate circles cache when profile publish status changes or answers update
+    // while the user is published — either affects who appears in circles and how
+    const shouldInvalidate =
+      profilePublished !== undefined ||
+      (profileAnswers !== undefined && updatedUser.profilePublished);
+    if (shouldInvalidate && updatedUser.communityId) {
+      invalidateCirclesCache(updatedUser.communityId);
+    }
 
     res.json({
       success: true,
