@@ -146,14 +146,11 @@ Analyze the profiles and create meaningful circles now.`;
   try {
     console.log('[Circles] Sending clustering request to Claude API...');
 
-    const message = await client.messages.create(
-      {
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-      },
-      { timeout: 30000 }
-    );
+    const message = await client.messages.create({
+      model: 'claude-3-haiku-20240307',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    });
 
     const textContent = message.content.find((block) => block.type === 'text');
     if (!textContent || textContent.type !== 'text') {
