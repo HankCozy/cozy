@@ -100,9 +100,9 @@ async function generateCircles(members: MemberProfile[]): Promise<CirclesResult>
     };
   }
 
-  // Prepare member data for AI — use 'userId' to match the expected output field
-  const memberData = members.map((m) => ({
-    userId: m.id,
+  // Use sequential indices instead of UUIDs so Claude can reliably copy them back
+  const memberData = members.map((m, idx) => ({
+    memberId: idx + 1,
     name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'Anonymous',
     answers: extractAnswersForClustering(m.profileAnswers),
   }));
@@ -128,14 +128,15 @@ TAGLINE RULES:
 - NEVER invent timeframes, numbers, or details
 
 ## Output
-Return ONLY valid JSON:
+CRITICAL: Output ONLY the raw JSON object below — no preamble, no explanation, no markdown.
+Use the exact integer memberId values from the Member Profiles above.
 {
   "circles": [
     {
       "id": "kebab-case-id",
       "name": "Circle Name",
       "members": [
-        { "userId": "user-id-here", "tagline": "Their contextual tagline" }
+        { "memberId": 1, "tagline": "Their contextual tagline" }
       ]
     }
   ]
@@ -157,21 +158,22 @@ Analyze the profiles and create meaningful circles now.`;
       throw new Error('No text content in Claude response');
     }
 
-    // Strip markdown fences if present, then parse
-    const rawText = textContent.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    const aiResult = JSON.parse(rawText);
+    // Extract JSON from response — handles prose preamble and markdown fences
+    const rawText = textContent.text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const jsonText = jsonMatch ? jsonMatch[0] : rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const aiResult = JSON.parse(jsonText);
 
-    // Build full member data for circles
-    const memberMap = new Map(members.map((m) => [m.id, m]));
+    // Index-based lookup: Claude outputs memberId (1-based), we map back to actual member
     const processedCircles: Circle[] = aiResult.circles.map((circle: any) => ({
       id: circle.id,
       name: circle.name,
-      members: circle.members
-        .filter((cm: any) => memberMap.has(cm.userId))
-        .map((cm: any) => {
-          const member = memberMap.get(cm.userId)!;
+      members: (circle.members as any[])
+        .filter((cm) => typeof cm.memberId === 'number' && cm.memberId >= 1 && cm.memberId <= members.length)
+        .map((cm) => {
+          const member = members[cm.memberId - 1];
           return {
-            userId: cm.userId,
+            userId: member.id,
             firstName: member.firstName || 'Unknown',
             lastName: member.lastName || '',
             tagline: cm.tagline,
