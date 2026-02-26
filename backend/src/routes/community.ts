@@ -93,6 +93,61 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
   }
 });
 
+// GET /api/communities/circles/debug - Diagnose circles generation (temp)
+router.get('/circles/debug', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { communityId } = req;
+    if (!communityId) return res.status(400).json({ error: 'No communityId' });
+
+    const members = await prisma.user.findMany({
+      where: { communityId, profilePublished: true, role: 'MEMBER' },
+      select: { id: true, firstName: true, lastName: true, profileSummary: true, profileAnswers: true }
+    });
+
+    const Anthropic = require('@anthropic-ai/sdk').default;
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const memberData = members.map((m: any) => {
+      const answers = m.profileAnswers;
+      let text = '';
+      if (Array.isArray(answers)) {
+        text = answers.map((a: any) => `${a.question}: ${a.transcript}`).join('\n');
+      }
+      return { id: m.id, name: `${m.firstName} ${m.lastName}`, answers: text.slice(0, 200) };
+    });
+
+    const prompt = `Group these ${members.length} members into interest circles. Return JSON: {"circles":[{"id":"id","name":"Name","members":[{"userId":"id","tagline":"tag"}]}]}. Only create circles for interests explicitly mentioned by 3+ members.\n\nMembers:\n${JSON.stringify(memberData)}`;
+
+    const start = Date.now();
+    let rawResponse = '';
+    let parseError = '';
+    let circlesFound: any[] = [];
+    try {
+      const msg = await client.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      rawResponse = msg.content[0]?.text || '';
+      const clean = rawResponse.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      const parsed = JSON.parse(clean);
+      circlesFound = parsed.circles;
+    } catch (e: any) {
+      parseError = e.message;
+    }
+
+    res.json({
+      memberCount: members.length,
+      elapsed: Date.now() - start,
+      rawResponse: rawResponse.slice(0, 1000),
+      parseError,
+      circlesFound: circlesFound.map((c: any) => ({ name: c.name, count: c.members?.length }))
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/communities/circles - Get circles for user's community
 router.get('/circles', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
