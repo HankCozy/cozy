@@ -223,6 +223,7 @@ function TabsNavigator() {
         headerShown: false,
         tabBarActiveTintColor: '#3b82f6',
         tabBarInactiveTintColor: '#9ca3af',
+        tabBarStyle: { paddingHorizontal: 12 },
       }}
     >
       <AppTabs.Screen
@@ -232,6 +233,16 @@ function TabsNavigator() {
           tabBarLabel: 'Questions',
           tabBarIcon: ({ color, size }) => (
             <Feather name="mic" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          tabBarLabel: 'Search',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="search" size={size} color={color} />
           ),
         }}
       />
@@ -261,16 +272,6 @@ function TabsNavigator() {
           tabBarLabel: 'Spotlight',
           tabBarIcon: ({ color, size }) => (
             <Feather name="star" size={size} color={color} />
-          ),
-        }}
-      />
-      <AppTabs.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          tabBarLabel: 'Search',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="search" size={size} color={color} />
           ),
         }}
       />
