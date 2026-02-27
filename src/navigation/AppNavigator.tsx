@@ -16,6 +16,7 @@ import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
+import SpotlightScreen from '../screens/SpotlightScreen';
 import CircleDetailScreen from '../screens/CircleDetailScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
@@ -45,6 +46,7 @@ export type AppTabsParamList = {
   Profile: undefined;
   Questions: undefined;
   Community: undefined;
+  Spotlight: undefined;
   Dashboard?: undefined;
   AdminDashboard?: undefined;
   CreateCommunity?: undefined;
@@ -247,6 +249,16 @@ function TabsNavigator() {
           tabBarLabel: 'Your Circle',
           tabBarIcon: ({ color, size }) => (
             <Feather name="circle" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
+        name="Spotlight"
+        component={SpotlightScreen}
+        options={{
+          tabBarLabel: 'Spotlight',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="star" size={size} color={color} />
           ),
         }}
       />

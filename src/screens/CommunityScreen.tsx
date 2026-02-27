@@ -10,16 +10,13 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
+
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
-import ResponseCard from '../components/ResponseCard';
 import CircleBubbleChart, { CIRCLE_COLORS } from '../components/CircleBubbleChart';
 import { API_BASE_URL } from '../config/api';
-
-const SPOTLIGHT_SEEN_KEY = 'spotlight_seen_ids';
-const MAX_SEEN = 8;
 
 interface CircleOverview {
   id: string;
@@ -29,36 +26,16 @@ interface CircleOverview {
   count: number;
 }
 
-interface SpotlightMatch {
-  userId: string;
-  firstName: string;
-  lastName: string;
-  profileSummary: string | null;
-  profilePictureUrl: string | null;
-  matchScore: number;
-  sharedInterests: string[];
-  icebreakerQuestions: string[];
-}
-
-function extractHeadline(summary: string | null): string {
-  if (!summary) return '';
-  const sentences = summary.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 10);
-  return sentences[0]?.trim() || '';
-}
-
 export default function CommunityScreen() {
   const navigation = useNavigation<any>();
   const { auth, logout } = useAuth();
   const { user, token } = auth;
   const [circles, setCircles] = useState<CircleOverview[]>([]);
-  const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingSpotlight, setLoadingSpotlight] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
   const [smallCommunity, setSmallCommunity] = useState(false);
   const [showOverlap, setShowOverlap] = useState(false);
-  const spotlightFetchedRef = useRef(false);
 
   const fetchCircles = async () => {
     try {
@@ -94,56 +71,11 @@ export default function CommunityScreen() {
     }
   };
 
-  const fetchSpotlight = async () => {
-    setLoadingSpotlight(true);
-    try {
-      // Load recently seen member IDs and exclude them
-      const seenJson = await AsyncStorage.getItem(SPOTLIGHT_SEEN_KEY);
-      const seenIds: string[] = seenJson ? JSON.parse(seenJson) : [];
-      const excludeParam = seenIds.length > 0 ? `?exclude=${seenIds.join(',')}` : '';
-
-      const response = await fetch(`${API_BASE_URL}/api/communities/icebreaker${excludeParam}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.match) {
-          setSpotlightMatch(data.match);
-
-          // Track this person as seen (rolling window of MAX_SEEN)
-          const newSeen = seenIds.filter((id) => id !== data.match.userId);
-          newSeen.push(data.match.userId);
-          if (newSeen.length > MAX_SEEN) newSeen.splice(0, newSeen.length - MAX_SEEN);
-          await AsyncStorage.setItem(SPOTLIGHT_SEEN_KEY, JSON.stringify(newSeen));
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch spotlight:', error);
-    } finally {
-      setLoadingSpotlight(false);
-    }
-  };
-
   const determineProfileStatus = async () => {
     try {
       const profilePublishedStr = await AsyncStorage.getItem('profile_published');
       const isPublished = profilePublishedStr === 'true';
-
-      if (isPublished) {
-        setProfileStatus('sharing');
-        // Fetch spotlight once per session (not on every tab focus)
-        if (!spotlightFetchedRef.current) {
-          spotlightFetchedRef.current = true;
-          fetchSpotlight();
-        }
-      } else {
-        setProfileStatus('draft');
-      }
+      setProfileStatus(isPublished ? 'sharing' : 'draft');
     } catch (error) {
       console.error('Error determining profile status:', error);
       setProfileStatus('start');
@@ -165,11 +97,6 @@ export default function CommunityScreen() {
     determineProfileStatus();
     fetchCircles();
     setRefreshing(false);
-  };
-
-  const handleMeetSomeoneNew = () => {
-    setSpotlightMatch(null);
-    fetchSpotlight();
   };
 
   const handleCirclePress = (circle: CircleOverview) => {
@@ -276,46 +203,6 @@ export default function CommunityScreen() {
           )}
         </View>
 
-        {/* Member Spotlight Section */}
-        {profileStatus === 'sharing' && (
-          <View style={styles.spotlightSection}>
-            <View style={styles.spotlightHeaderRow}>
-              <Text style={styles.spotlightTitle}>Member spotlight</Text>
-              {spotlightMatch && !loadingSpotlight && (
-                <TouchableOpacity style={styles.meetNewButton} onPress={handleMeetSomeoneNew}>
-                  <Feather name="refresh-cw" size={14} color="#3b82f6" />
-                  <Text style={styles.meetNewText}>Meet someone new</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {loadingSpotlight ? (
-              <View style={styles.spotlightLoading}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-                <Text style={styles.spotlightLoadingText}>Finding someone to meet...</Text>
-              </View>
-            ) : spotlightMatch ? (
-              <ResponseCard
-                firstName={spotlightMatch.firstName}
-                lastName={spotlightMatch.lastName}
-                profilePictureUrl={spotlightMatch.profilePictureUrl}
-                headline={extractHeadline(spotlightMatch.profileSummary)}
-                tags={spotlightMatch.sharedInterests}
-                icebreakerQuestions={spotlightMatch.icebreakerQuestions}
-                onViewProfile={() =>
-                  navigation.navigate('MemberProfile', { userId: spotlightMatch.userId })
-                }
-              />
-            ) : (
-              <View style={styles.noMatchContainer}>
-                <Feather name="users" size={32} color="#D1D5DB" />
-                <Text style={styles.noMatchText}>
-                  No matches yet. Complete more of your profile to find connections!
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -467,56 +354,6 @@ const styles = StyleSheet.create({
   },
   smallCommunityText: {
     marginTop: 16,
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  spotlightSection: {
-    marginTop: 32,
-    paddingHorizontal: 20,
-  },
-  spotlightTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  spotlightHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  meetNewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  meetNewText: {
-    fontSize: 13,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  spotlightLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 8,
-  },
-  spotlightLoadingText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  noMatchContainer: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  noMatchText: {
-    marginTop: 12,
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
