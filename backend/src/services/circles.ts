@@ -23,6 +23,7 @@ export interface CircleMember {
 export interface Circle {
   id: string;
   name: string;
+  shortName: string;
   members: CircleMember[];
 }
 
@@ -119,8 +120,10 @@ GROUNDING REQUIREMENT: Only create circles for interests members EXPLICITLY stat
 
 CIRCLE RULES:
 - Create 2-8 circles based on shared interests explicitly mentioned by 3+ members
-- Circle names must be 1-2 words max, in plural noun form describing who the members are (e.g., "Birders", "Hikers", "Woodworkers", "Bakers", "Readers", "Gardeners"). Never include words like "Club", "Group", "Society", "Circle", "Community", "Network", "&", "and", or "enthusiasts"
 - Do NOT combine different activities into one circle (hiking and gardening are separate interests)
+- Each circle needs two labels:
+  * `name` (shown in lists and detail views): A descriptive 2–5 word phrase, 10–30 characters. Balance achieved interests (active hobbies or skills members practice) with ascribed identity (who they are — their values, lifestyle, or shared character). Use "&" sparingly to connect the two sides. Good examples: "Woodworkers & Makers", "Trail Hikers", "Home Bakers & Hosts", "Garden Growers", "Avid Readers". Never include "Club", "Group", "Society", "Circle", "Community", or "Network".
+  * `shortName` (shown inside a small bubble in a chart): 1–2 words, 4–16 characters. Prefer a natural plural noun form that describes who the members are (e.g., "Birders", "Hikers", "Woodworkers", "Bakers", "Readers", "Gardeners"). Do NOT invent words that don't exist naturally in English — if a concise noun form doesn't come naturally, use the first meaningful word of `name` instead. Never include "&", "and", "Club", "Group", "Society", "Circle", "Community", "Network", or "Enthusiasts".
 
 TAGLINE RULES:
 - Each member needs a 5-10 word tagline about their connection to that circle
@@ -135,7 +138,8 @@ Use the exact integer memberId values from the Member Profiles above.
   "circles": [
     {
       "id": "kebab-case-id",
-      "name": "Circle Name",
+      "name": "Woodworkers & Makers",
+      "shortName": "Woodworkers",
       "members": [
         { "memberId": 1, "tagline": "Their contextual tagline" }
       ]
@@ -169,6 +173,7 @@ Analyze the profiles and create meaningful circles now.`;
     const processedCircles: Circle[] = aiResult.circles.map((circle: any) => ({
       id: circle.id,
       name: circle.name,
+      shortName: circle.shortName || circle.name,
       members: (circle.members as any[])
         .filter((cm) => typeof cm.memberId === 'number' && cm.memberId >= 1 && cm.memberId <= members.length)
         .map((cm) => {
@@ -211,6 +216,7 @@ function createAllCircle(members: MemberProfile[]): Circle {
   return {
     id: 'all',
     name: 'All',
+    shortName: 'All',
     members: members.map((m) => ({
       userId: m.id,
       firstName: m.firstName || 'Unknown',

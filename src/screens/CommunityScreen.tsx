@@ -14,10 +14,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
-import ProfileBadge from '../components/ProfileBadge';
 import ResponseCard from '../components/ResponseCard';
 import CircleBubbleChart, { CIRCLE_COLORS } from '../components/CircleBubbleChart';
-import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 
 const SPOTLIGHT_SEEN_KEY = 'spotlight_seen_ids';
@@ -26,6 +24,8 @@ const MAX_SEEN = 8;
 interface CircleOverview {
   id: string;
   name: string;
+  shortName?: string;
+  memberIds?: string[];
   count: number;
 }
 
@@ -56,9 +56,8 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingSpotlight, setLoadingSpotlight] = useState(false);
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
-  const [answerCount, setAnswerCount] = useState(0);
-  const [userProfilePictureUrl, setUserProfilePictureUrl] = useState<string | null>(null);
   const [smallCommunity, setSmallCommunity] = useState(false);
+  const [showOverlap, setShowOverlap] = useState(false);
   const spotlightFetchedRef = useRef(false);
 
   const fetchCircles = async () => {
@@ -132,16 +131,6 @@ export default function CommunityScreen() {
 
   const determineProfileStatus = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const answerKeys = keys.filter((key) => key.startsWith('answer_'));
-      const totalAnswers = answerKeys.length;
-      setAnswerCount(totalAnswers);
-
-      if (totalAnswers === 0) {
-        setProfileStatus('start');
-        return;
-      }
-
       const profilePublishedStr = await AsyncStorage.getItem('profile_published');
       const isPublished = profilePublishedStr === 'true';
 
@@ -158,7 +147,6 @@ export default function CommunityScreen() {
     } catch (error) {
       console.error('Error determining profile status:', error);
       setProfileStatus('start');
-      setAnswerCount(0);
     }
   };
 
@@ -167,20 +155,6 @@ export default function CommunityScreen() {
       setLoading(true);
       determineProfileStatus();
       fetchCircles();
-
-      if (user?.id && token) {
-        getProfilePictureUrl(user.id, token)
-          .then(url => setUserProfilePictureUrl(url))
-          .catch(error => {
-            if (error.message === 'TOKEN_EXPIRED') {
-              Alert.alert(
-                'Session Expired',
-                'Your session has expired. Please login again.',
-                [{ text: 'OK', onPress: () => logout() }]
-              );
-            }
-          });
-      }
 
       setLoading(false);
     }, [token, user?.id])
@@ -200,13 +174,6 @@ export default function CommunityScreen() {
 
   const handleCirclePress = (circle: CircleOverview) => {
     navigation.navigate('CircleDetail', { circleId: circle.id, circleName: circle.name });
-  };
-
-  const getStatusText = () => {
-    if (profileStatus === 'sharing') return 'Sharing profile';
-    if (answerCount === 0) return 'Start your profile';
-    if (answerCount < 4) return 'Complete your profile';
-    return 'Profile not shared';
   };
 
   const realCircles = circles.filter((c) => c.id !== 'all');
@@ -235,38 +202,6 @@ export default function CommunityScreen() {
           <Text style={styles.headerSubtitle}>Your circle:</Text>
           <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
         </View>
-
-        {/* Profile Status Card */}
-        <TouchableOpacity
-          style={styles.profileStatusCard}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
-          activeOpacity={0.7}
-        >
-          <ProfileBadge
-            firstName={user?.firstName}
-            lastName={user?.lastName}
-            totalAnswers={answerCount}
-            profilePictureUrl={userProfilePictureUrl}
-          />
-          <View style={styles.profileStatusInfo}>
-            <Text style={styles.profileName}>
-              {user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : 'Your Profile'}
-            </Text>
-            <Text style={styles.profileStatusText}>{getStatusText()}</Text>
-            {profileStatus !== 'sharing' && (
-              <Text style={styles.profileQuestionCount}>
-                {answerCount}/4 questions answered
-              </Text>
-            )}
-          </View>
-          <Feather
-            name={profileStatus === 'sharing' ? 'chevron-right' : 'chevron-left'}
-            size={20}
-            color="#9CA3AF"
-          />
-        </TouchableOpacity>
 
         {/* Circles Section */}
         <View style={styles.circlesSection}>
@@ -301,7 +236,17 @@ export default function CommunityScreen() {
                 key={realCircles.length}
                 circles={realCircles}
                 onPress={handleCirclePress}
+                showOverlap={showOverlap}
               />
+              <TouchableOpacity
+                style={styles.overlapToggle}
+                onPress={() => setShowOverlap((v) => !v)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.overlapToggleText}>
+                  {showOverlap ? 'Hide overlap' : 'Show overlap'}
+                </Text>
+              </TouchableOpacity>
               <View style={styles.circlesList}>
                 {sortedRealCircles.map((circle, index) => {
                   const color = CIRCLE_COLORS[index % CIRCLE_COLORS.length];
@@ -414,36 +359,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
   },
-  profileStatusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 12,
-  },
-  profileStatusInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  profileStatusText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  profileQuestionCount: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
   circlesSection: {
     marginTop: 24,
     paddingHorizontal: 20,
@@ -453,6 +368,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 16,
+  },
+  overlapToggle: {
+    alignSelf: 'center',
+    marginBottom: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  overlapToggleText: {
+    fontSize: 13,
+    color: '#9ca3af',
   },
   circlesList: {
     marginTop: 12,

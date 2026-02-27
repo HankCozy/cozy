@@ -145,6 +145,8 @@ router.get('/circles', authenticateToken, async (req: AuthRequest, res: Response
     const circlesOverview = circlesResult.circles.map(c => ({
       id: c.id,
       name: c.name,
+      shortName: c.shortName,
+      memberIds: c.members.map(m => m.userId),
       count: c.members.length
     }));
 
