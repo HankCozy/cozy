@@ -154,7 +154,7 @@ function BubbleLabel({ name }: { name: string }) {
         style={{ fontSize: 16, fontWeight: '700', color: '#1e293b', textAlign: 'center' }}
         allowFontScaling={false}
       >
-        {name[0].toUpperCase() + name[1].toLowerCase()}
+        {name.slice(0, 4) + '...'}
       </Text>
     );
   }
