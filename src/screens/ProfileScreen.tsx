@@ -216,8 +216,10 @@ export default function ProfileScreen() {
   };
 
   const handleCreateCard = async () => {
-    // Seed headline from existing summary
-    if (profileSummary) {
+    // Seed headline from saved card if editing, otherwise from summary
+    if (responseCard?.headline) {
+      setEditHeadline(responseCard.headline);
+    } else if (profileSummary) {
       const cleaned = stripIcebreakerQuestions(profileSummary);
       const sentences = cleaned.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 15);
       setEditHeadline(sentences[0]?.trim() || '');
@@ -589,11 +591,13 @@ export default function ProfileScreen() {
     }
   };
 
-  // Derive quote from shortest answer transcript
+  // Derive quote: prefer community section, fallback to shortest overall
   const answersWithTranscripts = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
-  const shortestAnswer = answersWithTranscripts.reduce<Answer | null>((shortest, a) => {
+  const wordCount = (t: string) => t.trim().split(/\s+/).length;
+  const communityAnswers = answersWithTranscripts.filter((a) => a.sectionId === 'community');
+  const quotePool = communityAnswers.length > 0 ? communityAnswers : answersWithTranscripts;
+  const shortestAnswer = quotePool.reduce<Answer | null>((shortest, a) => {
     if (!shortest) return a;
-    const wordCount = (t: string) => t.trim().split(/\s+/).length;
     return wordCount(a.transcript!) < wordCount(shortest.transcript!) ? a : shortest;
   }, null);
   const quoteWords = shortestAnswer?.transcript?.trim().split(/\s+/) ?? [];
