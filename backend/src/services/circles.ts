@@ -119,7 +119,7 @@ GROUNDING REQUIREMENT: Only create circles for interests members EXPLICITLY stat
 
 CIRCLE RULES:
 - Create 2-8 circles based on shared interests explicitly mentioned by 3+ members
-- Circle names can be creative (e.g., "Backyard Birding Club") but all members must have explicitly mentioned that interest
+- Circle names must be 1-2 words max, in plural noun form describing who the members are (e.g., "Birders", "Hikers", "Woodworkers", "Bakers", "Readers", "Gardeners"). Never include words like "Club", "Group", "Society", "Circle", "Community", "Network", "&", "and", or "enthusiasts"
 - Do NOT combine different activities into one circle (hiking and gardening are separate interests)
 
 TAGLINE RULES:

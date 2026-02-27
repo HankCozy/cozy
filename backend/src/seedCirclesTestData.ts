@@ -148,6 +148,68 @@ const testProfiles = [
       { sectionId: 'relationships', question: 'Tell us about your family', transcript: "My son just had a baby - I'm a grandfather for the first time. Already planning all the science projects we'll do together. My wife says I need to let the kid be a kid first, but I've already bought a junior microscope that's sitting in the closet waiting." },
       { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "Happy to share beekeeping knowledge - including honey when the harvest is good. Also know a lot about scientific gardening if anyone wants to geek out about soil chemistry and pollinator strategies. And I've got a decent telescope if anyone wants to look at Saturn's rings." }
     ]
+  },
+  // --- Additional profiles for natural circle size distribution ---
+  // These push the counts to: Birding=8, Gardening=7, Hiking=6, Baking=4, Books=3, Woodworking=3
+  {
+    email: 'barbara.ellis@test.com',
+    firstName: 'Barbara',
+    lastName: 'Ellis',
+    profileSummary: `Barbara Ellis spent her career as a pediatric nurse and brought the same careful attention to detail to her retirement hobbies. She's a dedicated birder who keeps meticulous life lists and volunteers as a bird bander at a local wildlife preserve. Barbara is also a prolific baker who specializes in decorated celebration cakes and has a standing order from half her street for birthdays and holidays. She has three grandchildren who serve as enthusiastic taste-testers.`,
+    profileAnswers: [
+      { sectionId: 'identity', question: 'What makes you, you?', transcript: "Nursing trained me to be observant and patient - skills that translate perfectly to birding. I've been keeping a life list for twenty-two years, currently at 340 species. I volunteer as a bird bander at Hawk Ridge every fall. There's nothing like holding a warbler in your hand before releasing it." },
+      { sectionId: 'lifestyle', question: 'How do you spend your free time?', transcript: "Birding takes up my mornings. Baking takes up my afternoons. I do decorated cakes - tiered wedding cakes, birthday cakes, the whole thing. I've done eight wedding cakes this year alone. My friends joke I should open a bakery, but then it would be work and not fun." },
+      { sectionId: 'relationships', question: 'Tell us about your family', transcript: "Three grandchildren, ages 5, 8, and 11. They all know what a hummingbird feeder is and why we can't talk loudly near it. The middle one, Jake, is my baking helper. He's already better at piping frosting than most adults." },
+      { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "I'd love to connect with other birders - always looking for field trip companions. And if anyone wants baking lessons or a cake for a special occasion, I'm happy to help. I find teaching either skill very satisfying." }
+    ]
+  },
+  {
+    email: 'william.chen@test.com',
+    firstName: 'William',
+    lastName: 'Chen',
+    profileSummary: `William Chen retired after a long career as a CPA and immediately threw himself into the two passions he'd never had enough time for: competitive birding and vegetable gardening. He now participates in Christmas Bird Counts and Big Day competitions, approaching both with the same methodical precision he applied to tax returns. His raised bed garden produces more vegetables than he can possibly eat, so he's become a regular at the neighborhood produce swap.`,
+    profileAnswers: [
+      { sectionId: 'identity', question: 'What makes you, you?', transcript: "I'm a reformed workaholic who discovered that retirement is the best thing that ever happened to me. Birding and gardening require the same qualities that made me a good accountant: patience, attention to detail, record-keeping. Except the records are bird sightings and tomato yields instead of spreadsheets." },
+      { sectionId: 'lifestyle', question: 'How do you spend your free time?', transcript: "I do competitive birding - Christmas Bird Counts, Big Day events, eBird checklists every single time I go out. Currently ranked in the top 10 locally on eBird. The gardening is less competitive but equally serious. Eight raised beds, drip irrigation, the whole setup. I grow more than I can eat." },
+      { sectionId: 'relationships', question: 'Tell us about your family', transcript: "My wife thinks the birding competitions are a little excessive but tolerates them lovingly. Two grown kids, one grandchild so far. My daughter has inherited the gardening gene - we swap seeds every spring and compare notes all summer." },
+      { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "Extra vegetables are always available - I literally cannot grow less, it's not in my nature. Also happy to share birding spots and techniques. I know where all the owls nest within twenty miles." }
+    ]
+  },
+  {
+    email: 'linda.foster@test.com',
+    firstName: 'Linda',
+    lastName: 'Foster',
+    profileSummary: `Linda Foster taught middle school science for twenty-eight years and credits that career with her lifelong love of being outdoors and paying attention to the natural world. She's a regular on local hiking trails and has recently gotten serious about birding, bringing her science teacher's eye for observation to both hobbies. Linda is also an avid watercolor painter who documents the landscapes and birds she encounters on the trail.`,
+    profileAnswers: [
+      { sectionId: 'identity', question: 'What makes you, you?', transcript: "Teaching middle schoolers science for almost thirty years kept me young and curious. I'm out on trails three or four times a week now - it's my mental health practice. And I've started birding seriously this year. There's this wonderful crossover between hiking and birding where you're already in the right places for both." },
+      { sectionId: 'lifestyle', question: 'How do you spend your free time?', transcript: "Hiking is non-negotiable - rain or shine, I'm out. I know every trail within fifteen miles intimately. I've started bringing binoculars on every hike, which has slowed me down considerably but shown me things I was walking right past for years. Working through a field guide systematically." },
+      { sectionId: 'relationships', question: 'Tell us about your family', transcript: "Never married, no kids of my own, but I've got wonderful nieces and nephews who visit in the summer. Several of my former students have become real friends - when they come back and tell me they still love science, that's everything." },
+      { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "I'd love hiking companions - there's something much better about sharing a great view. Also happy to compare birding notes with anyone who's getting into it. I teach occasional nature journaling workshops if there's interest." }
+    ]
+  },
+  {
+    email: 'martin.davis@test.com',
+    firstName: 'Martin',
+    lastName: 'Davis',
+    profileSummary: `Martin Davis is a retired high school biology teacher who has been birding since he was eleven years old - over fifty years now. His life list exceeds 600 species, he's led Audubon Society field trips for two decades, and he can identify most birds by ear alone. Though he claims to have slowed down, neighbors regularly spot him at dawn with binoculars pointed at something invisible in the treetops.`,
+    profileAnswers: [
+      { sectionId: 'identity', question: 'What makes you, you?', transcript: "Birding has been my thing since I was a kid. Fifty-plus years of it. Over 600 species on my life list. I've led Audubon field trips for twenty years. It's not just a hobby, it's genuinely how I see the world. I walk outside and I'm immediately cataloging: what's calling, what's moving, what's different from yesterday." },
+      { sectionId: 'lifestyle', question: 'How do you spend your free time?', transcript: "Birding, birding, and more birding. I'm usually out at dawn. I keep detailed records in eBird - you can see my entire birding history going back decades. I've also started mentoring younger birders, which is deeply satisfying. Passing on the obsession." },
+      { sectionId: 'relationships', question: 'Tell us about your family', transcript: "Married to a patient woman who has attended exactly one bird walk in thirty years of marriage and pronounced it very nice before going home early. Two adult kids who tolerate my birding enthusiasm with good humor. Grandkids haven't caught the bug yet but I'm working on them." },
+      { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "I am always available to go birding with anyone, from absolute beginners to experienced birders. No question is too basic. I lead free neighborhood bird walks whenever there's interest. The more people love birds, the better for birds." }
+    ]
+  },
+  {
+    email: 'richard.brown@test.com',
+    firstName: 'Richard',
+    lastName: 'Brown',
+    profileSummary: `Richard Brown worked for the postal service for thirty-two years and knows this neighborhood better than anyone - every street, every shortcut, every house. Now retired, he's channeled his love of being outside into a community garden plot and serious bread baking. His sourdough loaves have developed a neighborhood following, and his plot at the community garden is notably the most organized and productive.`,
+    profileAnswers: [
+      { sectionId: 'identity', question: 'What makes you, you?', transcript: "Thirty-two years as a mail carrier means I walked ten to fifteen miles a day and knew every inch of this community. I miss the walking and I miss the people, honestly. Now I stay connected through the community garden and through baking for neighbors. Different kind of rounds." },
+      { sectionId: 'lifestyle', question: 'How do you spend your free time?', transcript: "I've got a plot at the community vegetable garden - growing tomatoes, beans, squash, whatever I can fit. And I bake most days. Started with bread during retirement and now I can't stop. Sourdough, whole wheat, rye. My wife says we're drowning in bread, which is not the worst problem." },
+      { sectionId: 'relationships', question: 'Tell us about your family', transcript: "Married thirty-five years, two adult kids, four grandkids. Big family gatherings are my favorite thing. I'm the one who brings multiple loaves of bread to every holiday. The grandkids call me 'the bread grandpa' which I consider a great honor." },
+      { sectionId: 'community', question: 'What would you like to share with neighbors?', transcript: "I know everyone in this neighborhood, or I will soon. Happy to share bread - seriously, I have too much. Also happy to talk vegetable gardening, especially what grows well in this soil and climate specifically." }
+    ]
   }
 ];
 
@@ -208,17 +270,13 @@ async function main() {
 
   console.log('\n✓ Test profiles added successfully!');
   console.log(`\nAdded ${testProfiles.length} profiles to Test Community Alpha`);
-  console.log('\nThese profiles will create circles around:');
-  console.log('- Bird watching (Margaret, Carol, Elena, James)');
-  console.log('- Hiking (Robert, David, Michael, Nancy)');
-  console.log('- Woodworking (Robert, David, Thomas)');
-  console.log('- Gardening (Margaret, James, Patricia, Carol, George)');
-  console.log('- Baking/Cooking (Susan, Patricia, Elena)');
-  console.log('- Book clubs (Susan, Patricia, Thomas)');
-  console.log('- Tech help (James)');
-  console.log('- Photography (Michael, Nancy)');
-  console.log('- First-time grandparents (David, George)');
-  console.log('- Empty nesters (Robert, Michael)');
+  console.log('\nExpected circles (member counts):');
+  console.log('- Birders: 8 (Margaret, Carol, Elena, James, Barbara, William, Linda, Martin)');
+  console.log('- Gardeners: 7 (Margaret, James, Patricia, Carol, George, William, Richard)');
+  console.log('- Hikers: 6 (Robert, David, Michael, Nancy, Linda, Martin? or fewer)');
+  console.log('- Bakers: 4 (Susan, Patricia, Elena, Barbara)');
+  console.log('- Readers: 3 (Susan, Patricia, Thomas)');
+  console.log('- Woodworkers: 3 (Robert, David, Thomas)');
   console.log('\nAll test users use password: testpassword123');
 }
 

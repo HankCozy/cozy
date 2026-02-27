@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import ResponseCard from '../components/ResponseCard';
+import CircleBubbleChart, { CIRCLE_COLORS } from '../components/CircleBubbleChart';
 import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 
@@ -57,7 +58,6 @@ export default function CommunityScreen() {
   const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
   const [answerCount, setAnswerCount] = useState(0);
   const [userProfilePictureUrl, setUserProfilePictureUrl] = useState<string | null>(null);
-  const [showAllCircles, setShowAllCircles] = useState(false);
   const [smallCommunity, setSmallCommunity] = useState(false);
   const spotlightFetchedRef = useRef(false);
 
@@ -87,7 +87,8 @@ export default function CommunityScreen() {
       const data = await response.json();
       if (data.success) {
         setCircles(data.circles);
-        setSmallCommunity(data.circles.length === 1 && data.circles[0].id === 'all');
+        const realCount = data.circles.filter((c: CircleOverview) => c.id !== 'all').length;
+        setSmallCommunity(realCount === 0);
       }
     } catch (error) {
       console.error('Failed to fetch circles:', error);
@@ -208,8 +209,8 @@ export default function CommunityScreen() {
     return 'Profile not shared';
   };
 
-  const visibleCircles = showAllCircles ? circles : circles.slice(0, 4);
-  const hasMoreCircles = circles.length > 4;
+  const realCircles = circles.filter((c) => c.id !== 'all');
+  const sortedRealCircles = [...realCircles].sort((a, b) => b.count - a.count);
 
   if (loading) {
     return (
@@ -290,54 +291,42 @@ export default function CommunityScreen() {
             </View>
           ) : smallCommunity ? (
             <View style={styles.smallCommunityContainer}>
-              <View style={styles.circlesGrid}>
-                <TouchableOpacity
-                  style={styles.circleButton}
-                  onPress={() => handleCirclePress(circles[0])}
-                >
-                  <View style={styles.circleCount}>
-                    <Text style={styles.circleCountText}>{circles[0]?.count || 0}</Text>
-                  </View>
-                  <Text style={styles.circleName}>All</Text>
-                </TouchableOpacity>
-              </View>
               <Text style={styles.smallCommunityText}>
                 More circles will appear as your community grows
               </Text>
             </View>
           ) : (
             <>
-              <View style={styles.circlesGrid}>
-                {visibleCircles.map((circle) => (
-                  <TouchableOpacity
-                    key={circle.id}
-                    style={styles.circleButton}
-                    onPress={() => handleCirclePress(circle)}
-                  >
-                    <View style={styles.circleCount}>
-                      <Text style={styles.circleCountText}>{circle.count}</Text>
-                    </View>
-                    <Text style={styles.circleName} numberOfLines={2}>
-                      {circle.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <CircleBubbleChart
+                key={realCircles.length}
+                circles={realCircles}
+                onPress={handleCirclePress}
+              />
+              <View style={styles.circlesList}>
+                {sortedRealCircles.map((circle, index) => {
+                  const color = CIRCLE_COLORS[index % CIRCLE_COLORS.length];
+                  return (
+                    <TouchableOpacity
+                      key={circle.id}
+                      style={[
+                        styles.circleListItem,
+                        index < sortedRealCircles.length - 1 && styles.circleListItemBorder,
+                      ]}
+                      onPress={() => handleCirclePress(circle)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.circleListDot, { backgroundColor: color }]} />
+                      <View style={styles.circleListInfo}>
+                        <Text style={styles.circleListName}>{circle.name}</Text>
+                        <Text style={styles.circleListCount}>
+                          {circle.count} {circle.count === 1 ? 'member' : 'members'}
+                        </Text>
+                      </View>
+                      <Feather name="chevron-right" size={16} color="#D1D5DB" />
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              {hasMoreCircles && (
-                <TouchableOpacity
-                  style={styles.showMoreButton}
-                  onPress={() => setShowAllCircles(!showAllCircles)}
-                >
-                  <Text style={styles.showMoreText}>
-                    {showAllCircles ? 'Show less' : `Show ${circles.length - 4} more`}
-                  </Text>
-                  <Feather
-                    name={showAllCircles ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color="#3b82f6"
-                  />
-                </TouchableOpacity>
-              )}
             </>
           )}
         </View>
@@ -465,51 +454,42 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 16,
   },
-  circlesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  circleButton: {
-    width: '47%',
-    alignItems: 'center',
+  circlesList: {
+    marginTop: 12,
     backgroundColor: '#ffffff',
-    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    overflow: 'hidden',
   },
-  circleCount: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  circleCountText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#92400E',
-  },
-  circleName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  showMoreButton: {
+  circleListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 12,
-    gap: 4,
+    paddingHorizontal: 16,
   },
-  showMoreText: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
+  circleListItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  circleListDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  circleListInfo: {
+    flex: 1,
+  },
+  circleListName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  circleListCount: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   lockedContainer: {
     position: 'relative',
