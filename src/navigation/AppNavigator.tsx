@@ -17,6 +17,7 @@ import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
 import SpotlightScreen from '../screens/SpotlightScreen';
+import SearchScreen from '../screens/SearchScreen';
 import CircleDetailScreen from '../screens/CircleDetailScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
@@ -47,6 +48,7 @@ export type AppTabsParamList = {
   Questions: undefined;
   Community: undefined;
   Spotlight: undefined;
+  Search: undefined;
   Dashboard?: undefined;
   AdminDashboard?: undefined;
   CreateCommunity?: undefined;
@@ -259,6 +261,16 @@ function TabsNavigator() {
           tabBarLabel: 'Spotlight',
           tabBarIcon: ({ color, size }) => (
             <Feather name="star" size={size} color={color} />
+          ),
+        }}
+      />
+      <AppTabs.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          tabBarLabel: 'Search',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="search" size={size} color={color} />
           ),
         }}
       />
