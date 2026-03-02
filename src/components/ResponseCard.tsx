@@ -4,6 +4,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 export interface ResponseCardData {
   headline: string;
   tags: string[];
+  memberSince?: string;
   icebreakerQuestions?: string[];
 }
 
@@ -15,6 +16,7 @@ interface ResponseCardProps extends ResponseCardData {
   funFactQuestion?: string;
   onViewProfile?: () => void;
 }
+
 
 const TAG_PALETTE = [
   { bg: '#dbeafe', text: '#1d4ed8' },
@@ -45,6 +47,7 @@ export default function ResponseCard({
   profilePictureUrl,
   headline,
   tags,
+  memberSince,
   funFact,
   onViewProfile,
 }: ResponseCardProps) {
@@ -74,17 +77,27 @@ export default function ResponseCard({
         <Text style={styles.name}>{name}</Text>
       </View>
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <View style={styles.tagsRow}>
-          {tags.map((tag, i) => {
-            const palette = TAG_PALETTE[i % TAG_PALETTE.length];
-            return (
-              <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
-                <Text style={[styles.tagText, { color: palette.text }]}>{tag}</Text>
-              </View>
-            );
-          })}
+      {/* Tags + Member Since */}
+      {(tags.length > 0 || memberSince) && (
+        <View style={styles.tagsAndSince}>
+          {tags.length > 0 && (
+            <View style={styles.tagsRow}>
+              {tags.map((tag, i) => {
+                const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+                return (
+                  <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
+                    <Text style={[styles.tagText, { color: palette.text }]}>{tag}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {memberSince ? (
+            <View style={styles.sinceBox}>
+              <Text style={styles.sinceLabel}>Member since</Text>
+              <Text style={styles.sinceYear}>{memberSince}</Text>
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -155,10 +168,36 @@ const styles = StyleSheet.create({
     color: '#111827',
     flexShrink: 1,
   },
+  tagsAndSince: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
   tagsRow: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  sinceBox: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  sinceLabel: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  sinceYear: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 2,
   },
   tag: {
     paddingHorizontal: 12,

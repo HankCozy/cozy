@@ -40,6 +40,8 @@ model User {
   profilePublished   Boolean  @default(false)
   profileAnswers     Json?
   profilePictureUrl  String?
+  contactMethod      String?
+  contactValue       String?
   managedCommunityId String?  @unique
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

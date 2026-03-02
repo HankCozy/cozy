@@ -52,6 +52,13 @@ This is the #1 rule. When building features:
 - Assistant: Plans home screen + navigation system + 5 other screens + backend changes + database migrations
 - ❌ This is irresponsible and dangerous
 
+**⚠️ CRITICAL: Do NOT Push Unless Directed**
+
+- ❌ **NEVER** run `git push` unless the user explicitly asks to push or deploy
+- ✅ Make the code change and stop — do not commit, do not push
+- ✅ If committing is needed for context, ask first
+- ✅ "Push it up" / "deploy" / "ship it" = explicit permission to push
+
 **⚠️ CRITICAL: NEVER Create Unrequested Visual Assets**
 
 **ABSOLUTE RULE:** Do NOT create graphics, SVGs, illustrations, or visual components unless EXPLICITLY requested:

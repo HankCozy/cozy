@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  SafeAreaView,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -77,7 +78,7 @@ function computeNudge(totalAnswers: number, profileSummary: string | null, isPub
     return { id: 'getting_started', headline: "You're almost there", message: "Answer 4 questions to complete your profile and reveal your Circle", actionTarget: 'questions' };
   }
   if (totalAnswers <= 11 && profileSummary && !isPublished) {
-    return { id: 'share_profile', headline: "Share your profile", message: "Share your profile to reveal your Cozy Circle" };
+    return { id: 'share_profile', headline: "Share your profile", message: "We've summarized your responses. Review and share to see your community connections." };
   }
   if (totalAnswers <= 11 && profileSummary && isPublished) {
     return { id: 'more_responses', headline: "Complete your profile", message: "Tell your community more about yourself and we'll find even more connections.", actionTarget: 'questions' };
@@ -108,8 +109,14 @@ export default function ProfileScreen() {
   const [isEditingCard, setIsEditingCard] = useState(false);
   const [editHeadline, setEditHeadline] = useState('');
   const [editTagsInput, setEditTagsInput] = useState('');
+  const [editMemberSince, setEditMemberSince] = useState('');
   const textInputRef = useRef<TextInput>(null);
   const [dismissedNudgeId, setDismissedNudgeId] = useState<string | null>(null);
+  const [contactMethod, setContactMethod] = useState<'email' | 'phone' | 'none' | null>(null);
+  const [contactValue, setContactValue] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
+  const [storyModalVisible, setStoryModalVisible] = useState(false);
+  const [sharePersonalStory, setSharePersonalStory] = useState(true);
 
   // Calculate total answers across all sections
   const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
@@ -201,6 +208,12 @@ export default function ProfileScreen() {
       // Load published status
       const publishedStatus = await AsyncStorage.getItem('profile_published');
       setIsPublished(publishedStatus === 'true');
+
+      // Load contact preference
+      const savedContactMethod = await AsyncStorage.getItem('contact_method');
+      const savedContactValue = await AsyncStorage.getItem('contact_value');
+      if (savedContactMethod) setContactMethod(savedContactMethod as 'email' | 'phone' | 'none');
+      if (savedContactValue) setContactValue(savedContactValue);
     } catch (error) {
       console.error('Failed to load profile summary:', error);
     }
@@ -251,6 +264,7 @@ export default function ProfileScreen() {
       setEditTagsInput(responseCard?.tags.join(', ') || '');
     }
 
+    setEditMemberSince(responseCard?.memberSince || '');
     setIsEditingCard(true);
   };
 
@@ -262,6 +276,7 @@ export default function ProfileScreen() {
     const card: ResponseCardData = {
       headline: editHeadline.trim(),
       tags,
+      memberSince: editMemberSince.trim() || undefined,
     };
     try {
       await AsyncStorage.setItem('response_card', JSON.stringify(card));
@@ -440,7 +455,7 @@ export default function ProfileScreen() {
 
       // Prepare profile data based on checkbox selections
       const profileData = {
-        profileSummary: shareProfileSummary ? (profileSummary || null) : null,
+        profileSummary: (shareProfileSummary || sharePersonalStory) ? (profileSummary || null) : null,
         profileAnswers: shareResponses ? answers : [],
         profilePublished: true,
       };
@@ -471,7 +486,7 @@ export default function ProfileScreen() {
         // Save published status locally
         await AsyncStorage.setItem('profile_published', 'true');
         setIsPublished(true);
-        Alert.alert('Success!', 'Your profile is now published and visible to your community.');
+        navigation.getParent()?.navigate('Community');
       } else {
         Alert.alert('Error', data.error || 'Failed to publish profile');
       }
@@ -786,6 +801,16 @@ export default function ProfileScreen() {
                 placeholder="e.g. hiking, jazz, cooking"
               />
 
+              <Text style={styles.cardFieldLabel}>Member since</Text>
+              <TextInput
+                style={styles.cardFieldInput}
+                value={editMemberSince}
+                onChangeText={setEditMemberSince}
+                placeholder="e.g. 2019"
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+
               <View style={styles.cardEditActions}>
                 <TouchableOpacity
                   style={styles.cardCancelButton}
@@ -799,24 +824,180 @@ export default function ProfileScreen() {
               </View>
             </View>
           ) : responseCard ? (
-            <View style={styles.cardContainer}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardSectionLabel}>Your Response Summary</Text>
-                <TouchableOpacity onPress={handleCreateCard}>
-                  <Text style={styles.cardEditLink}>Edit</Text>
-                </TouchableOpacity>
+            <>
+              <View style={styles.cardContainer}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardSectionLabel}>Your Response Summary</Text>
+                  <TouchableOpacity onPress={handleCreateCard}>
+                    <Text style={styles.cardEditLink}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+                <ResponseCard
+                  firstName={auth.user?.firstName}
+                  lastName={auth.user?.lastName}
+                  profilePictureUrl={profilePictureUrl}
+                  headline={responseCard.headline}
+                  tags={responseCard.tags}
+                  memberSince={responseCard.memberSince}
+                  funFact={quoteText}
+                  funFactQuestion={quoteQuestion}
+                  onViewProfile={isPublished ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
+                />
               </View>
-              <ResponseCard
-                firstName={auth.user?.firstName}
-                lastName={auth.user?.lastName}
-                profilePictureUrl={profilePictureUrl}
-                headline={responseCard.headline}
-                tags={responseCard.tags}
-                funFact={quoteText}
-                funFactQuestion={quoteQuestion}
-                onViewProfile={isPublished ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
-              />
-            </View>
+
+              {/* Contact Preference */}
+              <View style={styles.infoCard}>
+                <Text style={styles.infoCardTitle}>How do you want community members reaching out?</Text>
+                <View style={styles.contactOptions}>
+                  {(['email', 'phone', 'none'] as const).map((method) => (
+                    <TouchableOpacity
+                      key={method}
+                      style={styles.contactOption}
+                      onPress={() => {
+                        setContactMethod(method);
+                        if (method === 'none') setContactValue('');
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.contactOptionDot, contactMethod === method && styles.contactOptionDotSelected]} />
+                      <Text style={styles.contactOptionLabel}>
+                        {method === 'email' ? 'Email' : method === 'phone' ? 'Phone' : 'No thanks'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {(contactMethod === 'email' || contactMethod === 'phone') && (
+                  <TextInput
+                    style={styles.contactInput}
+                    value={contactValue}
+                    onChangeText={setContactValue}
+                    placeholder={contactMethod === 'email' ? 'your@email.com' : 'Your phone number'}
+                    keyboardType={contactMethod === 'phone' ? 'phone-pad' : 'email-address'}
+                    autoCapitalize="none"
+                  />
+                )}
+                {contactMethod !== null && (
+                  <TouchableOpacity
+                    style={styles.contactSaveButton}
+                    onPress={async () => {
+                      try {
+                        setSavingContact(true);
+                        const body: any = { contactMethod };
+                        body.contactValue = contactMethod !== 'none' ? contactValue : null;
+                        await fetch(`${API_BASE_URL}/api/users/profile`, {
+                          method: 'PATCH',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(body),
+                        });
+                        await AsyncStorage.setItem('contact_method', contactMethod);
+                        await AsyncStorage.setItem('contact_value', contactValue);
+                      } catch (e) {
+                        console.error('Failed to save contact preference', e);
+                      } finally {
+                        setSavingContact(false);
+                      }
+                    }}
+                    disabled={savingContact}
+                  >
+                    {savingContact ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text style={styles.contactSaveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Personal Story */}
+              <View style={styles.storyCard}>
+                {profileSummary ? (
+                  <>
+                    <Text style={styles.storyReadyText}>Your personal story is ready.</Text>
+                    <TouchableOpacity onPress={() => setStoryModalVisible(true)}>
+                      <Text style={styles.storyViewLink}>View story →</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.storyPromptText}>
+                      Our AI model is trained and ready to write you a personal story based on your responses.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.generateStoryButton}
+                      onPress={handleGenerateSummary}
+                      disabled={generatingSummary}
+                    >
+                      {generatingSummary ? (
+                        <ActivityIndicator size="small" color="#3b82f6" />
+                      ) : (
+                        <Text style={styles.generateStoryButtonText}>Generate story</Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+
+              {/* Share Prompt */}
+              {!isPublished && profileSummary && totalAnswers >= 4 && (
+                <View style={styles.profileActionContainer}>
+                  <Text style={styles.shareQuestion}>What would you like to share?</Text>
+
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setShareProfileSummary(!shareProfileSummary)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.checkbox}>
+                      {shareProfileSummary && <Feather name="check" size={16} color="#3b82f6" />}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Profile Summary</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setShareResponses(!shareResponses)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.checkbox}>
+                      {shareResponses && <Feather name="check" size={16} color="#3b82f6" />}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Your Responses</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setSharePersonalStory(!sharePersonalStory)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.checkbox}>
+                      {sharePersonalStory && <Feather name="check" size={16} color="#3b82f6" />}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Personal story</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.publishButton,
+                      (!shareProfileSummary && !shareResponses && !sharePersonalStory) && styles.publishButtonDisabled
+                    ]}
+                    onPress={handlePublishProfile}
+                    disabled={isPublishing || (!shareProfileSummary && !shareResponses && !sharePersonalStory)}
+                  >
+                    {isPublishing ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <>
+                        <Feather name="share-2" size={20} color="white" />
+                        <Text style={styles.publishButtonText}>Share Profile</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           ) : hasAnswers ? (
             <TouchableOpacity style={styles.createCardButton} onPress={handleCreateCard}>
               <Feather name="credit-card" size={18} color="#3b82f6" />
@@ -824,116 +1005,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ) : null}
 
-          {/* Published Status Badge */}
-          {isPublished && (
-            <View style={styles.publishedContainer}>
-              <View style={styles.publishedBadge}>
-                <Feather name="check-circle" size={20} color="white" />
-                <Text style={styles.publishedText}>Profile Published</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.unpublishButton}
-                onPress={async () => {
-                  Alert.alert(
-                    'Unpublish Profile',
-                    'Your profile will be hidden from your circle. You can re-share it anytime.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Unpublish',
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            // Update backend to unpublish
-                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-                              method: 'PATCH',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                profileSummary: null,
-                                profileAnswers: [],
-                                profilePublished: false,
-                              }),
-                            });
-
-                            if (response.ok) {
-                              await AsyncStorage.setItem('profile_published', 'false');
-                              setIsPublished(false);
-                              Alert.alert('Success', 'Your profile is now private.');
-                            } else {
-                              Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
-                            }
-                          } catch (error) {
-                            console.error('Unpublish error:', error);
-                            Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
-                          }
-                        },
-                      },
-                    ]
-                  );
-                }}
-                activeOpacity={0.7}
-              >
-                <Feather name="eye-off" size={16} color="#6b7280" />
-                <Text style={styles.unpublishButtonText}>Make Private</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Share Profile Button - Show above profile when summary exists but not published */}
-          {!isPublished && profileSummary && totalAnswers >= 4 && (
-            <View style={styles.profileActionContainer}>
-              <Text style={styles.shareQuestion}>What would you like to share?</Text>
-
-              {/* Checkbox for Profile Summary */}
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setShareProfileSummary(!shareProfileSummary)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.checkbox}>
-                  {shareProfileSummary && (
-                    <Feather name="check" size={16} color="#3b82f6" />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Profile Summary</Text>
-              </TouchableOpacity>
-
-              {/* Checkbox for Your Responses */}
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setShareResponses(!shareResponses)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.checkbox}>
-                  {shareResponses && (
-                    <Feather name="check" size={16} color="#3b82f6" />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Your Responses</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.publishButton,
-                  (!shareProfileSummary && !shareResponses) && styles.publishButtonDisabled
-                ]}
-                onPress={handlePublishProfile}
-                disabled={isPublishing || (!shareProfileSummary && !shareResponses)}
-              >
-                {isPublishing ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Feather name="share-2" size={20} color="white" />
-                    <Text style={styles.publishButtonText}>Share Profile</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Profile Summary */}
           {profileSummary && (
@@ -1067,8 +1138,8 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Create Profile Draft Button - Show only when no summary exists */}
-          {!isPublished && !profileSummary && totalAnswers >= 4 && (
+          {/* Create Profile Draft Button - Show only when no summary exists and no response card yet */}
+          {!isPublished && !profileSummary && totalAnswers >= 4 && !responseCard && (
             <View style={styles.profileActionContainer}>
               <TouchableOpacity
                 style={styles.publishButton}
@@ -1123,6 +1194,33 @@ export default function ProfileScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Personal Story Full-Screen Modal */}
+      <Modal
+        visible={storyModalVisible}
+        animationType="slide"
+        onRequestClose={() => setStoryModalVisible(false)}
+      >
+        <SafeAreaView style={styles.storyModalContainer}>
+          <View style={styles.storyModalHeader}>
+            <Text style={styles.storyModalTitle}>Your Story</Text>
+            <TouchableOpacity
+              onPress={() => setStoryModalVisible(false)}
+              style={styles.storyModalCloseButton}
+            >
+              <Feather name="x" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={styles.storyModalScroll}
+            contentContainerStyle={styles.storyModalContent}
+          >
+            <Text style={styles.storyModalText}>
+              {profileSummary ? stripIcebreakerQuestions(profileSummary) : ''}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -1709,5 +1807,152 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
+  },
+
+  // Contact Preference
+  infoCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  infoCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  contactOptions: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  contactOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  contactOptionDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: 'white',
+  },
+  contactOptionDotSelected: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#3b82f6',
+  },
+  contactOptionLabel: {
+    fontSize: 15,
+    color: '#374151',
+  },
+  contactInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#111827',
+    backgroundColor: '#f9fafb',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  contactSaveButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  contactSaveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'white',
+  },
+
+  // Personal Story
+  storyCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+    gap: 16,
+  },
+  storyPromptText: {
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 26,
+  },
+  storyReadyText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  generateStoryButton: {
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    width: '100%',
+  },
+  generateStoryButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  storyViewLink: {
+    fontSize: 15,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+
+  // Story Modal
+  storyModalContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  storyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  storyModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  storyModalCloseButton: {
+    position: 'absolute',
+    right: 20,
+    padding: 4,
+  },
+  storyModalScroll: {
+    flex: 1,
+  },
+  storyModalContent: {
+    padding: 24,
+  },
+  storyModalText: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 26,
   },
 });

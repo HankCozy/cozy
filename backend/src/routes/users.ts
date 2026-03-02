@@ -65,7 +65,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
 // SECURITY: Validates and sanitizes input
 router.patch('/profile', authenticateToken, validateProfileInput, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, profilePictureUrl } = req.body;
+    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, profilePictureUrl, contactMethod, contactValue } = req.body;
     const userId = req.userId;
 
     // Build update data object with only provided fields
@@ -107,6 +107,19 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
 
     if (profilePictureUrl !== undefined) {
       updateData.profilePictureUrl = profilePictureUrl;
+    }
+
+    if (contactMethod !== undefined) {
+      const validMethods = ['email', 'phone', 'none', null];
+      if (!validMethods.includes(contactMethod)) {
+        res.status(400).json({ success: false, error: 'Invalid contactMethod' });
+        return;
+      }
+      updateData.contactMethod = contactMethod;
+    }
+
+    if (contactValue !== undefined) {
+      updateData.contactValue = typeof contactValue === 'string' ? contactValue.trim().slice(0, 255) : null;
     }
 
     // Update user profile
