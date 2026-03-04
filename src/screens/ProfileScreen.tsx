@@ -70,17 +70,14 @@ interface NudgeData {
   actionTarget?: 'questions';
 }
 
-function computeNudge(totalAnswers: number, profileSummary: string | null, isPublished: boolean): NudgeData | null {
+function computeNudge(totalAnswers: number, profileSummary: string | null): NudgeData | null {
   if (totalAnswers === 0) {
     return { id: 'zero', headline: "Let's get started", message: "Tap here to answer your first question", actionTarget: 'questions' };
   }
-  if (totalAnswers <= 3 && !profileSummary) {
-    return { id: 'getting_started', headline: "You're almost there", message: "Answer 4 questions to complete your profile and reveal your Circle", actionTarget: 'questions' };
+  if (totalAnswers <= 3) {
+    return { id: 'getting_started', headline: "You're almost there", message: "Answer 4 questions to unlock your circle", actionTarget: 'questions' };
   }
-  if (totalAnswers <= 11 && profileSummary && !isPublished) {
-    return { id: 'share_profile', headline: "Share your profile", message: "We've summarized your responses. Review and share to see your community connections." };
-  }
-  if (totalAnswers <= 11 && profileSummary && isPublished) {
+  if (totalAnswers <= 11 && profileSummary) {
     return { id: 'more_responses', headline: "Complete your profile", message: "Tell your community more about yourself and we'll find even more connections.", actionTarget: 'questions' };
   }
   return null;
@@ -97,14 +94,10 @@ export default function ProfileScreen() {
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedSummary, setEditedSummary] = useState('');
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isPublished, setIsPublished] = useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showResponses, setShowResponses] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [shareProfileSummary, setShareProfileSummary] = useState(true);
-  const [shareResponses, setShareResponses] = useState(false);
   const [responseCard, setResponseCard] = useState<ResponseCardData | null>(null);
   const [isEditingCard, setIsEditingCard] = useState(false);
   const [editHeadline, setEditHeadline] = useState('');
@@ -116,7 +109,6 @@ export default function ProfileScreen() {
   const [contactValue, setContactValue] = useState('');
   const [savingContact, setSavingContact] = useState(false);
   const [storyModalVisible, setStoryModalVisible] = useState(false);
-  const [sharePersonalStory, setSharePersonalStory] = useState(true);
 
   // Calculate total answers across all sections
   const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
@@ -205,15 +197,16 @@ export default function ProfileScreen() {
         setProfileSummary(savedSummary);
       }
 
-      // Load published status
-      const publishedStatus = await AsyncStorage.getItem('profile_published');
-      setIsPublished(publishedStatus === 'true');
-
-      // Load contact preference
+      // Load contact preference (ignore stale 'phone' values)
       const savedContactMethod = await AsyncStorage.getItem('contact_method');
       const savedContactValue = await AsyncStorage.getItem('contact_value');
-      if (savedContactMethod) setContactMethod(savedContactMethod as 'email' | 'phone' | 'none');
-      if (savedContactValue) setContactValue(savedContactValue);
+      if (savedContactMethod === 'phone') {
+        await AsyncStorage.removeItem('contact_method');
+        await AsyncStorage.removeItem('contact_value');
+      } else if (savedContactMethod) {
+        setContactMethod(savedContactMethod as 'email' | 'none');
+        if (savedContactValue) setContactValue(savedContactValue);
+      }
     } catch (error) {
       console.error('Failed to load profile summary:', error);
     }
@@ -323,13 +316,9 @@ export default function ProfileScreen() {
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);
 
-      // Unpublish profile when regenerating (requires re-sharing)
-      await AsyncStorage.setItem('profile_published', 'false');
-      setIsPublished(false);
-
       Alert.alert(
         'Profile Generated!',
-        'Your new profile is ready. Review it and click "Share Profile" when you\'re ready to publish.'
+        'Your personal story is ready. You can view and edit it below.'
       );
     } catch (error) {
       console.error('Failed to generate summary:', error);
@@ -365,7 +354,6 @@ export default function ProfileScreen() {
                   key.startsWith('answer_') ||
                   key.startsWith('section_') ||
                   key === 'profile_summary' ||
-                  key === 'profile_published' ||
                   key === 'response_card'
               );
 
@@ -376,7 +364,6 @@ export default function ProfileScreen() {
               setAnswers([]);
               setAnswerCounts({});
               setProfileSummary(null);
-              setIsPublished(false);
               setResponseCard(null);
 
               Alert.alert('Success', 'All answers and profile data have been cleared');
@@ -447,55 +434,6 @@ export default function ProfileScreen() {
         },
       ]
     );
-  };
-
-  const handlePublishProfile = async () => {
-    try {
-      setIsPublishing(true);
-
-      // Prepare profile data based on checkbox selections
-      const profileData = {
-        profileSummary: (shareProfileSummary || sharePersonalStory) ? (profileSummary || null) : null,
-        profileAnswers: shareResponses ? answers : [],
-        profilePublished: true,
-      };
-
-      // Send to backend
-      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      // Check for authentication errors
-      if (response.status === 401 || response.status === 403) {
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => logout() }]
-        );
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Save published status locally
-        await AsyncStorage.setItem('profile_published', 'true');
-        setIsPublished(true);
-        navigation.getParent()?.navigate('Community');
-      } else {
-        Alert.alert('Error', data.error || 'Failed to publish profile');
-      }
-    } catch (error) {
-      console.error('Failed to publish profile:', error);
-      Alert.alert('Error', 'Failed to publish profile. Please try again.');
-    } finally {
-      setIsPublishing(false);
-    }
   };
 
   const handleUploadPhoto = async () => {
@@ -760,7 +698,7 @@ export default function ProfileScreen() {
 
           {/* Contextual Nudge Banner */}
           {(() => {
-            const nudge = computeNudge(totalAnswers, profileSummary, isPublished);
+            const nudge = computeNudge(totalAnswers, profileSummary);
             const showNudge = nudge !== null && nudge.id !== dismissedNudgeId;
             if (!showNudge || !nudge) return null;
             return (
@@ -841,38 +779,39 @@ export default function ProfileScreen() {
                   memberSince={responseCard.memberSince}
                   funFact={quoteText}
                   funFactQuestion={quoteQuestion}
-                  onViewProfile={isPublished ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
+                  onViewProfile={totalAnswers >= 4 ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
                 />
               </View>
 
               {/* Contact Preference */}
               <View style={styles.infoCard}>
-                <Text style={styles.infoCardTitle}>How do you want community members reaching out?</Text>
+                <Text style={styles.infoCardTitle}>Can community members reach you by email?</Text>
                 <View style={styles.contactOptions}>
-                  {(['email', 'phone', 'none'] as const).map((method) => (
+                  {(['email', 'none'] as const).map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={styles.contactOption}
                       onPress={() => {
                         setContactMethod(method);
+                        if (method === 'email' && !contactValue) setContactValue(auth.user?.email || '');
                         if (method === 'none') setContactValue('');
                       }}
                       activeOpacity={0.7}
                     >
                       <View style={[styles.contactOptionDot, contactMethod === method && styles.contactOptionDotSelected]} />
                       <Text style={styles.contactOptionLabel}>
-                        {method === 'email' ? 'Email' : method === 'phone' ? 'Phone' : 'No thanks'}
+                        {method === 'email' ? 'Yes' : 'No thanks'}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-                {(contactMethod === 'email' || contactMethod === 'phone') && (
+                {contactMethod === 'email' && (
                   <TextInput
                     style={styles.contactInput}
                     value={contactValue}
                     onChangeText={setContactValue}
-                    placeholder={contactMethod === 'email' ? 'your@email.com' : 'Your phone number'}
-                    keyboardType={contactMethod === 'phone' ? 'phone-pad' : 'email-address'}
+                    placeholder="your@email.com"
+                    keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 )}
@@ -940,63 +879,6 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              {/* Share Prompt */}
-              {!isPublished && profileSummary && totalAnswers >= 4 && (
-                <View style={styles.profileActionContainer}>
-                  <Text style={styles.shareQuestion}>What would you like to share?</Text>
-
-                  <TouchableOpacity
-                    style={styles.checkboxContainer}
-                    onPress={() => setShareProfileSummary(!shareProfileSummary)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.checkbox}>
-                      {shareProfileSummary && <Feather name="check" size={16} color="#3b82f6" />}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Profile Summary</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.checkboxContainer}
-                    onPress={() => setShareResponses(!shareResponses)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.checkbox}>
-                      {shareResponses && <Feather name="check" size={16} color="#3b82f6" />}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Your Responses</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.checkboxContainer}
-                    onPress={() => setSharePersonalStory(!sharePersonalStory)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.checkbox}>
-                      {sharePersonalStory && <Feather name="check" size={16} color="#3b82f6" />}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Personal story</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.publishButton,
-                      (!shareProfileSummary && !shareResponses && !sharePersonalStory) && styles.publishButtonDisabled
-                    ]}
-                    onPress={handlePublishProfile}
-                    disabled={isPublishing || (!shareProfileSummary && !shareResponses && !sharePersonalStory)}
-                  >
-                    {isPublishing ? (
-                      <ActivityIndicator size="small" color="white" />
-                    ) : (
-                      <>
-                        <Feather name="share-2" size={20} color="white" />
-                        <Text style={styles.publishButtonText}>Share Profile</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
             </>
           ) : hasAnswers ? (
             <TouchableOpacity style={styles.createCardButton} onPress={handleCreateCard}>
@@ -1072,31 +954,7 @@ export default function ProfileScreen() {
                           setProfileSummary(finalSummary);
                           setIsEditingProfile(false);
 
-                          // If profile is published, auto-update the published version
-                          if (isPublished) {
-                            const profileData = {
-                              profileSummary: shareProfileSummary ? finalSummary : null,
-                              profileAnswers: shareResponses ? answers : [],
-                              profilePublished: true,
-                            };
-
-                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-                              method: 'PATCH',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify(profileData),
-                            });
-
-                            if (response.ok) {
-                              Alert.alert('Success', 'Your published profile has been updated!');
-                            } else {
-                              Alert.alert('Success', 'Profile saved locally. Please re-share to update your published profile.');
-                            }
-                          } else {
-                            Alert.alert('Success', 'Profile updated!');
-                          }
+                          Alert.alert('Success', 'Profile updated!');
                         } catch (_error) {
                           Alert.alert('Error', 'Failed to save changes');
                         }
@@ -1139,7 +997,7 @@ export default function ProfileScreen() {
           )}
 
           {/* Create Profile Draft Button - Show only when no summary exists and no response card yet */}
-          {!isPublished && !profileSummary && totalAnswers >= 4 && !responseCard && (
+          {!profileSummary && totalAnswers >= 4 && !responseCard && (
             <View style={styles.profileActionContainer}>
               <TouchableOpacity
                 style={styles.publishButton}

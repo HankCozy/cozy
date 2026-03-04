@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,7 @@ export default function CommunityScreen() {
   const [circles, setCircles] = useState<CircleOverview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [smallCommunity, setSmallCommunity] = useState(false);
   const [showOverlap, setShowOverlap] = useState(false);
 
@@ -50,6 +50,7 @@ export default function CommunityScreen() {
       if (response.status === 401 || response.status === 403) {
         if (response.status === 403) {
           setCircles([]);
+          setSmallCommunity(true);
           return;
         }
         Alert.alert(
@@ -73,29 +74,43 @@ export default function CommunityScreen() {
 
   const determineProfileStatus = async () => {
     try {
-      const profilePublishedStr = await AsyncStorage.getItem('profile_published');
-      const isPublished = profilePublishedStr === 'true';
-      setProfileStatus(isPublished ? 'sharing' : 'draft');
+      const keys = await AsyncStorage.getAllKeys();
+      const answerCount = keys.filter((key) => key.startsWith('answer_')).length;
+      const unlocked = answerCount >= 4;
+      setIsUnlocked(unlocked);
+
+      if (unlocked && token) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profilePublished: true }),
+          });
+          if (res.ok) await AsyncStorage.setItem('profile_published', 'true');
+        } catch (_) { /* silent fail */ }
+      }
     } catch (error) {
       console.error('Error determining profile status:', error);
-      setProfileStatus('start');
+      setIsUnlocked(false);
     }
   };
 
   useFocusEffect(
     React.useCallback(() => {
-      setLoading(true);
-      determineProfileStatus();
-      fetchCircles();
-
-      setLoading(false);
+      const init = async () => {
+        setLoading(true);
+        await determineProfileStatus();
+        await fetchCircles();
+        setLoading(false);
+      };
+      init();
     }, [token, user?.id])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    determineProfileStatus();
-    fetchCircles();
+    await determineProfileStatus();
+    await fetchCircles();
     setRefreshing(false);
   };
 
@@ -134,7 +149,7 @@ export default function CommunityScreen() {
         <View style={styles.circlesSection}>
           <Text style={styles.sectionTitle}>Your circles:</Text>
 
-          {profileStatus !== 'sharing' ? (
+          {!isUnlocked ? (
             <View style={styles.lockedContainer}>
               <View style={styles.circlesGridDimmed}>
                 {[1, 2, 3, 4].map((i) => (
@@ -147,7 +162,7 @@ export default function CommunityScreen() {
               <View style={styles.lockOverlay}>
                 <Feather name="lock" size={32} color="#6B7280" />
                 <Text style={styles.lockText}>
-                  Share your profile to unlock your circles
+                  Complete your profile to unlock your circles
                 </Text>
               </View>
             </View>

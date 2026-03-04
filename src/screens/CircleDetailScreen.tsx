@@ -10,9 +10,11 @@ import {
   Alert,
   SafeAreaView,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import ResponseCard from '../components/ResponseCard';
 import { API_BASE_URL } from '../config/api';
@@ -62,6 +64,13 @@ export default function CircleDetailScreen() {
   const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
   const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
   const [loadingMemberCard, setLoadingMemberCard] = useState(false);
+
+  // Contact prompt state
+  const [savedContactMethod, setSavedContactMethod] = useState<string | null>(null);
+  const [contactMethodLoaded, setContactMethodLoaded] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<'email' | 'phone' | 'none' | null>(null);
+  const [contactValue, setContactValue] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
 
   const fetchCircleDetails = async () => {
     try {
@@ -122,6 +131,16 @@ export default function CircleDetailScreen() {
 
   useEffect(() => {
     fetchCircleDetails();
+    AsyncStorage.getItem('contact_method').then(async (method) => {
+      if (method === 'phone') {
+        await AsyncStorage.removeItem('contact_method');
+        await AsyncStorage.removeItem('contact_value');
+        setSavedContactMethod(null);
+      } else {
+        setSavedContactMethod(method);
+      }
+      setContactMethodLoaded(true);
+    }).catch(() => setContactMethodLoaded(true));
   }, [circleId, token]);
 
   const onRefresh = () => {
@@ -149,6 +168,28 @@ export default function CircleDetailScreen() {
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const handleSaveContact = async () => {
+    if (!selectedMethod) return;
+    setSavingContact(true);
+    try {
+      await AsyncStorage.setItem('contact_method', selectedMethod);
+      if (selectedMethod !== 'none') await AsyncStorage.setItem('contact_value', contactValue);
+      await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactMethod: selectedMethod,
+          contactValue: selectedMethod !== 'none' ? contactValue : null,
+        }),
+      });
+      setSavedContactMethod(selectedMethod);
+    } catch (e) {
+      console.error('Failed to save contact preference', e);
+    } finally {
+      setSavingContact(false);
+    }
   };
 
   if (loading) {
@@ -212,6 +253,52 @@ export default function CircleDetailScreen() {
                 <Feather name="chevron-right" size={20} color="#9ca3af" />
               </TouchableOpacity>
             ))}
+          </View>
+        )}
+
+        {/* Contact Prompt — shows on every visit until preference is set */}
+        {contactMethodLoaded && savedContactMethod === null && (
+          <View style={styles.contactPromptCard}>
+            <Text style={styles.contactPromptTitle}>Can community members reach you by email?</Text>
+            <View style={styles.contactOptions}>
+              {(['email', 'none'] as const).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={styles.contactOption}
+                  onPress={() => {
+                    setSelectedMethod(m);
+                    if (m === 'email' && !contactValue) setContactValue(user?.email || '');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.contactDot, selectedMethod === m && styles.contactDotSelected]} />
+                  <Text style={styles.contactOptionLabel}>
+                    {m === 'email' ? 'Yes' : 'No thanks'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedMethod === 'email' && (
+              <TextInput
+                style={styles.contactInput}
+                value={contactValue}
+                onChangeText={setContactValue}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            )}
+            {selectedMethod !== null && (
+              <TouchableOpacity
+                style={styles.contactSaveButton}
+                onPress={handleSaveContact}
+                disabled={savingContact}
+              >
+                {savingContact
+                  ? <ActivityIndicator size="small" color="white" />
+                  : <Text style={styles.contactSaveButtonText}>Save</Text>}
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -397,5 +484,68 @@ const styles = StyleSheet.create({
   modalLoading: {
     paddingVertical: 40,
     alignItems: 'center',
+  },
+  contactPromptCard: {
+    margin: 20,
+    marginTop: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 16,
+  },
+  contactPromptTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  contactOptions: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  contactOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  contactDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: 'transparent',
+  },
+  contactDotSelected: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#3b82f6',
+  },
+  contactOptionLabel: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  contactInput: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+    backgroundColor: '#f9fafb',
+  },
+  contactSaveButton: {
+    marginTop: 12,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  contactSaveButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

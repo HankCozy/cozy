@@ -41,7 +41,7 @@ export default function SpotlightScreen() {
   const { token } = auth;
   const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profilePublished, setProfilePublished] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const fetchedRef = useRef(false);
 
   const fetchSpotlight = async () => {
@@ -82,14 +82,26 @@ export default function SpotlightScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const init = async () => {
-        const publishedStr = await AsyncStorage.getItem('profile_published');
-        const published = publishedStr === 'true';
-        setProfilePublished(published);
+        const keys = await AsyncStorage.getAllKeys();
+        const answerCount = keys.filter((key) => key.startsWith('answer_')).length;
+        const unlocked = answerCount >= 4;
+        setIsUnlocked(unlocked);
 
-        if (published && !fetchedRef.current) {
+        if (unlocked && token) {
+          try {
+            const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+              method: 'PATCH',
+              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ profilePublished: true }),
+            });
+            if (res.ok) await AsyncStorage.setItem('profile_published', 'true');
+          } catch (_) { /* silent fail */ }
+        }
+
+        if (unlocked && !fetchedRef.current) {
           fetchedRef.current = true;
           fetchSpotlight();
-        } else if (!published) {
+        } else if (!unlocked) {
           setLoading(false);
         }
       };
@@ -109,10 +121,10 @@ export default function SpotlightScreen() {
           <Text style={styles.headerTitle}>Member spotlight</Text>
         </View>
 
-        {!profilePublished ? (
+        {!isUnlocked ? (
           <View style={styles.lockedContainer}>
             <Feather name="lock" size={32} color="#6B7280" />
-            <Text style={styles.lockText}>Share your profile to unlock member spotlight</Text>
+            <Text style={styles.lockText}>Complete your profile to unlock member spotlight</Text>
           </View>
         ) : loading ? (
           <View style={styles.loadingContainer}>
