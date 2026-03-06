@@ -1,15 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { Colors, Fonts } from '../theme';
 
 export const CIRCLE_COLORS = [
-  '#60A5FA', // blue
-  '#34D399', // green
-  '#F87171', // coral
-  '#A78BFA', // purple
-  '#FBBF24', // amber
-  '#F472B6', // pink
-  '#2DD4BF', // teal
-  '#FB923C', // orange
+  Colors.blue,
+  Colors.green,
+  Colors.orange,
+  Colors.pink,
+  Colors.yellow,
 ];
 
 const MAX_CHART_CIRCLES = 6;
@@ -40,6 +38,33 @@ interface Props {
   showOverlap?: boolean;
 }
 
+// Greedy graph coloring for wheel layout (center + ring).
+// Ensures no two touching bubbles share a color.
+function assignColors(count: number): string[] {
+  if (count === 0) return [];
+  const ringCount = count - 1;
+
+  const getNeighbors = (i: number): number[] => {
+    if (count === 1) return [];
+    if (i === 0) return Array.from({ length: ringCount }, (_, k) => k + 1);
+    const prev = i === 1 ? count - 1 : i - 1;
+    const next = i === count - 1 ? 1 : i + 1;
+    return [0, prev, next];
+  };
+
+  const colors: string[] = new Array(count).fill('');
+  for (let i = 0; i < count; i++) {
+    const adjacent = new Set(getNeighbors(i).map((j) => colors[j]).filter(Boolean));
+    const globallyUsed = new Set(colors.filter(Boolean));
+    // Prefer a color not yet used anywhere; fall back to any non-adjacent color
+    colors[i] =
+      CIRCLE_COLORS.find((c) => !adjacent.has(c) && !globallyUsed.has(c)) ??
+      CIRCLE_COLORS.find((c) => !adjacent.has(c)) ??
+      CIRCLE_COLORS[0];
+  }
+  return colors;
+}
+
 function packBubbles(circles: CircleOverview[], canvasW: number): BubbleData[] {
   if (circles.length === 0) return [];
 
@@ -56,19 +81,32 @@ function packBubbles(circles: CircleOverview[], canvasW: number): BubbleData[] {
   const primaryR = computeRadius(primary.count);
   const others = sorted.slice(1);
 
+  const colorAssignment = assignColors(sorted.length);
+
   const logical: BubbleData[] = [
-    { circle: primary, color: CIRCLE_COLORS[0], x: 0, y: 0, r: primaryR },
+    { circle: primary, color: colorAssignment[0], x: 0, y: 0, r: primaryR },
   ];
 
+  // Hand-crafted organic angles (in degrees) per ring count.
+  // Unequal spacing breaks the rigid cross/star pattern and feels more playful.
+  const ORGANIC_ANGLES: Record<number, number[]> = {
+    1: [-90],
+    2: [-80, 105],
+    3: [-95, 30, 150],
+    4: [-85, 10, 105, 205],
+    5: [-95, -10, 65, 140, 215],
+  };
+
   if (others.length > 0) {
-    const angleStep = (2 * Math.PI) / others.length;
+    const angles = ORGANIC_ANGLES[others.length] ??
+      others.map((_, i) => -90 + (360 / others.length) * i);
     others.forEach((circle, i) => {
       const r = computeRadius(circle.count);
-      const angle = -Math.PI / 2 + angleStep * i;
+      const angle = (angles[i] * Math.PI) / 180;
       const distance = primaryR + r + GAP;
       logical.push({
         circle,
-        color: CIRCLE_COLORS[(i + 1) % CIRCLE_COLORS.length],
+        color: colorAssignment[i + 1],
         x: distance * Math.cos(angle),
         y: distance * Math.sin(angle),
         r,
@@ -145,36 +183,23 @@ function computeOverlapLayout(bubbles: BubbleData[], canvasW: number): Array<{x:
   }));
 }
 
-function BubbleLabel({ name }: { name: string }) {
-  const [abbreviated, setAbbreviated] = useState(false);
-
-  if (abbreviated) {
-    return (
-      <Text
-        style={{ fontSize: 16, fontWeight: '700', color: '#1e293b', textAlign: 'center' }}
-        allowFontScaling={false}
-      >
-        {name.slice(0, 4) + '...'}
-      </Text>
-    );
-  }
-
+function BubbleLabel({ name, r }: { name: string; r: number }) {
+  const maxChars = Math.floor((r * 1.3) / 10);
+  const displayName = name.length <= maxChars ? name : name.slice(0, maxChars);
   return (
     <Text
-      style={{ fontSize: 16, fontWeight: '700', color: '#1e293b', textAlign: 'center' }}
-      numberOfLines={2}
+      style={{ fontSize: 15, fontWeight: '700', color: Colors.white, fontFamily: Fonts.bold, textAlign: 'center', textTransform: 'uppercase' }}
       allowFontScaling={false}
-      onTextLayout={(e) => {
-        if (e.nativeEvent.lines.length > 1) setAbbreviated(true);
-      }}
+      numberOfLines={1}
+      ellipsizeMode="clip"
     >
-      {name}
+      {displayName}
     </Text>
   );
 }
 
 export default function CircleBubbleChart({ circles, onPress, showOverlap = false }: Props) {
-  const canvasW = Dimensions.get('window').width - 40;
+  const canvasW = Dimensions.get('window').width - 16;
   const separatedBubbles = packBubbles(circles, canvasW);
 
   const scaleAnims = useRef(
@@ -262,13 +287,13 @@ export default function CircleBubbleChart({ circles, onPress, showOverlap = fals
                 style={{
                   flex: 1,
                   borderRadius: r,
-                  backgroundColor: color + 'B3', // 70% opacity — blends nicely when overlapping
+                  backgroundColor: color,
                   justifyContent: 'center',
                   alignItems: 'center',
                   paddingHorizontal: 12,
                 }}
               >
-                {!showOverlap && <BubbleLabel name={circle.shortName ?? circle.name} />}
+                {!showOverlap && <BubbleLabel name={circle.shortName ?? circle.name} r={r} />}
               </View>
             </TouchableOpacity>
           </Animated.View>

@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import CircleBubbleChart, { CIRCLE_COLORS } from '../components/CircleBubbleChart';
 import { API_BASE_URL } from '../config/api';
+import { Colors, Fonts } from '../theme';
 
 interface CircleOverview {
   id: string;
@@ -124,7 +125,7 @@ export default function CommunityScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color={Colors.blue} />
         <Text style={styles.loadingText}>Loading circles...</Text>
       </SafeAreaView>
     );
@@ -174,12 +175,14 @@ export default function CommunityScreen() {
             </View>
           ) : (
             <>
-              <CircleBubbleChart
-                key={realCircles.length}
-                circles={realCircles}
-                onPress={handleCirclePress}
-                showOverlap={showOverlap}
-              />
+              <View style={{ marginHorizontal: -12 }}>
+                <CircleBubbleChart
+                  key={realCircles.length}
+                  circles={realCircles}
+                  onPress={handleCirclePress}
+                  showOverlap={showOverlap}
+                />
+              </View>
               <TouchableOpacity
                 style={styles.overlapToggle}
                 onPress={() => setShowOverlap((v) => !v)}
@@ -226,11 +229,11 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.warmWhite,
   },
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.warmWhite,
   },
   contentContainer: {
     paddingBottom: 120,
@@ -239,12 +242,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.warmWhite,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.gray,
   },
   header: {
     paddingHorizontal: 20,
@@ -253,13 +256,14 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.gray,
     marginBottom: 4,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.black,
+    fontFamily: Fonts.bold,
   },
   circlesSection: {
     marginTop: 24,
@@ -268,7 +272,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.black,
+    fontFamily: Fonts.medium,
     marginBottom: 16,
   },
   overlapToggle: {
@@ -311,7 +316,8 @@ const styles = StyleSheet.create({
   circleListName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.black,
+    fontFamily: Fonts.medium,
     marginBottom: 2,
   },
   circleListCount: {
@@ -355,7 +361,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+    backgroundColor: 'rgba(255, 247, 230, 0.8)',
   },
   lockText: {
     marginTop: 12,
