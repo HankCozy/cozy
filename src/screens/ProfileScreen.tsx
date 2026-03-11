@@ -784,6 +784,7 @@ export default function ProfileScreen() {
               </View>
 
               {/* Contact Preference */}
+              {contactMethod === null && (
               <View style={styles.infoCard}>
                 <Text style={styles.infoCardTitle}>Can community members reach you by email?</Text>
                 <View style={styles.contactOptions}>
@@ -849,6 +850,7 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              )}
 
               {/* Personal Story */}
               <View style={styles.storyCard}>
