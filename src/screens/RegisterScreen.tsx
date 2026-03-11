@@ -156,7 +156,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 placeholder="Create a password"
                 secureTextEntry
                 autoCapitalize="none"
-                textContentType="none"
+                textContentType="oneTimeCode"
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (
@@ -180,7 +180,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 placeholder="Confirm your password"
                 secureTextEntry
                 autoCapitalize="none"
-                textContentType="none"
+                textContentType="oneTimeCode"
               />
             </View>
 

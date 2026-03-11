@@ -155,7 +155,7 @@ export default function ProfileScreen() {
       AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_question_flow');
-          navigation.getParent()?.navigate('QuestionFlowStack', {
+          navigation.navigate('QuestionFlowStack', {
             screen: 'AnswerQuestion',
             params: {
               sectionId: 'all',

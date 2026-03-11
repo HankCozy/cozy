@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   FlatList,
   Dimensions,
@@ -13,152 +14,119 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, User } from '../contexts/AuthContext';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
-import Waveform from '../components/Waveform';
+import { Colors, Fonts } from '../theme';
+import AnimatedWaveform from '../components/AnimatedWaveform';
 
 const { width } = Dimensions.get('window');
+const CX = width / 2;
 
-interface OnboardingSlide {
-  id: string;
-  title: string;
-  description: string;
-  placeholderColor: string;
-  placeholderType: 'single' | 'multiple' | 'waveform';
-  showButton?: boolean;
-  buttonText?: string;
-}
+const GRAPHIC_HEIGHT = 460;
+const GCY = GRAPHIC_HEIGHT / 2; // 230
 
-const createSlides = (communityName: string): OnboardingSlide[] => [
-  {
-    id: '1',
-    title: 'Welcome to Cozy Circle',
-    description: 'An app that fosters\nreal world connection.',
-    placeholderColor: '#93c5fd', // Light blue
-    placeholderType: 'single',
-  },
-  {
-    id: '3',
-    title: 'Cozy Circle helps you find connection points.',
-    description: '',
-    placeholderColor: '#a78bfa', // Purple
-    placeholderType: 'multiple',
-  },
-  {
-    id: '5',
-    title: 'And foster real, in-person engagement.',
-    description: '',
-    placeholderColor: '#fbbf24', // Yellow
-    placeholderType: 'multiple',
-  },
-  {
-    id: '5b',
-    title: `Cozy Circle brings you closer to the people of ${communityName}`,
-    description: `This is a private community. Only members of ${communityName} can access your Cozy Circle profile.`,
-    placeholderColor: '#fbbf24', // Yellow
-    placeholderType: 'multiple',
-  },
-  {
-    id: '6',
-    title: "You tell us about yourself and we'll turn your words into points of connection.",
-    description: '',
-    placeholderColor: '#a78bfa', // Purple
-    placeholderType: 'waveform',
-    showButton: true,
-    buttonText: 'Get started',
-  },
+// ---------------------------------------------------------------------------
+// Slide 2 — people circles, calibrated to reference proportions.
+// Centers expressed as dx/dy from (CX, GCY). No circles touch.
+// hasSmiley mirrors the reference (orange/pink/green get the ☺ face).
+// ---------------------------------------------------------------------------
+type PeopleCircle = { color: string; r: number; dx: number; dy: number; hasSmiley: boolean };
+
+const PEOPLE_CIRCLES: PeopleCircle[] = [
+  { color: Colors.orange, r: 50, dx:   9, dy:  -14, hasSmiley: true  }, // center
+  { color: Colors.pink,   r: 58, dx:  77, dy: -129, hasSmiley: true  }, // upper-right (large)
+  { color: Colors.yellow, r: 40, dx: -116, dy:  -92, hasSmiley: false }, // upper-left
+  { color: Colors.blue,   r: 66, dx: -120, dy:   87, hasSmiley: false }, // lower-left (large)
+  { color: Colors.green,  r: 52, dx:  73, dy:  110, hasSmiley: true  }, // lower-right
+];
+
+// ---------------------------------------------------------------------------
+// Slide 4 — single large PICKLEBALL circle
+// ---------------------------------------------------------------------------
+const PB_R  = 92;
+const PB_CX = CX;
+const PB_CY = GCY - 15; // same center as slide-3 orange end position
+
+const DOT_COLORS = [
+  Colors.orange,
+  Colors.yellow,
+  Colors.blue,
+  Colors.green,
+  Colors.pink,
+  Colors.orange, // 6th wraps back to orange
+];
+
+interface OnboardingSlide { id: string }
+
+const SLIDES: OnboardingSlide[] = [
+  { id: 'welcome' },
+  { id: 'people' },
+  { id: 'connect' },
+  { id: 'pickleball' },
+  { id: 'activities' },
+  { id: 'cta' },
 ];
 
 interface OnboardingScreenProps {
   navigation: any;
-  route: {
-    params?: {
-      user: User;
-      token: string;
-    };
-  };
+  route: { params?: { user: User; token: string } };
 }
 
 export default function OnboardingScreen({ navigation, route }: OnboardingScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [ctaPressed, setCtaPressed]     = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const { completeOnboarding } = useAuth();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim2 = useRef(new Animated.Value(0)).current;
-  const fadeAnim3 = useRef(new Animated.Value(0)).current;
-  const descAnim = useRef(new Animated.Value(0)).current;
 
-  // Fade animation for slide 2 (index 1): frame1 → frame2
+  // Slide 2 — stagger scale-in
+  const s2Scales = useRef(PEOPLE_CIRCLES.map(() => new Animated.Value(0))).current;
+
+  // Slide 4 — pickleball scale + label fade-in
+  const s4Scale   = useRef(new Animated.Value(0)).current;
+  const s4LabelOp = useRef(new Animated.Value(0)).current;
+
+  const communityName = route.params?.user?.community?.organization || 'Your Community';
+
+  // ------------------------------------------------------------------
+  // Slide animations
+  // ------------------------------------------------------------------
+
+  // Slide 2 — fast stagger spring-in
   useEffect(() => {
     if (currentIndex === 1) {
-      fadeAnim.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      }, 1000);
-      return () => clearTimeout(timeout);
+      s2Scales.forEach(a => a.setValue(0));
+      Animated.stagger(
+        40,
+        s2Scales.map(a =>
+          Animated.spring(a, { toValue: 1, tension: 200, friction: 9, useNativeDriver: true })
+        )
+      ).start();
     }
-  }, [currentIndex, fadeAnim]);
+  }, [currentIndex]);
 
-  // Fade animation for slide 3 (index 2): frame2 → frame3
-  useEffect(() => {
-    if (currentIndex === 2) {
-      fadeAnim2.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim2, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      }, 800);
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, fadeAnim2]);
-
-  // Pan/zoom animation for slide 4 (index 3): frame3 → frame4
   useEffect(() => {
     if (currentIndex === 3) {
-      fadeAnim3.setValue(0);
-      descAnim.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim3, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
-      }, 800);
-      // Description pulse in after 1.5s
-      const descTimeout = setTimeout(() => {
-        Animated.spring(descAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
-      }, 1500);
-      return () => {
-        clearTimeout(timeout);
-        clearTimeout(descTimeout);
-      };
+      s4Scale.setValue(0);
+      s4LabelOp.setValue(0);
+      const t = setTimeout(() => {
+        Animated.sequence([
+          Animated.spring(s4Scale, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true }),
+          Animated.timing(s4LabelOp, { toValue: 1, duration: 240, useNativeDriver: true }),
+        ]).start();
+      }, 150);
+      return () => clearTimeout(t);
     }
-  }, [currentIndex, fadeAnim3, descAnim]);
+  }, [currentIndex]);
 
-  // Get community name from route params
-  const communityName = route.params?.user?.community?.organization || 'Your Community';
-  const slides = createSlides(communityName);
+  // ------------------------------------------------------------------
+  // Navigation
+  // ------------------------------------------------------------------
 
   const handleGetStarted = async () => {
+    if (ctaPressed) return;
+    setCtaPressed(true);
     if (route.params?.user && route.params?.token) {
-      // Coming from registration — set a flag BEFORE switching auth state.
-      // When completeOnboarding fires, the navigation tree swaps from
-      // AuthNavigator → AppNavigator and this screen unmounts. The flag is
-      // picked up by ProfileScreen's useFocusEffect on the new tree.
       await AsyncStorage.setItem('pending_question_flow', 'true');
       await completeOnboarding(route.params.user, route.params.token);
-      // Do NOT navigate here — the navigation tree has already switched.
     } else {
-      // Already authenticated (returning user). Navigate directly.
       navigation.navigate('QuestionFlowStack', {
         screen: 'AnswerQuestion',
         params: {
@@ -176,185 +144,201 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
     }
   }).current;
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
-  const renderPlaceholder = (item: OnboardingSlide) => {
-    // Slide 3 (id '3') - fade animation: frame1 → frame2
-    if (item.id === '3') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame1.png')}
-              style={[
-                styles.fadeImage,
-                { opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require('../../assets/frame2.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                { opacity: fadeAnim },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
+  // ------------------------------------------------------------------
+  // Graphic renderers
+  // ------------------------------------------------------------------
 
-    // Slide 3 (id '5') - fade animation: frame2 → frame3
-    if (item.id === '5') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame2.png')}
-              style={[
-                styles.fadeImage,
-                { opacity: fadeAnim2.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require('../../assets/frame3.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                { opacity: fadeAnim2 },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
+  const renderWelcomeGraphic = () => (
+    <View style={styles.graphicArea}>
+      <Image
+        source={require('../../assets/app_tile.png')}
+        style={styles.appTile}
+        resizeMode="contain"
+      />
+    </View>
+  );
 
-    // Slide 4 (id '5b') - pan/zoom animation: frame3 → frame4
-    if (item.id === '5b') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame3.png')}
-              style={[
-                styles.fadeImage,
-                {
-                  opacity: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                  transform: [
-                    { translateY: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [66, 126] }) },
-                    { translateX: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -100] }) },
-                    { scale: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }) },
-                  ],
-                },
-              ]}
+  const renderPeopleGraphic = () => (
+    <View style={styles.graphicArea}>
+      {PEOPLE_CIRCLES.map((c, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            position: 'absolute',
+            left:         CX + c.dx - c.r,
+            top:          GCY + c.dy - c.r,
+            width:        c.r * 2,
+            height:       c.r * 2,
+            borderRadius: c.r,
+            backgroundColor: c.color,
+            opacity: 0.85,
+            justifyContent: 'center',
+            alignItems:     'center',
+            transform: [{ scale: s2Scales[i] }],
+          }}
+        >
+          {c.hasSmiley && (
+            <Image
+              source={
+                c.color === Colors.orange ? require('../../assets/eyeys_orange.png') :
+                c.color === Colors.pink   ? require('../../assets/eyeys_pinnk.png') :
+                require('../../assets/eyeys_green.png')
+              }
+              style={{ width: c.r * 0.32, height: c.r * 0.32 }}
               resizeMode="contain"
             />
-            <Animated.Image
-              source={require('../../assets/frame4.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                {
-                  opacity: fadeAnim3,
-                  transform: [
-                    { scale: 1.7 },
-                    { translateY: 56 },
-                  ],
-                },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
+          )}
+        </Animated.View>
+      ))}
+    </View>
+  );
 
-    if (item.placeholderType === 'single') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={[styles.singleCircle, { backgroundColor: item.placeholderColor }]} />
-        </View>
-      );
-    } else if (item.placeholderType === 'multiple') {
-      const secondColor = item.id === '5' ? '#fbbf24' : item.placeholderColor;
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.multipleCirclesRow}>
-            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
-            <View style={[styles.smallCircle, { backgroundColor: secondColor }]} />
-            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
-          </View>
-        </View>
-      );
-    } else {
-      // Waveform placeholder - uses shared Waveform component
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={{ marginTop: 320 }}>
-            <Waveform isRecording alwaysShow scale={1.25} />
-          </View>
-        </View>
-      );
+  const renderConnectGraphic = () => (
+    <View style={styles.graphicArea}>
+      <Image
+        source={require('../../assets/onboarding_connect.png')}
+        style={{ width: '100%', height: GRAPHIC_HEIGHT }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+
+  const renderPickleballGraphic = () => (
+    <View style={styles.graphicArea}>
+      <Animated.View
+        style={{
+          position:     'absolute',
+          left:         PB_CX - PB_R,
+          top:          PB_CY - PB_R,
+          width:        PB_R * 2,
+          height:       PB_R * 2,
+          borderRadius: PB_R,
+          backgroundColor: Colors.orange,
+          justifyContent: 'center',
+          alignItems:     'center',
+          transform: [{ scale: s4Scale }],
+        }}
+      >
+        <Animated.Text
+          style={{
+            opacity:        s4LabelOp,
+            color:          Colors.white,
+            fontFamily:     Fonts.bold,
+            fontSize:       16,
+            fontWeight:     '700',
+            textTransform:  'uppercase',
+            letterSpacing:  1.8,
+          }}
+          allowFontScaling={false}
+        >
+          PICKLEBALL
+        </Animated.Text>
+      </Animated.View>
+    </View>
+  );
+
+  const renderActivitiesGraphic = () => (
+    <View style={styles.graphicArea}>
+      <Image
+        source={require('../../assets/onboarding_activities.png')}
+        style={{ width: '100%', height: GRAPHIC_HEIGHT }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+
+  const renderCtaGraphic = () => (
+    <View style={[styles.graphicArea, styles.graphicCenter]}>
+      <AnimatedWaveform barWidth={28} barGap={12} />
+    </View>
+  );
+
+  const renderGraphic = (id: string) => {
+    switch (id) {
+      case 'welcome':    return renderWelcomeGraphic();
+      case 'people':     return renderPeopleGraphic();
+      case 'connect':    return renderConnectGraphic();
+      case 'pickleball': return renderPickleballGraphic();
+      case 'activities': return renderActivitiesGraphic();
+      case 'cta':        return renderCtaGraphic();
+      default:           return null;
     }
   };
 
+  // ------------------------------------------------------------------
+  // Slide renderer
+  // ------------------------------------------------------------------
+
   const renderSlide = ({ item }: { item: OnboardingSlide }) => (
     <View style={styles.slide}>
-      <View style={styles.content}>
-        {renderPlaceholder(item)}
-        {item.id === '5b' ? (
-          <Text style={[styles.title, { marginTop: 80 }]}>
-            Cozy Circle brings you closer to the people of{' '}
-            <Text style={styles.underline}>{communityName}</Text>
-          </Text>
-        ) : (
-          <Text style={[styles.title, item.id === '6' && { marginTop: 80 }]}>{item.title}</Text>
+      {renderGraphic(item.id)}
+      <View style={styles.textArea}>
+        {item.id === 'welcome' && (
+          <>
+            <Text style={styles.titleLarge}>Welcome to Cozy Circle</Text>
+            <Text style={styles.description}>A place for real world connections.</Text>
+          </>
         )}
-        {item.id === '5b' ? (
-          <Animated.Text
-            style={[
-              styles.description,
-              {
-                opacity: descAnim,
-                transform: [
-                  { scale: descAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
-                ],
-              },
-            ]}
-          >
-            This is a private community. Only members of{' '}
-            <Animated.Text style={styles.underline}>{communityName}</Animated.Text>
-            {' '}can access your Cozy Circle profile.
-          </Animated.Text>
-        ) : item.description !== '' ? (
-          <Text style={styles.description}>{item.description}</Text>
-        ) : null}
-        {item.showButton && item.buttonText && (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleGetStarted}
-          >
-            <Text style={styles.primaryButtonText}>{item.buttonText}</Text>
-          </TouchableOpacity>
+        {item.id === 'people' && (
+          <Text style={styles.title}>
+            {"There's a lot of great people at\n"}
+            <Text style={styles.bold}>{communityName}.</Text>
+          </Text>
+        )}
+        {item.id === 'connect' && (
+          <Text style={styles.title}>
+            Cozy Circle helps you find new ways to connect...
+          </Text>
+        )}
+        {item.id === 'pickleball' && (
+          <Text style={styles.title}>
+            ...around real-world activities and shared interests.
+          </Text>
+        )}
+        {item.id === 'activities' && (
+          <Text style={styles.title}>
+            Get closer to your community with Cozy Circle.
+          </Text>
+        )}
+        {item.id === 'cta' && (
+          <>
+            <Text style={styles.title}>
+              {"To get started, let's chat through\na few friendly questions."}
+            </Text>
+            <Text style={styles.description}>Nothing serious, nothing boring.</Text>
+            <TouchableOpacity
+              style={[styles.primaryButton, ctaPressed && styles.primaryButtonDisabled]}
+              onPress={handleGetStarted}
+              activeOpacity={0.8}
+              disabled={ctaPressed}
+            >
+              <Text style={styles.primaryButtonText}>Get started</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
     </View>
   );
 
+  // ------------------------------------------------------------------
+  // Dot indicator
+  // ------------------------------------------------------------------
+
   const renderDots = () => (
     <View style={styles.dotsContainer}>
-      {slides.map((_, index) => (
+      {SLIDES.map((_, index) => (
         <View
           key={index}
           style={[
             styles.dot,
-            currentIndex === index && styles.activeDot,
+            {
+              backgroundColor: DOT_COLORS[index],
+              opacity: currentIndex === index ? 1 : 0.35,
+              width:   currentIndex === index ? 10 : 7,
+              height:  currentIndex === index ? 10 : 7,
+            },
           ]}
         />
       ))}
@@ -365,16 +349,15 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
     <SafeAreaView style={styles.container}>
       <FlatList
         ref={flatListRef}
-        data={slides}
+        data={SLIDES}
         renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
       />
-
       {renderDots()}
     </SafeAreaView>
   );
@@ -383,100 +366,88 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.warmWhite,
   },
   slide: {
     width,
     flex: 1,
+  },
+  graphicArea: {
+    height: GRAPHIC_HEIGHT,
+    width:  '100%',
+  },
+  graphicCenter: {
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems:     'center',
+  },
+  appTile: {
+    width:      210,
+    height:     210,
+    alignSelf:  'center',
+    marginTop:  114, // ~3/4 inch lower than original
+    borderRadius: 46,
+    overflow:   'hidden',
+  },
+  textArea: {
+    flex: 1,
     paddingHorizontal: 40,
+    paddingTop:        24,
+    alignItems:        'center',
   },
-  content: {
-    alignItems: 'center',
-    maxWidth: 360,
-  },
-  placeholderContainer: {
-    height: 200,
-    marginBottom: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fadeImageContainer: {
-    width: 200,
-    height: 200,
-    position: 'relative',
-  },
-  fadeImage: {
-    width: '100%',
-    height: '100%',
-  },
-  fadeImageAbsolute: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  singleCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-  },
-  multipleCirclesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  smallCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  titleLarge: {
+    fontSize:   24,
+    fontFamily: Fonts.bold,
+    color:      Colors.black,
+    marginBottom: 12,
+    textAlign:  'center',
+    lineHeight: 32,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 20,
-    textAlign: 'center',
-    lineHeight: 30,
+    fontSize:   19,
+    fontFamily: Fonts.medium,
+    color:      Colors.black,
+    marginBottom: 12,
+    textAlign:  'center',
+    lineHeight: 27,
   },
   description: {
-    fontSize: 17,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: 12,
-    maxWidth: 288,
+    fontSize:   15,
+    fontFamily: Fonts.regular,
+    color:      Colors.gray,
+    textAlign:  'center',
+    lineHeight: 23,
+    marginBottom: 10,
   },
-  underline: {
-    textDecorationLine: 'underline',
-    textDecorationColor: '#6b7280',
+  bold: {
+    fontFamily: Fonts.bold,
+    color:      Colors.black,
   },
   primaryButton: {
-    marginTop: 40,
+    marginTop:       28,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    backgroundColor: Colors.blue,
+    borderRadius:    10,
+    width:           '100%',
+    alignItems:      'center',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
   },
   primaryButtonText: {
-    fontSize: 16,
+    fontSize:   16,
+    fontFamily: Fonts.medium,
+    color:      Colors.white,
     fontWeight: '600',
-    color: '#ffffff',
-    textAlign: 'center',
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 60,
+    alignItems:     'center',
+    paddingBottom:  48,
+    gap:            8,
   },
   dot: {
-    width: 40,
-    height: 3,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 3,
-  },
-  activeDot: {
-    backgroundColor: '#111827',
+    borderRadius: 5,
   },
 });
