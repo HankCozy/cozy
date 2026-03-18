@@ -243,7 +243,7 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       }
     });
 
-    // Fetch all other published members (include profilePictureUrl for the card)
+    // Fetch all other published members (include profilePictureUrl and profileInterests for the card)
     const otherMembers = await prisma.user.findMany({
       where: {
         communityId: communityId,
@@ -257,7 +257,8 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
         lastName: true,
         profileSummary: true,
         profileAnswers: true,
-        profilePictureUrl: true
+        profilePictureUrl: true,
+        profileInterests: true,
       }
     });
 
@@ -292,7 +293,6 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
 
     const match = await findIcebreakerMatch(userId, userProfile, memberProfiles, excludeUserIds);
 
-    // Attach profilePictureUrl from the DB result
     const matchedDbMember = match ? otherMembers.find(m => m.id === match.userId) : null;
 
     res.json({
@@ -300,6 +300,9 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       match: match ? {
         ...match,
         profilePictureUrl: matchedDbMember?.profilePictureUrl ?? null,
+        profileInterests: Array.isArray(matchedDbMember?.profileInterests)
+          ? matchedDbMember.profileInterests
+          : [],
       } : null
     });
   } catch (error) {

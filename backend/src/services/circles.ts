@@ -39,7 +39,7 @@ export interface IcebreakerMatch {
   lastName: string;
   profileSummary: string | null;
   matchScore: number;
-  sharedInterests: string[];
+  sharedTraits: string[];
   icebreakerQuestions: string[];
 }
 
@@ -288,7 +288,7 @@ export async function findIcebreakerMatch(
     answers: extractAnswersForClustering(m.profileAnswers),
   }));
 
-  const prompt = `You are finding the top 5 connection matches for a community member.
+  const prompt = `You are finding "Intersections" matches for a community member — serendipitous connections based on who they ARE, not just what they do.
 
 ## Current User
 Name: ${userProfile.firstName || ''} ${userProfile.lastName || ''}
@@ -299,11 +299,19 @@ ${userAnswers}
 ${JSON.stringify(memberData, null, 2)}
 
 ## Task
-Rank the top 5 members (or fewer if less than 5 exist) based on:
-1. Shared interests and hobbies
-2. Similar life experiences or stages
-3. Complementary skills (one can teach, other wants to learn)
-4. Potential for meaningful conversation
+Find the top 5 members who share ASCRIBED traits with the current user. Ascribed traits are things people are born into or have accumulated over time:
+- Hometown, region, or places they have lived
+- Age or life stage (young professional, new parent, empty nester, retiree, etc.)
+- Family situation (married, single, has kids, grandkids, caregiver, etc.)
+- Tenure or seniority in their organization or community
+- Cultural background or heritage mentioned
+- Location or role within their organization
+
+IMPORTANT: Prioritize genuine ascribed trait overlap. If clear overlap is absent, use random selection — do not force connections that aren't there. Serendipity is a valid outcome.
+
+For each candidate provide:
+- "sharedTraits": 1–2 short human-readable strings describing the ascribed connection (e.g. "Both raised in the South", "Both have young kids", "Similar tenure in the community"). Max 6 words each. Empty array if random fallback.
+- "icebreakerQuestions": 3 questions that explore the ascribed connection or invite personal storytelling.
 
 ## Output
 CRITICAL: Output ONLY the raw JSON object — no preamble, no explanation, no markdown.
@@ -312,18 +320,16 @@ Use the exact integer memberId values from the Community Members list above.
   "candidates": [
     {
       "memberId": 3,
-      "matchScore": 0.92,
-      "sharedInterests": ["hiking", "photography"],
+      "matchScore": 0.85,
+      "sharedTraits": ["Both raised in the Midwest", "Both have young children"],
       "icebreakerQuestions": [
-        "Specific question about their shared interest?",
-        "Another personalized conversation starter?",
-        "A third icebreaker question?"
+        "What was it like growing up in the Midwest?",
+        "What's the hardest and best part of being a parent right now?",
+        "What do you miss most about where you grew up?"
       ]
     }
   ]
-}
-
-Provide 3 specific, personalized icebreaker questions per candidate based on their actual profile answers.`;
+}`;
 
   const fallbackMember = pool[Math.floor(Math.random() * pool.length)];
   const fallbackResult: IcebreakerMatch = {
@@ -332,11 +338,11 @@ Provide 3 specific, personalized icebreaker questions per candidate based on the
     lastName: fallbackMember.lastName || '',
     profileSummary: fallbackMember.profileSummary || null,
     matchScore: 0.5,
-    sharedInterests: [],
+    sharedTraits: [],
     icebreakerQuestions: [
       "What brought you to this community?",
-      "What do you enjoy doing in your free time?",
-      "What's something you've been wanting to learn?",
+      "Where did you grow up, and what was it like?",
+      "What's something most people here don't know about you?",
     ],
   };
 
@@ -388,7 +394,7 @@ Provide 3 specific, personalized icebreaker questions per candidate based on the
       lastName: chosen.member.lastName || '',
       profileSummary: chosen.member.profileSummary || null,
       matchScore: chosen.matchScore || 0.7,
-      sharedInterests: chosen.sharedInterests || [],
+      sharedTraits: chosen.sharedTraits || [],
       icebreakerQuestions: chosen.icebreakerQuestions || [],
     };
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,235 +6,501 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
-import ResponseCard from '../components/ResponseCard';
+import ProfileBadge from '../components/ProfileBadge';
+import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 
-const SPOTLIGHT_SEEN_KEY = 'spotlight_seen_ids';
+const SEEN_KEY = 'intersections_seen_ids';
 const MAX_SEEN = 8;
+const SHORT_BIO_WORDS = 55;
 
-interface SpotlightMatch {
+const TAG_PALETTE = [
+  { bg: '#00934E', text: 'white' },
+  { bg: '#FFA0A6', text: 'white' },
+  { bg: '#FAC63D', text: '#545454' },
+  { bg: '#FE6627', text: 'white' },
+  { bg: '#E7E0D3', text: '#545454' },
+];
+
+function stripIcebreakerQuestions(summary: string): string {
+  const patterns = [
+    /---\s*\*?\*?Icebreaker Questions/i,
+    /\*\*Icebreaker Questions/i,
+    /---/,
+  ];
+  for (const pattern of patterns) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      return summary.substring(0, match.index).trim();
+    }
+  }
+  return summary;
+}
+
+function parseIcebreakerQuestions(summary: string): string[] {
+  const separators = [
+    /---\s*\*?\*?Icebreaker Questions[:\s]*/i,
+    /\*\*Icebreaker Questions\*\*[:\s]*/i,
+    /---/,
+  ];
+  let section = '';
+  for (const pattern of separators) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      section = summary.substring(match.index + match[0].length);
+      break;
+    }
+  }
+  if (!section) return [];
+  const lines = section.split('\n').map(l => l.trim()).filter(Boolean);
+  const questions: string[] = [];
+  for (const line of lines) {
+    const cleaned = line.replace(/^\d+\.\s*/, '').replace(/^\*\*|\*\*$/g, '').trim();
+    if (cleaned.length > 10) {
+      questions.push(cleaned);
+      if (questions.length >= 3) break;
+    }
+  }
+  return questions;
+}
+
+interface IntersectionsMatch {
   userId: string;
   firstName: string;
   lastName: string;
   profileSummary: string | null;
   profilePictureUrl: string | null;
-  matchScore: number;
-  sharedInterests: string[];
+  profileInterests: string[];
+  sharedTraits: string[];
   icebreakerQuestions: string[];
 }
 
-function extractHeadline(summary: string | null): string {
-  if (!summary) return '';
-  const sentences = summary.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 10);
-  return sentences[0]?.trim() || '';
-}
-
 export default function SpotlightScreen() {
-  const navigation = useNavigation<any>();
   const { auth } = useAuth();
   const { token } = auth;
-  const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
+
+  const [match, setMatch] = useState<IntersectionsMatch | null>(null);
+  const [signedPictureUrl, setSignedPictureUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [totalAnswers, setTotalAnswers] = useState(0);
   const [insufficientMembers, setInsufficientMembers] = useState(false);
   const [eligibleCount, setEligibleCount] = useState(0);
-  const fetchedRef = useRef(false);
+  const [bioExpanded, setBioExpanded] = useState(false);
 
-  const fetchSpotlight = async () => {
-    setLoading(true);
+  const fetchMatch = useCallback(async () => {
     try {
-      const seenJson = await AsyncStorage.getItem(SPOTLIGHT_SEEN_KEY);
+      const seenJson = await AsyncStorage.getItem(SEEN_KEY);
       const seenIds: string[] = seenJson ? JSON.parse(seenJson) : [];
       const excludeParam = seenIds.length > 0 ? `?exclude=${seenIds.join(',')}` : '';
 
       const response = await fetch(`${API_BASE_URL}/api/communities/icebreaker${excludeParam}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.insufficientMembers) {
-          setInsufficientMembers(true);
-          setEligibleCount(data.eligibleCount ?? 0);
-        } else if (data.success && data.match) {
-          setSpotlightMatch(data.match);
-          const newSeen = seenIds.filter((id: string) => id !== data.match.userId);
-          newSeen.push(data.match.userId);
-          if (newSeen.length > MAX_SEEN) newSeen.splice(0, newSeen.length - MAX_SEEN);
-          await AsyncStorage.setItem(SPOTLIGHT_SEEN_KEY, JSON.stringify(newSeen));
-        } else {
-          setSpotlightMatch(null);
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      if (data.insufficientMembers) {
+        setInsufficientMembers(true);
+        setEligibleCount(data.eligibleCount ?? 0);
+        return;
+      }
+
+      if (data.success && data.match) {
+        setMatch(data.match);
+        setBioExpanded(false);
+
+        // Update seen list
+        const newSeen = seenIds.filter((id: string) => id !== data.match.userId);
+        newSeen.push(data.match.userId);
+        if (newSeen.length > MAX_SEEN) newSeen.splice(0, newSeen.length - MAX_SEEN);
+        await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(newSeen));
+
+        // Fetch signed profile picture URL
+        if (token) {
+          getProfilePictureUrl(data.match.userId, token)
+            .then(url => setSignedPictureUrl(url))
+            .catch(() => setSignedPictureUrl(null));
         }
+      } else {
+        setMatch(null);
       }
     } catch (error) {
-      console.error('Failed to fetch spotlight:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch intersection match:', error);
     }
-  };
+  }, [token]);
 
+  // Reload every time the tab is focused
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       const init = async () => {
+        setLoading(true);
+        setMatch(null);
+        setSignedPictureUrl(null);
+        setInsufficientMembers(false);
+
         const keys = await AsyncStorage.getAllKeys();
         const count = keys.filter((k) => k.startsWith('answer_')).length;
         setTotalAnswers(count);
 
-        if (count >= 4 && !fetchedRef.current) {
-          fetchedRef.current = true;
-          fetchSpotlight();
-        } else if (count < 4) {
-          setLoading(false);
+        if (count >= 4) {
+          await fetchMatch();
         }
+        setLoading(false);
       };
       init();
-    }, [token])
+    }, [fetchMatch])
   );
 
-  const handleMeetSomeoneNew = () => {
-    setSpotlightMatch(null);
-    fetchSpotlight();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setMatch(null);
+    setSignedPictureUrl(null);
+    await fetchMatch();
+    setRefreshing(false);
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Member spotlight</Text>
-        </View>
+  // Derived display values
+  const bioText = match?.profileSummary ? stripIcebreakerQuestions(match.profileSummary) : null;
+  const icebreakerQuestions = match?.profileSummary
+    ? parseIcebreakerQuestions(match.profileSummary)
+    : match?.icebreakerQuestions ?? [];
+  const displayIcebreakers = icebreakerQuestions.length > 0
+    ? icebreakerQuestions
+    : match?.icebreakerQuestions ?? [];
 
-        {totalAnswers < 4 ? (
-          <View style={styles.lockedContainer}>
-            <Feather name="lock" size={32} color="#6B7280" />
-            <Text style={styles.lockText}>
-              Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Kindred
-            </Text>
+  // Quote: shortest answer from summary sentences
+  const bioSentences = bioText?.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 20) ?? [];
+  const quoteText = bioSentences[0] || null;
+
+  const firstName = match?.firstName || '';
+  const fullName = [match?.firstName, match?.lastName].filter(Boolean).join(' ');
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Intersections</Text>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color="#00934E" />
+        </View>
+      </View>
+    );
+  }
+
+  if (totalAnswers < 4) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}><Text style={styles.title}>Intersections</Text></View>
+        <View style={styles.centerState}>
+          <Feather name="lock" size={32} color="#BE9B51" />
+          <Text style={styles.stateText}>
+            Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Intersections
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (insufficientMembers) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}><Text style={styles.title}>Intersections</Text></View>
+        <View style={styles.centerState}>
+          <Feather name="users" size={32} color="#BE9B51" />
+          <Text style={styles.stateText}>Intersections unlocks when 5 members complete their profiles.</Text>
+          <Text style={styles.stateSubtext}>{eligibleCount} of 5 members ready.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Intersections</Text>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#00934E"
+          />
+        }
+      >
+        {!match ? (
+          <View style={styles.centerState}>
+            <Feather name="users" size={32} color="#BE9B51" />
+            <Text style={styles.stateText}>No matches found. Pull down to try again.</Text>
           </View>
-        ) : insufficientMembers ? (
-          <View style={styles.lockedContainer}>
-            <Feather name="users" size={32} color="#6B7280" />
-            <Text style={styles.lockText}>Kindred unlocks when 5 members complete their profiles.</Text>
-            <Text style={styles.lockSubtext}>{eligibleCount} of 5 members ready.</Text>
-          </View>
-        ) : loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#3b82f6" />
-            <Text style={styles.loadingText}>Finding someone to meet...</Text>
-          </View>
-        ) : spotlightMatch ? (
-          <>
-            <ResponseCard
-              firstName={spotlightMatch.firstName}
-              lastName={spotlightMatch.lastName}
-              profilePictureUrl={spotlightMatch.profilePictureUrl}
-              headline={extractHeadline(spotlightMatch.profileSummary)}
-              tags={spotlightMatch.sharedInterests}
-              icebreakerQuestions={spotlightMatch.icebreakerQuestions}
-              onViewProfile={() =>
-                navigation.navigate('MemberProfile', { userId: spotlightMatch.userId })
-              }
-            />
-            <TouchableOpacity style={styles.meetNewButton} onPress={handleMeetSomeoneNew} activeOpacity={0.7}>
-              <Feather name="refresh-cw" size={14} color="#3b82f6" />
-              <Text style={styles.meetNewText}>Meet someone new</Text>
-            </TouchableOpacity>
-          </>
         ) : (
-          <View style={styles.noMatchContainer}>
-            <Feather name="users" size={32} color="#D1D5DB" />
-            <Text style={styles.noMatchText}>
-              No matches yet. Complete more of your profile to find connections!
-            </Text>
-          </View>
+          <>
+            {/* Shared trait pills */}
+            {match.sharedTraits.length > 0 && (
+              <View style={styles.sharedTraitsRow}>
+                {match.sharedTraits.map((trait, i) => (
+                  <View key={i} style={styles.sharedTraitPill}>
+                    <Text style={styles.sharedTraitText}>{trait}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Floating avatar */}
+            <View style={styles.profileBadgeFloat}>
+              <ProfileBadge
+                firstName={match.firstName}
+                lastName={match.lastName}
+                totalAnswers={4}
+                profilePictureUrl={signedPictureUrl}
+                size={80}
+              />
+            </View>
+
+            {/* Profile card */}
+            <View style={styles.profileCard}>
+              <Text style={styles.profileName}>{fullName}</Text>
+
+              {/* Interest tags */}
+              {match.profileInterests.length > 0 && (
+                <View style={styles.tagsRow}>
+                  {match.profileInterests.slice(0, 6).map((tag, i) => {
+                    const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+                    return (
+                      <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
+                        <Text style={[styles.tagText, { color: palette.text }]}>
+                          {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Bio */}
+              {bioText ? (() => {
+                const words = bioText.split(/\s+/);
+                const isTruncated = words.length > SHORT_BIO_WORDS;
+                const displayText = (!bioExpanded && isTruncated)
+                  ? words.slice(0, SHORT_BIO_WORDS).join(' ') + '...'
+                  : bioText;
+                return (
+                  <>
+                    <Text style={styles.bioText}>{displayText}</Text>
+                    {isTruncated && (
+                      <TouchableOpacity style={styles.expandLink} onPress={() => setBioExpanded(!bioExpanded)}>
+                        <Text style={styles.expandLinkText}>
+                          {bioExpanded ? 'Show less' : 'Show full bio ✦'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                );
+              })() : null}
+            </View>
+
+            {/* Quote card */}
+            {quoteText && (
+              <View style={styles.quoteCard}>
+                <Text style={styles.quoteText}>"{quoteText}"</Text>
+              </View>
+            )}
+
+            {/* Icebreaker card */}
+            {displayIcebreakers.length > 0 && (
+              <View style={styles.icebreakerCard}>
+                <Text style={styles.icebreakerLabel}>
+                  Ask {firstName || 'them'}:
+                </Text>
+                {displayIcebreakers.map((q, i) => (
+                  <Text key={i} style={styles.icebreakerQuestion}>{q}</Text>
+                ))}
+              </View>
+            )}
+
+            {/* Next match */}
+            <TouchableOpacity style={styles.nextLink} onPress={handleRefresh} activeOpacity={0.7}>
+              <Text style={styles.nextLinkText}>Show me someone new</Text>
+            </TouchableOpacity>
+
+            <View style={styles.bottomSpacer} />
+          </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
   container: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    backgroundColor: '#FFF7E6',
   },
   header: {
-    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 60,
     paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
+  title: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#00934E',
   },
-  lockedContainer: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  centerState: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 80,
     gap: 16,
+    paddingHorizontal: 32,
   },
-  lockText: {
+  stateText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#545454',
     textAlign: 'center',
   },
-  lockSubtext: {
+  stateSubtext: {
     fontSize: 13,
     color: '#BE9B51',
     textAlign: 'center',
   },
-  loadingContainer: {
+  // Shared trait pills
+  sharedTraitsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
+    flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 12,
   },
-  loadingText: {
-    fontSize: 14,
-    color: '#6B7280',
+  sharedTraitPill: {
+    backgroundColor: '#FE6627',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-  meetNewButton: {
+  sharedTraitText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  // Avatar float
+  profileBadgeFloat: {
+    alignSelf: 'flex-start',
+    marginLeft: 20,
+    marginBottom: -56,
+    zIndex: 10,
+  },
+  // Profile card
+  profileCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    paddingTop: 68,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    marginBottom: 16,
+  },
+  profileName: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#00934E',
+    marginBottom: 10,
+  },
+  tagsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 16,
+    flexWrap: 'wrap',
+    columnGap: 6,
+    rowGap: 8,
+    marginBottom: 14,
   },
-  meetNewText: {
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  tagText: {
     fontSize: 13,
-    color: '#3b82f6',
+    fontWeight: '600',
+  },
+  bioText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#545454',
+    marginBottom: 8,
+  },
+  expandLink: {
+    marginTop: 2,
+  },
+  expandLinkText: {
+    fontSize: 14,
+    color: '#545454',
+    textDecorationLine: 'underline',
     fontWeight: '500',
   },
-  noMatchContainer: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 8,
+  // Quote card
+  quoteCard: {
+    backgroundColor: '#00934E',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 16,
   },
-  noMatchText: {
-    marginTop: 12,
+  quoteText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+    lineHeight: 28,
+  },
+  // Icebreaker card
+  icebreakerCard: {
+    backgroundColor: '#0277BB',
+    borderRadius: 16,
+    padding: 22,
+    marginBottom: 24,
+  },
+  icebreakerLabel: {
+    fontSize: 13,
+    color: 'rgba(147,197,253,0.9)',
+    marginBottom: 14,
+    fontWeight: '500',
+  },
+  icebreakerQuestion: {
+    fontSize: 16,
+    color: 'white',
+    lineHeight: 24,
+    textDecorationLine: 'underline',
+    marginBottom: 12,
+  },
+  // Next match
+  nextLink: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  nextLinkText: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: '#545454',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
+  bottomSpacer: {
+    height: 32,
   },
 });

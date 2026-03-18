@@ -300,7 +300,7 @@ function TabsNavigator() {
         name="Spotlight"
         component={SpotlightScreen}
         options={{
-          tabBarLabel: 'Kindred',
+          tabBarLabel: 'Intersections',
           tabBarIcon: ({ color, size }) => (
             <Feather name="users" size={size} color={color} />
           ),
