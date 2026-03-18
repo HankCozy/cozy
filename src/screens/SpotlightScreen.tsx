@@ -186,9 +186,14 @@ export default function SpotlightScreen() {
     ? icebreakerQuestions
     : match?.icebreakerQuestions ?? [];
 
-  // Use quote from API response (extracted from actual answers)
-  const quoteText = match?.quoteText ?? null;
+  // Quote from API (real answer) or fallback to first bio sentence
+  const quoteText = match?.quoteText
+    ?? bioText?.split(/(?<=[.!?])\s+/).find(s => s.trim().length > 30)
+    ?? null;
   const quoteQuestion = match?.quoteQuestion ?? null;
+
+  // Merge sharedTraits + profileInterests for the tag row (deduplicated)
+  const allTags = [...new Set([...(match?.sharedTraits ?? []), ...(match?.profileInterests ?? [])])].slice(0, 6);
 
   const firstName = match?.firstName || '';
   const fullName = [match?.firstName, match?.lastName].filter(Boolean).join(' ');
@@ -262,17 +267,6 @@ export default function SpotlightScreen() {
           </View>
         ) : (
           <>
-            {/* Shared trait pills */}
-            {match.sharedTraits.length > 0 && (
-              <View style={styles.sharedTraitsRow}>
-                {match.sharedTraits.map((trait, i) => (
-                  <View key={i} style={styles.sharedTraitPill}>
-                    <Text style={styles.sharedTraitText}>{trait}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
             {/* Floating avatar */}
             <View style={styles.profileBadgeFloat}>
               <ProfileBadge
@@ -288,10 +282,10 @@ export default function SpotlightScreen() {
             <View style={styles.profileCard}>
               <Text style={styles.profileName}>{fullName}</Text>
 
-              {/* Interest tags */}
-              {match.profileInterests.length > 0 && (
+              {/* Interest + trait tags */}
+              {allTags.length > 0 && (
                 <View style={styles.tagsRow}>
-                  {match.profileInterests.slice(0, 6).map((tag, i) => {
+                  {allTags.map((tag, i) => {
                     const palette = TAG_PALETTE[i % TAG_PALETTE.length];
                     return (
                       <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
@@ -370,15 +364,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   title: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
     color: '#00934E',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   description: {
     fontSize: 14,
-    color: '#BE9B51',
-    lineHeight: 20,
+    color: '#545454',
+    lineHeight: 21,
   },
   scrollView: {
     flex: 1,
@@ -405,24 +399,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#BE9B51',
     textAlign: 'center',
-  },
-  // Shared trait pills
-  sharedTraitsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  sharedTraitPill: {
-    backgroundColor: '#FE6627',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  sharedTraitText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'white',
   },
   // Avatar float
   profileBadgeFloat: {
