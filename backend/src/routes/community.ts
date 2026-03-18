@@ -124,6 +124,17 @@ router.get('/circles', authenticateToken, async (req: AuthRequest, res: Response
       }
     });
 
+    const MIN_ELIGIBLE = 5;
+    if (members.length < MIN_ELIGIBLE) {
+      return res.json({
+        success: true,
+        circles: [],
+        insufficientMembers: true,
+        eligibleCount: members.length,
+        requiredCount: MIN_ELIGIBLE,
+      });
+    }
+
     const memberProfiles: MemberProfile[] = members.map(m => ({
       id: m.id,
       firstName: m.firstName,
@@ -250,11 +261,16 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       }
     });
 
-    if (otherMembers.length === 0) {
+    const MIN_ELIGIBLE = 5;
+    // Count total eligible members including current user
+    const totalEligible = otherMembers.length + 1;
+    if (totalEligible < MIN_ELIGIBLE) {
       return res.json({
         success: true,
         match: null,
-        message: 'No other members with published profiles yet'
+        insufficientMembers: true,
+        eligibleCount: totalEligible,
+        requiredCount: MIN_ELIGIBLE,
       });
     }
 

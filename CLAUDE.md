@@ -19,6 +19,15 @@ The app operates in closed, invitation-only communities. Users belong to specifi
 - **Profile** = AI-generated bio built from voice answers
 - **Matches** = cross-interest or affinity-based pairings surfaced by the matching experience
 
+## Profile Completion & Eligibility
+
+**A "complete profile" is defined as: answering 4 or more questions.** No AI bio generation, no publish step, no sharing toggle required.
+
+- The 4-answer gate unlocks the app experience for the current user (they can see Circles and Kindred tabs).
+- A user is **eligible** (appears in other users' circles and matching) only when they have a complete profile (`profilePublished: true` in DB, which is set after AI bio generation — this is the backend proxy for "complete").
+- **Minimum eligible user count for circles/matching: 5.** Below this threshold, circles and Kindred matches are not displayed. A "community is still growing" message is shown instead.
+- Future: low-community-size notifications to help set expectations and encourage invitations.
+
 ## Design System
 
 ### Color Palette

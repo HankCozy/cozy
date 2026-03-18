@@ -42,6 +42,8 @@ export default function SpotlightScreen() {
   const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalAnswers, setTotalAnswers] = useState(0);
+  const [insufficientMembers, setInsufficientMembers] = useState(false);
+  const [eligibleCount, setEligibleCount] = useState(0);
   const fetchedRef = useRef(false);
 
   const fetchSpotlight = async () => {
@@ -61,10 +63,12 @@ export default function SpotlightScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.match) {
+        if (data.insufficientMembers) {
+          setInsufficientMembers(true);
+          setEligibleCount(data.eligibleCount ?? 0);
+        } else if (data.success && data.match) {
           setSpotlightMatch(data.match);
-
-          const newSeen = seenIds.filter((id) => id !== data.match.userId);
+          const newSeen = seenIds.filter((id: string) => id !== data.match.userId);
           newSeen.push(data.match.userId);
           if (newSeen.length > MAX_SEEN) newSeen.splice(0, newSeen.length - MAX_SEEN);
           await AsyncStorage.setItem(SPOTLIGHT_SEEN_KEY, JSON.stringify(newSeen));
@@ -115,6 +119,12 @@ export default function SpotlightScreen() {
             <Text style={styles.lockText}>
               Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Kindred
             </Text>
+          </View>
+        ) : insufficientMembers ? (
+          <View style={styles.lockedContainer}>
+            <Feather name="users" size={32} color="#6B7280" />
+            <Text style={styles.lockText}>Kindred unlocks when 5 members complete their profiles.</Text>
+            <Text style={styles.lockSubtext}>{eligibleCount} of 5 members ready.</Text>
           </View>
         ) : loading ? (
           <View style={styles.loadingContainer}>
@@ -179,9 +189,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   lockText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#545454',
+    textAlign: 'center',
+  },
+  lockSubtext: {
+    fontSize: 13,
+    color: '#BE9B51',
     textAlign: 'center',
   },
   loadingContainer: {

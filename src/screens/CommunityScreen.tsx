@@ -35,6 +35,7 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [totalAnswers, setTotalAnswers] = useState(0);
   const [smallCommunity, setSmallCommunity] = useState(false);
+  const [eligibleCount, setEligibleCount] = useState(0);
   const [showOverlap, setShowOverlap] = useState(false);
 
   const fetchCircles = async () => {
@@ -62,9 +63,15 @@ export default function CommunityScreen() {
 
       const data = await response.json();
       if (data.success) {
-        setCircles(data.circles);
-        const realCount = data.circles.filter((c: CircleOverview) => c.id !== 'all').length;
-        setSmallCommunity(realCount === 0);
+        if (data.insufficientMembers) {
+          setSmallCommunity(true);
+          setEligibleCount(data.eligibleCount ?? 0);
+        } else {
+          setCircles(data.circles);
+          const realCount = data.circles.filter((c: CircleOverview) => c.id !== 'all').length;
+          setSmallCommunity(realCount === 0);
+          setEligibleCount(data.circles.reduce((sum: number, c: CircleOverview) => sum + c.count, 0));
+        }
       }
     } catch (error) {
       console.error('Failed to fetch circles:', error);
@@ -152,7 +159,10 @@ export default function CommunityScreen() {
           ) : smallCommunity ? (
             <View style={styles.smallCommunityContainer}>
               <Text style={styles.smallCommunityText}>
-                More circles will appear as your community grows
+                Circles unlock when 5 members complete their profiles.
+              </Text>
+              <Text style={styles.smallCommunitySubtext}>
+                {eligibleCount} of 5 members ready.
               </Text>
             </View>
           ) : (
@@ -352,8 +362,15 @@ const styles = StyleSheet.create({
   },
   smallCommunityText: {
     marginTop: 16,
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#545454',
+    textAlign: 'center',
+  },
+  smallCommunitySubtext: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#BE9B51',
     textAlign: 'center',
   },
 });
