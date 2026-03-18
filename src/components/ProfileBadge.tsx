@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+
+const DEFAULT_PROFILE = require('../../assets/default_profile.png');
 
 interface ProfileBadgeProps {
   firstName?: string;
@@ -23,29 +24,15 @@ export default function ProfileBadge({
 }: ProfileBadgeProps) {
   const badgeColor = getBadgeColor(totalAnswers);
   const radius = size / 2;
-  const iconSize = size * 0.47; // Scale icon proportionally
+
+  const imageSource = profilePictureUrl ? { uri: profilePictureUrl } : DEFAULT_PROFILE;
 
   return (
-    <View style={[
-      styles.badge,
-      {
-        backgroundColor: badgeColor,
-        width: size,
-        height: size,
-        borderRadius: radius
-      }
-    ]}>
-      {profilePictureUrl ? (
-        <Image
-          source={{ uri: profilePictureUrl }}
-          style={[
-            styles.profileImage,
-            { width: size, height: size, borderRadius: radius }
-          ]}
-        />
-      ) : (
-        <Feather name="user" size={iconSize} color="white" />
-      )}
+    <View style={[styles.badge, { backgroundColor: badgeColor, width: size, height: size, borderRadius: radius }]}>
+      <Image
+        source={imageSource}
+        style={[styles.profileImage, { width: size, height: size, borderRadius: radius }]}
+      />
     </View>
   );
 }
@@ -54,14 +41,6 @@ const styles = StyleSheet.create({
   badge: {
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
   },
   profileImage: {
     // Size set dynamically via inline styles

@@ -1,23 +1,51 @@
-# Cozy - Community Authentication App
+# Cozy Circle
 
-A simple React Native app for iOS and Android providing basic community authentication functionality.
+A React Native app for iOS and Android that builds real-world connections inside closed communities.
 
 ## Project Overview
 
-**Cozy** is a React Native mobile application that provides basic login and authentication for community-based user management.
+**Cozy Circle** helps communities foster engagement and satisfaction by identifying shared interests and connecting people across otherwise siloed groups. The experience is built around three pillars:
+
+1. **AI Profile Generation** — Voice-record answers to a few questions; Claude turns them into a rich profile. As simple as ordering a pizza.
+2. **Circles** — See all your shared interest groups (pickleball, baking, hiking, etc.) visualized as overlapping bubbles with community members.
+3. **Matching** — A Tinder-like experience that surfaces cross-interest matches, designed to fight clique formation and promote cross-pollination across disparate groups.
+
+The app operates in closed, invitation-only communities. Users belong to specific communities and profiles are shared only within them.
 
 ## Terminology
 
-**Important:** Throughout the app, "Community" is being rebranded to "Circles":
-- User-facing labels use "Your Circles" or "Your Circle"
-- Internal code, database, and API still use "community" for consistency
-- Example: Bottom tab shows "Your Circles" but routes to `CommunityScreen`
+- **Circles** = interest/affinity groups (user-facing). Internal code still uses "community" for DB/API consistency.
+- **"Your Circles"** = the Circles tab in bottom navigation (routes to `CommunityScreen`)
+- **Profile** = AI-generated bio built from voice answers
+- **Matches** = cross-interest or affinity-based pairings surfaced by the matching experience
+
+## Design System
+
+### Color Palette
+
+**Only use these colors unless explicitly directed otherwise. On net new content, always pull from this palette. Do not rework existing colors unless given specific direction.**
+
+| Name | Hex | Usage |
+|---|---|---|
+| Pink | `#FFA0A6` | Tags, accents, nudge banners |
+| Orange | `#FE6627` | Tags, accents |
+| Green | `#00934E` | Primary brand color — profile names, labels, quote cards, buttons |
+| Blue | `#0277BB` | Buttons, icebreaker cards, Circles screen bubbles |
+| Yellow | `#FAC63D` | Tags, accents |
+| Warm White | `#FFF7E6` | Screen backgrounds |
+| Black | `#545454` | Primary body text |
+| White | `#FFFFFF` | Card backgrounds |
+| Inactive Gray | `#BE9B51` | Disabled states, inactive toggles, placeholder text |
+| Darker Warm White | `#E7E0D3` | Secondary backgrounds, tag fills |
+
+### Tag Color Priority
+For interest/affinity tags, use in this order: Green → Pink → Yellow → Orange → Darker Warm White. Blue is reserved for buttons and Circles screen elements.
 
 ## Icon Library
-$$
+
 **All icons use Feather Icons** from `@expo/vector-icons` for consistency:
 - Import: `import { Feather } from '@expo/vector-icons';`
-- Usage: `<Feather name="icon-name" size={24} color="#3b82f6" />`
+- Usage: `<Feather name="icon-name" size={24} color="#00934E" />`
 - **Do NOT mix icon libraries** - always use Feather for all icons in the app
 
 **Common Icons Used:**
@@ -111,14 +139,16 @@ These diagrams show how the mobile app, backend API, and external services (Supa
 
 ### Key Features
 - **User Authentication** - Login and registration with email/password
-- **Community System** - Users belong to specific communities
-- **Invitation-based Registration** - New users must have valid invitation codes
-- **Role Management** - MEMBER and MANAGER user roles
-- **Secure Token Storage** - JWT tokens stored securely on device
-- **Voice Profile Building** - Record audio answers to profile questions
+- **Closed Community Networks** - Invitation-only access; users scoped to a single community
+- **Role Management** - MEMBER and MANAGER roles
+- **Secure Token Storage** - JWT tokens in SecureStore
+- **Voice Profile Building** - Record audio answers; as simple as ordering a pizza
 - **AI Transcription** - Automatic speech-to-text via AssemblyAI
-- **AI Profile Generation** - Claude AI creates personalized profile summaries
-- **Profile Editing** - Edit and regenerate AI-created profiles
+- **AI Profile Generation** - Claude AI creates personalized third-person bios + icebreaker questions
+- **Interest Tags** - AI-extracted keywords displayed as colored pills on the profile
+- **Circles Visualization** - Overlapping bubble chart of shared interest groups with community members
+- **Tinder-style Matching** - Cross-interest matches designed to fight clique formation and encourage cross-pollination
+- **Profile Visibility Controls** - Per-section ENABLED/DISABLED toggles for Circles and contact info
 
 ## Important Commands
 
@@ -138,9 +168,12 @@ npx expo start --web   # Web browser testing
 ## App Structure
 
 ### Core Directories
-- `src/screens/` - Application screens (Login, Register, Success)
+- `src/screens/` - Application screens (Login, Register, Profile, Circles, Questions, Matching, etc.)
+- `src/components/` - Reusable components (ProfileBadge, CircleBubbleChart, ProfileNudge, ResponseCard, etc.)
 - `src/navigation/` - React Navigation configuration
 - `src/contexts/` - Auth context and providers
+- `src/services/` - API calls (api.ts)
+- `src/utils/` - Helpers (imageCompression, resetOnboarding, profileStrength)
 
 ### Key Files
 - `App.tsx` - Main app entry point

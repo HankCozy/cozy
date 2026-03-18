@@ -33,7 +33,7 @@ export default function CommunityScreen() {
   const [circles, setCircles] = useState<CircleOverview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [profileStatus, setProfileStatus] = useState<'start' | 'draft' | 'sharing'>('start');
+  const [totalAnswers, setTotalAnswers] = useState(0);
   const [smallCommunity, setSmallCommunity] = useState(false);
   const [showOverlap, setShowOverlap] = useState(false);
 
@@ -71,23 +71,21 @@ export default function CommunityScreen() {
     }
   };
 
-  const determineProfileStatus = async () => {
+  const loadAnswerCount = async () => {
     try {
-      const profilePublishedStr = await AsyncStorage.getItem('profile_published');
-      const isPublished = profilePublishedStr === 'true';
-      setProfileStatus(isPublished ? 'sharing' : 'draft');
+      const keys = await AsyncStorage.getAllKeys();
+      const count = keys.filter((k) => k.startsWith('answer_')).length;
+      setTotalAnswers(count);
     } catch (error) {
-      console.error('Error determining profile status:', error);
-      setProfileStatus('start');
+      console.error('Error loading answer count:', error);
     }
   };
 
   useFocusEffect(
     React.useCallback(() => {
       setLoading(true);
-      determineProfileStatus();
+      loadAnswerCount();
       fetchCircles();
-
       setLoading(false);
     }, [token, user?.id])
   );
@@ -134,7 +132,7 @@ export default function CommunityScreen() {
         <View style={styles.circlesSection}>
           <Text style={styles.sectionTitle}>Your circles:</Text>
 
-          {profileStatus !== 'sharing' ? (
+          {totalAnswers < 4 ? (
             <View style={styles.lockedContainer}>
               <View style={styles.circlesGridDimmed}>
                 {[1, 2, 3, 4].map((i) => (
@@ -147,7 +145,7 @@ export default function CommunityScreen() {
               <View style={styles.lockOverlay}>
                 <Feather name="lock" size={32} color="#6B7280" />
                 <Text style={styles.lockText}>
-                  Share your profile to unlock your circles
+                  Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock your circles
                 </Text>
               </View>
             </View>

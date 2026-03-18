@@ -108,6 +108,44 @@ export async function generateProfile(
 }
 
 /**
+ * Extract interest tags from an AI-generated profile summary
+ */
+export async function extractProfileTags(summary: string, token: string): Promise<string[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/profile/extract-tags`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ summary }),
+    });
+    const data = await response.json();
+    if (!data.success) return [];
+    return Array.isArray(data.tags) ? data.tags : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Update profile visibility settings (circlesPublished, contactPublished, profileInterests)
+ */
+export async function updateProfileSettings(
+  data: { circlesPublished?: boolean; contactPublished?: boolean; profileInterests?: string[] },
+  token: string
+): Promise<void> {
+  await fetch(`${API_BASE_URL}/users/profile`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * Get signed URL for a user's profile picture (community-scoped)
  * Returns null if user has no profile picture
  * Throws 'TOKEN_EXPIRED' error if token is invalid/expired

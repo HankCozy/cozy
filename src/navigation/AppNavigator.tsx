@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -48,7 +49,6 @@ export type AppTabsParamList = {
   Questions: undefined;
   Community: undefined;
   Spotlight: undefined;
-  Search: undefined;
   Dashboard?: undefined;
   AdminDashboard?: undefined;
   CreateCommunity?: undefined;
@@ -89,6 +89,30 @@ export type RootStackParamList = {
   };
   PrivacyPolicy: undefined;
 };
+
+function VennIcon({ color }: { color: string }) {
+  const r = 11;
+  const overlap = 7;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', width: r * 2 + r * 2 - overlap, height: r * 2 }}>
+      <View style={{
+        width: r * 2,
+        height: r * 2,
+        borderRadius: r,
+        borderWidth: 1.75,
+        borderColor: color,
+      }} />
+      <View style={{
+        width: r * 2,
+        height: r * 2,
+        borderRadius: r,
+        borderWidth: 1.75,
+        borderColor: color,
+        marginLeft: -overlap,
+      }} />
+    </View>
+  );
+}
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppTabs = createBottomTabNavigator<AppTabsParamList>();
@@ -215,15 +239,33 @@ function TabsNavigator() {
     );
   }
 
-  // MEMBER: Regular experience (Profile + Answer Questions + Your Circle)
+  // MEMBER: Regular experience (Questions, Profile, Your circles, Spotlight)
   return (
     <AppTabs.Navigator
       initialRouteName="Profile"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: { paddingHorizontal: 12 },
+        tabBarActiveTintColor: '#FE6627',
+        tabBarInactiveTintColor: '#545454',
+        tabBarStyle: {
+          position: 'absolute',
+          backgroundColor: 'white',
+          borderRadius: 40,
+          marginHorizontal: 16,
+          bottom: 20,
+          height: 72,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+          marginBottom: 10,
+        },
+        tabBarIconStyle: {
+          marginTop: 10,
+        },
       }}
     >
       <AppTabs.Screen
@@ -237,19 +279,10 @@ function TabsNavigator() {
         }}
       />
       <AppTabs.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          tabBarLabel: 'Search',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="search" size={size} color={color} />
-          ),
-        }}
-      />
-      <AppTabs.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Feather name="user" size={size} color={color} />
           ),
@@ -259,19 +292,17 @@ function TabsNavigator() {
         name="Community"
         component={CommunityScreen}
         options={{
-          tabBarLabel: 'Your Circle',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="circle" size={size} color={color} />
-          ),
+          tabBarLabel: 'Your circles',
+          tabBarIcon: ({ color }) => <VennIcon color={color} />,
         }}
       />
       <AppTabs.Screen
         name="Spotlight"
         component={SpotlightScreen}
         options={{
-          tabBarLabel: 'Spotlight',
+          tabBarLabel: 'Kindred',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="star" size={size} color={color} />
+            <Feather name="users" size={size} color={color} />
           ),
         }}
       />

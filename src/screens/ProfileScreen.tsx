@@ -9,18 +9,17 @@ import {
   Alert,
   TextInput,
   Modal,
+  Linking,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { generateProfile, QuestionAnswer, getProfilePictureUrl } from '../services/api';
-import { resetOnboardingFlags } from '../utils/resetOnboarding';
+import { generateProfile, extractProfileTags, updateProfileSettings, QuestionAnswer, getProfilePictureUrl } from '../services/api';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import ProfileNudge from '../components/ProfileNudge';
-import ResponseCard, { ResponseCardData } from '../components/ResponseCard';
 import { compressProfilePicture } from '../utils/imageCompression';
 import { API_BASE_URL } from '../config/api';
 
@@ -39,27 +38,55 @@ const SECTIONS = [
   { id: 'community', name: 'Community', icon: 'users', color: '#f59e0b' },
 ];
 
-/**
- * Remove icebreaker questions from profile summary
- * (Only shown to others, not to the profile owner)
- */
-function stripIcebreakerQuestions(summary: string): string {
-  // Try multiple patterns to find the icebreaker section
-  const patterns = [
-    /---\s*\*?\*?Icebreaker Questions/i,  // Match "---**Icebreaker Questions" or "--- **Icebreaker Questions"
-    /\*\*Icebreaker Questions/i,           // Match "**Icebreaker Questions"
-    /---/,                                  // Match plain "---"
-  ];
+const TAG_PALETTE = [
+  { bg: '#00934E', text: 'white' },   // green
+  { bg: '#FFA0A6', text: 'white' },   // pink
+  { bg: '#FAC63D', text: '#545454' }, // yellow (dark text for contrast)
+  { bg: '#FE6627', text: 'white' },   // orange
+  { bg: '#E7E0D3', text: '#545454' }, // darker warm white (dark text)
+];
 
+function stripIcebreakerQuestions(summary: string): string {
+  const patterns = [
+    /---\s*\*?\*?Icebreaker Questions/i,
+    /\*\*Icebreaker Questions/i,
+    /---/,
+  ];
   for (const pattern of patterns) {
     const match = summary.match(pattern);
     if (match && match.index !== undefined) {
       return summary.substring(0, match.index).trim();
     }
   }
-
-  // If no separator found, return original
   return summary;
+}
+
+function parseIcebreakerQuestions(summary: string): string[] {
+  const separators = [
+    /---\s*\*?\*?Icebreaker Questions[:\s]*/i,
+    /\*\*Icebreaker Questions\*\*[:\s]*/i,
+    /---/,
+  ];
+  let icebreakerSection = '';
+  for (const pattern of separators) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      icebreakerSection = summary.substring(match.index + match[0].length);
+      break;
+    }
+  }
+  if (!icebreakerSection) return [];
+
+  const lines = icebreakerSection.split('\n').map(l => l.trim()).filter(Boolean);
+  const questions: string[] = [];
+  for (const line of lines) {
+    const cleaned = line.replace(/^\d+\.\s*/, '').replace(/^\*\*|\*\*$/g, '').trim();
+    if (cleaned.length > 10) {
+      questions.push(cleaned);
+      if (questions.length >= 3) break;
+    }
+  }
+  return questions;
 }
 
 interface NudgeData {
@@ -69,18 +96,12 @@ interface NudgeData {
   actionTarget?: 'questions';
 }
 
-function computeNudge(totalAnswers: number, profileSummary: string | null, isPublished: boolean): NudgeData | null {
+function computeNudge(totalAnswers: number, profileSummary: string | null): NudgeData | null {
   if (totalAnswers === 0) {
     return { id: 'zero', headline: "Let's get started", message: "Tap here to answer your first question", actionTarget: 'questions' };
   }
   if (totalAnswers <= 3 && !profileSummary) {
-    return { id: 'getting_started', headline: "You're almost there", message: "Answer 4 questions to complete your profile and reveal your Circle", actionTarget: 'questions' };
-  }
-  if (totalAnswers <= 11 && profileSummary && !isPublished) {
-    return { id: 'share_profile', headline: "Share your profile", message: "Share your profile to reveal your Cozy Circle" };
-  }
-  if (totalAnswers <= 11 && profileSummary && isPublished) {
-    return { id: 'more_responses', headline: "Complete your profile", message: "Tell your community more about yourself and we'll find even more connections.", actionTarget: 'questions' };
+    return { id: 'getting_started', headline: "You're almost there", message: `Answer ${4 - totalAnswers} more question${4 - totalAnswers === 1 ? '' : 's'} to generate your profile`, actionTarget: 'questions' };
   }
   return null;
 }
@@ -96,23 +117,39 @@ export default function ProfileScreen() {
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedSummary, setEditedSummary] = useState('');
-  const [isPublishing, setIsPublishing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [showResponses, setShowResponses] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [shareProfileSummary, setShareProfileSummary] = useState(true);
-  const [shareResponses, setShareResponses] = useState(false);
-  const [responseCard, setResponseCard] = useState<ResponseCardData | null>(null);
-  const [isEditingCard, setIsEditingCard] = useState(false);
-  const [editHeadline, setEditHeadline] = useState('');
-  const [editTagsInput, setEditTagsInput] = useState('');
-  const textInputRef = useRef<TextInput>(null);
   const [dismissedNudgeId, setDismissedNudgeId] = useState<string | null>(null);
+  const [profileInterests, setProfileInterests] = useState<string[]>([]);
+  const [contactPublished, setContactPublished] = useState(false);
+  const [bioExpanded, setBioExpanded] = useState(false);
+  const [showResponses, setShowResponses] = useState(false);
+  const textInputRef = useRef<TextInput>(null);
 
-  // Calculate total answers across all sections
+  const SHORT_BIO_WORDS = 55;
+
   const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
+  const firstName = auth.user?.firstName || '';
+  const fullName = [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(' ') || 'Your Profile';
+
+  // Derive quote from answers
+  const answersWithTranscripts = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
+  const wordCount = (t: string) => t.trim().split(/\s+/).length;
+  const communityAnswers = answersWithTranscripts.filter((a) => a.sectionId === 'community');
+  const quotePool = communityAnswers.length > 0 ? communityAnswers : answersWithTranscripts;
+  const shortestAnswer = quotePool.reduce<Answer | null>((shortest, a) => {
+    if (!shortest) return a;
+    return wordCount(a.transcript!) < wordCount(shortest.transcript!) ? a : shortest;
+  }, null);
+  const quoteWords = shortestAnswer?.transcript?.trim().split(/\s+/) ?? [];
+  const quoteText = shortestAnswer
+    ? quoteWords.slice(0, 20).join(' ') + (quoteWords.length > 20 ? '...' : '')
+    : undefined;
+  const quoteQuestion = shortestAnswer?.question;
+  const bioText = profileSummary ? stripIcebreakerQuestions(profileSummary) : null;
+  const icebreakerQuestions = profileSummary ? parseIcebreakerQuestions(profileSummary) : [];
 
   const loadAnswers = async () => {
     try {
@@ -120,20 +157,14 @@ export default function ProfileScreen() {
       const keys = await AsyncStorage.getAllKeys();
       const answerKeys = keys.filter((key) => key.startsWith('answer_'));
       const answerData = await AsyncStorage.multiGet(answerKeys);
-
       const parsedAnswers = answerData
         .map(([_, value]) => (value ? JSON.parse(value) : null))
         .filter((answer) => answer !== null)
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
       setAnswers(parsedAnswers);
-
-      // Load answer counts for each section
       const counts: Record<string, number> = {};
       for (const section of SECTIONS) {
-        // Count answers for this section
-        const sectionAnswers = answerKeys.filter(key => key.startsWith(`answer_${section.id}_`));
-        counts[section.id] = sectionAnswers.length;
+        counts[section.id] = answerKeys.filter(key => key.startsWith(`answer_${section.id}_`)).length;
       }
       setAnswerCounts(counts);
     } catch (error) {
@@ -143,16 +174,38 @@ export default function ProfileScreen() {
     }
   };
 
-  // Reload answers when screen comes into focus
+  const loadProfileData = async () => {
+    try {
+      const [savedSummary, publishedStatus, interests, contactPub] = await Promise.all([
+        AsyncStorage.getItem('profile_summary'),
+        AsyncStorage.getItem('profile_published'),
+        AsyncStorage.getItem('profile_interests'),
+        AsyncStorage.getItem('contact_published'),
+      ]);
+      if (savedSummary) setProfileSummary(savedSummary);
+      setIsPublished(publishedStatus === 'true');
+      setContactPublished(contactPub === 'true');
+      if (interests) {
+        setProfileInterests(JSON.parse(interests));
+      } else if (savedSummary && token) {
+        // Auto-extract tags for existing profiles that predate this feature
+        const tags = await extractProfileTags(stripIcebreakerQuestions(savedSummary), token);
+        if (tags.length > 0) {
+          await AsyncStorage.setItem('profile_interests', JSON.stringify(tags));
+          setProfileInterests(tags);
+          await updateProfileSettings({ profileInterests: tags }, token);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load profile data:', error);
+    }
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       loadAnswers();
-      loadProfileSummary();
-      loadResponseCard();
+      loadProfileData();
 
-      // After new-user registration, OnboardingScreen sets this flag before
-      // switching auth state. We pick it up here (correct navigation tree)
-      // and launch the question flow.
       AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_question_flow');
@@ -167,422 +220,179 @@ export default function ProfileScreen() {
         }
       });
 
-      // Load dismissed nudge
       AsyncStorage.getItem('nudge_dismissed_id').then((id) => {
         setDismissedNudgeId(id);
       });
 
-      // Load profile picture signed URL
       if (auth.user?.id && token) {
         getProfilePictureUrl(auth.user.id, token)
-          .then(url => {
-            setProfilePictureUrl(url);
-          })
+          .then(url => setProfilePictureUrl(url))
           .catch(error => {
             if (error.message === 'TOKEN_EXPIRED') {
-              Alert.alert(
-                'Session Expired',
-                'Your session has expired. Please login again.',
-                [{ text: 'OK', onPress: () => logout() }]
-              );
+              Alert.alert('Session Expired', 'Your session has expired. Please login again.', [
+                { text: 'OK', onPress: () => logout() },
+              ]);
             }
           });
       }
     }, [auth.user?.id, token])
   );
 
-  const loadProfileSummary = async () => {
-    try {
-      const savedSummary = await AsyncStorage.getItem('profile_summary');
-      if (savedSummary) {
-        setProfileSummary(savedSummary);
-      }
-
-      // Load published status
-      const publishedStatus = await AsyncStorage.getItem('profile_published');
-      setIsPublished(publishedStatus === 'true');
-    } catch (error) {
-      console.error('Failed to load profile summary:', error);
-    }
-  };
-
-  const loadResponseCard = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('response_card');
-      if (saved) setResponseCard(JSON.parse(saved));
-    } catch (error) {
-      console.error('Failed to load response card:', error);
-    }
-  };
-
-  const handleCreateCard = async () => {
-    // Seed headline from saved card if editing, otherwise from summary
-    if (responseCard?.headline) {
-      setEditHeadline(responseCard.headline);
-    } else if (profileSummary) {
-      const cleaned = stripIcebreakerQuestions(profileSummary);
-      const sentences = cleaned.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 15);
-      setEditHeadline(sentences[0]?.trim() || '');
-    } else {
-      setEditHeadline('');
-    }
-
-    // Auto-extract tags from summary if user has no saved tags yet
-    if (profileSummary && (!responseCard || responseCard.tags.length === 0)) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/profile/extract-tags`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ summary: stripIcebreakerQuestions(profileSummary) }),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setEditTagsInput((data.tags as string[]).join(', '));
-        } else {
-          setEditTagsInput('');
-        }
-      } catch {
-        setEditTagsInput('');
-      }
-    } else {
-      setEditTagsInput(responseCard?.tags.join(', ') || '');
-    }
-
-    setIsEditingCard(true);
-  };
-
-  const handleSaveCard = async () => {
-    const tags = editTagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const card: ResponseCardData = {
-      headline: editHeadline.trim(),
-      tags,
-    };
-    try {
-      await AsyncStorage.setItem('response_card', JSON.stringify(card));
-      setResponseCard(card);
-      setIsEditingCard(false);
-    } catch (error) {
-      console.error('Failed to save response card:', error);
-    }
-  };
-
   const handleGenerateSummary = async () => {
-    // Check if we have transcripts
-    const answersWithTranscripts = answers.filter(
-      (a) => a.transcript && a.transcript.trim().length > 0
-    );
-
-    if (answersWithTranscripts.length === 0) {
-      Alert.alert(
-        'No Transcripts Available',
-        'Please record and transcribe some answers before generating a profile summary.'
-      );
+    const answersWithT = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
+    if (answersWithT.length === 0) {
+      Alert.alert('No Transcripts', 'Record and transcribe some answers before generating a bio.');
       return;
     }
-
     try {
       setGeneratingSummary(true);
-
-      // Convert answers to QuestionAnswer format
-      const questionAnswers: QuestionAnswer[] = answersWithTranscripts.map((a) => ({
+      const questionAnswers: QuestionAnswer[] = answersWithT.map((a) => ({
         sectionId: a.sectionId,
         question: a.question,
         transcript: a.transcript!,
       }));
-
-      // Generate summary using Claude with user's actual name
       const summary = await generateProfile(questionAnswers, token!, {
         maxWords: 400,
         style: 'narrative',
         firstName: auth.user?.firstName,
         lastName: auth.user?.lastName,
       });
-
-      // Save to AsyncStorage
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);
 
-      // Unpublish profile when regenerating (requires re-sharing)
-      await AsyncStorage.setItem('profile_published', 'false');
-      setIsPublished(false);
+      // Auto-publish profile on first generation
+      await AsyncStorage.setItem('profile_published', 'true');
+      setIsPublished(true);
+      await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileSummary: summary,
+          profileAnswers: answers,
+          profilePublished: true,
+        }),
+      });
 
-      Alert.alert(
-        'Profile Generated!',
-        'Your new profile is ready. Review it and click "Share Profile" when you\'re ready to publish.'
-      );
+      // Extract and save interest tags
+      if (token) {
+        const tags = await extractProfileTags(stripIcebreakerQuestions(summary), token);
+        if (tags.length > 0) {
+          await AsyncStorage.setItem('profile_interests', JSON.stringify(tags));
+          setProfileInterests(tags);
+          await updateProfileSettings({ profileInterests: tags }, token);
+        }
+      }
+
     } catch (error) {
       console.error('Failed to generate summary:', error);
-      Alert.alert(
-        'Generation Failed',
-        'Unable to generate profile summary. Please check your connection and try again.'
-      );
+      Alert.alert('Generation Failed', 'Unable to generate your bio. Check your connection and try again.');
     } finally {
       setGeneratingSummary(false);
     }
   };
 
-  const clearAllAnswers = async () => {
-    Alert.alert(
-      'Clear All Answers',
-      'This will permanently delete all your answers, recordings, profile summary, and published status. This action cannot be undone.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Get all keys from AsyncStorage
-              const keys = await AsyncStorage.getAllKeys();
-
-              // Filter keys to remove answers, section completion, profile summary, and published status
-              const keysToRemove = keys.filter(
-                (key) =>
-                  key.startsWith('answer_') ||
-                  key.startsWith('section_') ||
-                  key === 'profile_summary' ||
-                  key === 'profile_published' ||
-                  key === 'response_card'
-              );
-
-              // Remove all filtered keys
-              await AsyncStorage.multiRemove(keysToRemove);
-
-              // Reset state
-              setAnswers([]);
-              setAnswerCounts({});
-              setProfileSummary(null);
-              setIsPublished(false);
-              setResponseCard(null);
-
-              Alert.alert('Success', 'All answers and profile data have been cleared');
-            } catch (error) {
-              console.error('Failed to clear answers:', error);
-              Alert.alert('Error', 'Failed to clear answers');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      'Delete My Account',
-      'This will permanently delete your account and all associated data. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Account',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await fetch(`${API_BASE_URL}/api/users/account`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
-
-              const data = await response.json();
-
-              if (data.success) {
-                Alert.alert(
-                  'Account Deleted',
-                  'Your account has been permanently deleted.',
-                  [{ text: 'OK', onPress: () => logout() }]
-                );
-              } else {
-                Alert.alert('Error', data.error || 'Failed to delete account');
-              }
-            } catch (error) {
-              console.error('Delete account error:', error);
-              Alert.alert('Error', 'Network error. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const hasAnswers = answers.length > 0;
-
-  const handleResetOnboarding = async () => {
-    Alert.alert(
-      'Reset Onboarding',
-      'This will reset the onboarding and name screen flags. You will need to restart the app to see the onboarding flow.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            await resetOnboardingFlags();
-            Alert.alert('Success', 'Flags reset! Please restart the app to see the onboarding flow.');
-          },
-        },
-      ]
-    );
-  };
-
-  const handlePublishProfile = async () => {
+  const handleSaveBio = async () => {
     try {
-      setIsPublishing(true);
-
-      // Prepare profile data based on checkbox selections
-      const profileData = {
-        profileSummary: shareProfileSummary ? (profileSummary || null) : null,
-        profileAnswers: shareResponses ? answers : [],
-        profilePublished: true,
-      };
-
-      // Send to backend
-      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      // Check for authentication errors
-      if (response.status === 401 || response.status === 403) {
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => logout() }]
-        );
-        return;
+      let finalSummary = editedSummary.trim();
+      // Preserve icebreaker section from original
+      const patterns = [
+        /---\s*\*?\*?Icebreaker Questions/i,
+        /\*\*Icebreaker Questions/i,
+        /---/,
+      ];
+      if (profileSummary) {
+        for (const pattern of patterns) {
+          const match = profileSummary.match(pattern);
+          if (match && match.index !== undefined) {
+            finalSummary = `${editedSummary.trim()}\n\n${profileSummary.substring(match.index)}`;
+            break;
+          }
+        }
       }
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Save published status locally
-        await AsyncStorage.setItem('profile_published', 'true');
-        setIsPublished(true);
-        Alert.alert('Success!', 'Your profile is now published and visible to your community.');
-      } else {
-        Alert.alert('Error', data.error || 'Failed to publish profile');
+      await AsyncStorage.setItem('profile_summary', finalSummary);
+      setProfileSummary(finalSummary);
+      setIsEditingProfile(false);
+      if (isPublished) {
+        await fetch(`${API_BASE_URL}/api/users/profile`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileSummary: finalSummary }),
+        });
       }
-    } catch (error) {
-      console.error('Failed to publish profile:', error);
-      Alert.alert('Error', 'Failed to publish profile. Please try again.');
-    } finally {
-      setIsPublishing(false);
+    } catch {
+      Alert.alert('Error', 'Failed to save changes');
     }
   };
 
+  const handleContactToggle = async (enable: boolean) => {
+    setContactPublished(enable);
+    await AsyncStorage.setItem('contact_published', String(enable));
+    if (token) await updateProfileSettings({ contactPublished: enable }, token);
+  };
+
   const handleUploadPhoto = async () => {
-    Alert.alert(
-      'Upload Photo',
-      'Choose a photo for your profile',
-      [
-        {
-          text: 'Take Photo',
-          onPress: async () => {
-            const permission = await ImagePicker.requestCameraPermissionsAsync();
-            if (!permission.granted) {
-              Alert.alert('Permission Required', 'Please allow camera access.');
-              return;
-            }
-            await pickImage('camera');
-          },
+    Alert.alert('Upload Photo', 'Choose a photo for your profile', [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Please allow camera access.');
+            return;
+          }
+          await pickImage('camera');
         },
-        {
-          text: 'Choose from Library',
-          onPress: async () => {
-            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!permission.granted) {
-              Alert.alert('Permission Required', 'Please allow photo library access.');
-              return;
-            }
-            await pickImage('library');
-          },
+      },
+      {
+        text: 'Choose from Library',
+        onPress: async () => {
+          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!permission.granted) {
+            Alert.alert('Permission Required', 'Please allow photo library access.');
+            return;
+          }
+          await pickImage('library');
         },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const pickImage = async (source: 'camera' | 'library') => {
     try {
       setUploadingPhoto(true);
-
       const result = source === 'camera'
-        ? await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-          });
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 1 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 });
 
-      if (result.canceled) {
-        setUploadingPhoto(false);
-        return;
-      }
+      if (result.canceled) { setUploadingPhoto(false); return; }
 
-      // Compress the image
       const compressedUri = await compressProfilePicture(result.assets[0].uri);
-
-      // Create FormData to send image to backend
       const formData = new FormData();
-      formData.append('image', {
-        uri: compressedUri,
-        type: 'image/jpeg',
-        name: 'profile.jpg',
-      } as any);
+      formData.append('image', { uri: compressedUri, type: 'image/jpeg', name: 'profile.jpg' } as any);
 
-      // Upload via backend endpoint (backend handles Supabase upload with service role key)
       const uploadResponse = await fetch(`${API_BASE_URL}/api/users/profile-picture`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
 
-      // Check for authentication errors
-      if (uploadResponse.status === 401 || uploadResponse.status === 403) {
-        throw new Error('TOKEN_EXPIRED');
-      }
+      if (uploadResponse.status === 401 || uploadResponse.status === 403) throw new Error('TOKEN_EXPIRED');
 
       const uploadData = await uploadResponse.json();
+      if (!uploadData.success) throw new Error(uploadData.error || 'Failed to upload');
 
-      if (!uploadData.success) {
-        throw new Error(uploadData.error || 'Failed to upload');
-      }
-
-      // Fetch signed URL to display the new image
       if (!auth.user?.id) throw new Error('User not authenticated');
       const signedUrl = await getProfilePictureUrl(auth.user.id, token);
       setProfilePictureUrl(signedUrl);
       dispatch({ type: 'UPDATE_USER', payload: { profilePictureUrl: 'uploaded' } });
-
       Alert.alert('Success', 'Profile picture updated!');
     } catch (error) {
       console.error('Upload error:', error);
       if (error instanceof Error && error.message === 'TOKEN_EXPIRED') {
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => logout() }]
-        );
+        Alert.alert('Session Expired', 'Your session has expired. Please login again.', [
+          { text: 'OK', onPress: () => logout() },
+        ]);
       } else {
         Alert.alert('Error', 'Failed to upload photo. Please try again.');
       }
@@ -591,113 +401,110 @@ export default function ProfileScreen() {
     }
   };
 
-  // Derive quote: prefer community section, fallback to shortest overall
-  const answersWithTranscripts = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
-  const wordCount = (t: string) => t.trim().split(/\s+/).length;
-  const communityAnswers = answersWithTranscripts.filter((a) => a.sectionId === 'community');
-  const quotePool = communityAnswers.length > 0 ? communityAnswers : answersWithTranscripts;
-  const shortestAnswer = quotePool.reduce<Answer | null>((shortest, a) => {
-    if (!shortest) return a;
-    return wordCount(a.transcript!) < wordCount(shortest.transcript!) ? a : shortest;
-  }, null);
-  const quoteWords = shortestAnswer?.transcript?.trim().split(/\s+/) ?? [];
-  const quoteText = shortestAnswer
-    ? quoteWords.slice(0, 20).join(' ') + (quoteWords.length > 20 ? '...' : '')
-    : undefined;
-  const quoteQuestion = shortestAnswer?.question;
+  const clearAllAnswers = async () => {
+    Alert.alert('Clear All Answers', 'This will permanently delete all your answers, recordings, and profile. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear All',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const keys = await AsyncStorage.getAllKeys();
+            const keysToRemove = keys.filter(
+              (key) =>
+                key.startsWith('answer_') ||
+                key.startsWith('section_') ||
+                key === 'profile_summary' ||
+                key === 'profile_published' ||
+                key === 'profile_interests' ||
+                key === 'contact_published'
+            );
+            await AsyncStorage.multiRemove(keysToRemove);
+            setAnswers([]);
+            setAnswerCounts({});
+            setProfileSummary(null);
+            setIsPublished(false);
+            setProfileInterests([]);
+            setContactPublished(false);
+            Alert.alert('Success', 'All profile data cleared');
+          } catch {
+            Alert.alert('Error', 'Failed to clear answers');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert('Delete My Account', 'This will permanently delete your account and all data. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete Account',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/api/users/account`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const data = await response.json();
+            if (data.success) {
+              Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
+                { text: 'OK', onPress: () => logout() },
+              ]);
+            } else {
+              Alert.alert('Error', data.error || 'Failed to delete account');
+            }
+          } catch {
+            Alert.alert('Error', 'Network error. Please try again.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Your Profile</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={() => setShowSettingsMenu(true)}
-            >
-              <Feather name="menu" size={24} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.menuButton} onPress={() => setShowSettingsMenu(true)}>
+            <Feather name="menu" size={24} color="#BE9B51" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Settings Menu Modal */}
-      <Modal
-        visible={showSettingsMenu}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowSettingsMenu(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowSettingsMenu(false)}
-        >
+      {/* Settings Modal */}
+      <Modal visible={showSettingsMenu} transparent animationType="fade" onRequestClose={() => setShowSettingsMenu(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSettingsMenu(false)}>
           <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            {/* Close button */}
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowSettingsMenu(false)}
-            >
-              <Feather name="x" size={24} color="#6b7280" />
+            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowSettingsMenu(false)}>
+              <Feather name="x" size={24} color="#BE9B51" />
             </TouchableOpacity>
-
-            {/* Menu title */}
             <Text style={styles.modalTitle}>Settings</Text>
 
-            {/* Menu items */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowSettingsMenu(false);
-                Alert.alert(
-                  'Logout',
-                  'Are you sure you want to logout?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Logout',
-                      style: 'destructive',
-                      onPress: () => logout(),
-                    },
-                  ]
-                );
-              }}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => {
+              setShowSettingsMenu(false);
+              Alert.alert('Logout', 'Are you sure you want to logout?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: () => logout() },
+              ]);
+            }}>
               <Feather name="log-out" size={24} color="#f59e0b" />
               <Text style={styles.menuItemText}>Logout</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowSettingsMenu(false);
-                clearAllAnswers();
-              }}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowSettingsMenu(false); clearAllAnswers(); }}>
               <Feather name="trash-2" size={24} color="#ef4444" />
               <Text style={styles.menuItemText}>Clear Profile</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowSettingsMenu(false);
-                navigation.navigate('PrivacyPolicy');
-              }}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setShowSettingsMenu(false); navigation.navigate('PrivacyPolicy'); }}>
               <Feather name="shield" size={24} color="#10B981" />
               <Text style={styles.menuItemText}>Privacy Policy</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.menuItem, styles.menuItemLast]}
-              onPress={() => {
-                setShowSettingsMenu(false);
-                handleDeleteAccount();
-              }}
-            >
+            <TouchableOpacity style={[styles.menuItem, styles.menuItemLast]} onPress={() => { setShowSettingsMenu(false); handleDeleteAccount(); }}>
               <Feather name="user-x" size={24} color="#dc2626" />
               <Text style={styles.menuItemText}>Delete My Account</Text>
             </TouchableOpacity>
@@ -707,54 +514,21 @@ export default function ProfileScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#00934E" />
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Profile Header */}
-          <View style={styles.profileHeader}>
-            <TouchableOpacity
-              onPress={handleUploadPhoto}
-              disabled={uploadingPhoto}
-              style={styles.profileBadgeContainer}
-            >
-              <ProfileBadge
-                firstName={auth.user?.firstName}
-                lastName={auth.user?.lastName}
-                totalAnswers={totalAnswers}
-                profilePictureUrl={profilePictureUrl}
-                size={120}
-              />
-              {uploadingPhoto && (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator size="small" color="#fff" />
-                </View>
-              )}
-              <View style={styles.cameraIconBadge}>
-                <Feather name="camera" size={18} color="#3b82f6" />
-              </View>
-            </TouchableOpacity>
-            <Text style={styles.profileName}>
-              {auth.user?.firstName || auth.user?.lastName
-                ? `${auth.user?.firstName || ''} ${auth.user?.lastName || ''}`.trim()
-                : 'Your Profile'
-              }
-            </Text>
-            <Text style={styles.uploadPhotoHint}>Tap photo to change</Text>
-          </View>
 
-          {/* Contextual Nudge Banner */}
+          {/* Nudge Banner */}
           {(() => {
-            const nudge = computeNudge(totalAnswers, profileSummary, isPublished);
+            const nudge = computeNudge(totalAnswers, profileSummary);
             const showNudge = nudge !== null && nudge.id !== dismissedNudgeId;
             if (!showNudge || !nudge) return null;
             return (
               <ProfileNudge
                 headline={nudge.headline}
                 message={nudge.message}
-                onAction={nudge.actionTarget === 'questions'
-                  ? () => navigation.navigate('Questions')
-                  : undefined}
+                onAction={nudge.actionTarget === 'questions' ? () => navigation.navigate('Questions') : undefined}
                 onDismiss={async () => {
                   await AsyncStorage.setItem('nudge_dismissed_id', nudge.id);
                   setDismissedNudgeId(nudge.id);
@@ -763,364 +537,187 @@ export default function ProfileScreen() {
             );
           })()}
 
-
-          {/* Response Card */}
-          {isEditingCard ? (
-            <View style={styles.cardEditContainer}>
-              <Text style={styles.cardEditTitle}>Your Response Summary</Text>
-
-              <Text style={styles.cardFieldLabel}>Headline</Text>
-              <TextInput
-                style={styles.cardFieldInput}
-                value={editHeadline}
-                onChangeText={setEditHeadline}
-                placeholder="e.g. Retired engineer from Denver, passionate about woodworking"
-                multiline
-              />
-
-              <Text style={styles.cardFieldLabel}>Interests (comma-separated)</Text>
-              <TextInput
-                style={styles.cardFieldInput}
-                value={editTagsInput}
-                onChangeText={setEditTagsInput}
-                placeholder="e.g. hiking, jazz, cooking"
-              />
-
-              <View style={styles.cardEditActions}>
-                <TouchableOpacity
-                  style={styles.cardCancelButton}
-                  onPress={() => setIsEditingCard(false)}
-                >
-                  <Text style={styles.cardCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cardSaveButton} onPress={handleSaveCard}>
-                  <Text style={styles.cardSaveText}>Save Card</Text>
-                </TouchableOpacity>
+          {/* Avatar floating above card — top of card starts 30% through badge */}
+          <TouchableOpacity
+            onPress={handleUploadPhoto}
+            disabled={uploadingPhoto}
+            style={styles.profileBadgeFloat}
+          >
+            <ProfileBadge
+              firstName={auth.user?.firstName}
+              lastName={auth.user?.lastName}
+              totalAnswers={totalAnswers}
+              profilePictureUrl={profilePictureUrl}
+              size={80}
+            />
+            {uploadingPhoto && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="small" color="#fff" />
               </View>
+            )}
+            <View style={styles.cameraIconBadge}>
+              <Feather name="camera" size={14} color="#00934E" />
             </View>
-          ) : responseCard ? (
-            <View style={styles.cardContainer}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardSectionLabel}>Your Response Summary</Text>
-                <TouchableOpacity onPress={handleCreateCard}>
-                  <Text style={styles.cardEditLink}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-              <ResponseCard
-                firstName={auth.user?.firstName}
-                lastName={auth.user?.lastName}
-                profilePictureUrl={profilePictureUrl}
-                headline={responseCard.headline}
-                tags={responseCard.tags}
-                funFact={quoteText}
-                funFactQuestion={quoteQuestion}
-                onViewProfile={isPublished ? () => navigation.navigate('MemberProfile', { userId: auth.user!.id }) : undefined}
-              />
-            </View>
-          ) : hasAnswers ? (
-            <TouchableOpacity style={styles.createCardButton} onPress={handleCreateCard}>
-              <Feather name="credit-card" size={18} color="#3b82f6" />
-              <Text style={styles.createCardButtonText}>Create your card</Text>
-            </TouchableOpacity>
-          ) : null}
+          </TouchableOpacity>
 
-          {/* Published Status Badge */}
-          {isPublished && (
-            <View style={styles.publishedContainer}>
-              <View style={styles.publishedBadge}>
-                <Feather name="check-circle" size={20} color="white" />
-                <Text style={styles.publishedText}>Profile Published</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.unpublishButton}
-                onPress={async () => {
-                  Alert.alert(
-                    'Unpublish Profile',
-                    'Your profile will be hidden from your circle. You can re-share it anytime.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Unpublish',
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            // Update backend to unpublish
-                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-                              method: 'PATCH',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                profileSummary: null,
-                                profileAnswers: [],
-                                profilePublished: false,
-                              }),
-                            });
+          {/* Profile Header Card */}
+          <View style={styles.profileCard}>
+            <Text style={styles.profileName}>{fullName}</Text>
 
-                            if (response.ok) {
-                              await AsyncStorage.setItem('profile_published', 'false');
-                              setIsPublished(false);
-                              Alert.alert('Success', 'Your profile is now private.');
-                            } else {
-                              Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
-                            }
-                          } catch (error) {
-                            console.error('Unpublish error:', error);
-                            Alert.alert('Error', 'Failed to unpublish profile. Please try again.');
-                          }
-                        },
-                      },
-                    ]
+            {/* Interest Tags */}
+            {profileInterests.length > 0 && (
+              <View style={styles.tagsRow}>
+                {profileInterests.slice(0, 6).map((tag, i) => {
+                  const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+                  return (
+                    <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
+                      <Text style={[styles.tagText, { color: palette.text }]}>
+                        {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                      </Text>
+                    </View>
                   );
-                }}
-                activeOpacity={0.7}
-              >
-                <Feather name="eye-off" size={16} color="#6b7280" />
-                <Text style={styles.unpublishButtonText}>Make Private</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Share Profile Button - Show above profile when summary exists but not published */}
-          {!isPublished && profileSummary && totalAnswers >= 4 && (
-            <View style={styles.profileActionContainer}>
-              <Text style={styles.shareQuestion}>What would you like to share?</Text>
-
-              {/* Checkbox for Profile Summary */}
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setShareProfileSummary(!shareProfileSummary)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.checkbox}>
-                  {shareProfileSummary && (
-                    <Feather name="check" size={16} color="#3b82f6" />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Profile Summary</Text>
-              </TouchableOpacity>
-
-              {/* Checkbox for Your Responses */}
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setShareResponses(!shareResponses)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.checkbox}>
-                  {shareResponses && (
-                    <Feather name="check" size={16} color="#3b82f6" />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>Your Responses</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.publishButton,
-                  (!shareProfileSummary && !shareResponses) && styles.publishButtonDisabled
-                ]}
-                onPress={handlePublishProfile}
-                disabled={isPublishing || (!shareProfileSummary && !shareResponses)}
-              >
-                {isPublishing ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Feather name="share-2" size={20} color="white" />
-                    <Text style={styles.publishButtonText}>Share Profile</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Profile Summary */}
-          {profileSummary && (
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryHeader}>
-                <Feather name="user" size={20} color="#3b82f6" />
-                <Text style={styles.summaryTitle}>Profile Summary</Text>
+                })}
               </View>
+            )}
 
-              {isEditingProfile ? (
+            {/* Bio */}
+            {isEditingProfile ? (
+              <View style={styles.editBioContainer}>
                 <TextInput
                   ref={textInputRef}
-                  style={styles.summaryTextInput}
+                  style={styles.editBioInput}
                   value={editedSummary}
                   onChangeText={setEditedSummary}
                   multiline
-                  numberOfLines={10}
                   textAlignVertical="top"
                   autoFocus
                 />
-              ) : (
-                <Text style={styles.summaryText}>
-                  {stripIcebreakerQuestions(profileSummary)}
-                </Text>
-              )}
-
-              <View style={styles.summaryActions}>
-                {isEditingProfile ? (
-                  <>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => {
-                        setIsEditingProfile(false);
-                        setEditedSummary('');
-                      }}
-                    >
-                      <Feather name="x" size={16} color="#ef4444" />
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.saveButton}
-                      onPress={async () => {
-                        try {
-                          // Preserve icebreaker questions from original summary
-                          let finalSummary = editedSummary.trim();
-
-                          // Find where icebreaker section starts in original
-                          const patterns = [
-                            /---\s*\*?\*?Icebreaker Questions/i,
-                            /\*\*Icebreaker Questions/i,
-                            /---/,
-                          ];
-
-                          for (const pattern of patterns) {
-                            const match = profileSummary.match(pattern);
-                            if (match && match.index !== undefined) {
-                              const icebreakerSection = profileSummary.substring(match.index);
-                              finalSummary = `${editedSummary.trim()}\n\n${icebreakerSection}`;
-                              break;
-                            }
-                          }
-
-                          // Save locally
-                          await AsyncStorage.setItem('profile_summary', finalSummary);
-                          setProfileSummary(finalSummary);
-                          setIsEditingProfile(false);
-
-                          // If profile is published, auto-update the published version
-                          if (isPublished) {
-                            const profileData = {
-                              profileSummary: shareProfileSummary ? finalSummary : null,
-                              profileAnswers: shareResponses ? answers : [],
-                              profilePublished: true,
-                            };
-
-                            const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
-                              method: 'PATCH',
-                              headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify(profileData),
-                            });
-
-                            if (response.ok) {
-                              Alert.alert('Success', 'Your published profile has been updated!');
-                            } else {
-                              Alert.alert('Success', 'Profile saved locally. Please re-share to update your published profile.');
-                            }
-                          } else {
-                            Alert.alert('Success', 'Profile updated!');
-                          }
-                        } catch (_error) {
-                          Alert.alert('Error', 'Failed to save changes');
-                        }
-                      }}
-                    >
-                      <Feather name="check" size={16} color="#10b981" />
-                      <Text style={styles.saveButtonText}>Save</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() => {
-                        setEditedSummary(stripIcebreakerQuestions(profileSummary));
-                        setIsEditingProfile(true);
-                      }}
-                    >
-                      <Feather name="edit-2" size={16} color="#3b82f6" />
-                      <Text style={styles.editButtonText}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.regenerateButton}
-                      onPress={handleGenerateSummary}
-                      disabled={generatingSummary}
-                    >
-                      {generatingSummary ? (
-                        <ActivityIndicator size="small" color="#3b82f6" />
-                      ) : (
-                        <>
-                          <Feather name="refresh-cw" size={16} color="#3b82f6" />
-                          <Text style={styles.regenerateButtonText}>Regenerate</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Create Profile Draft Button - Show only when no summary exists */}
-          {!isPublished && !profileSummary && totalAnswers >= 4 && (
-            <View style={styles.profileActionContainer}>
-              <TouchableOpacity
-                style={styles.publishButton}
-                onPress={handleGenerateSummary}
-                disabled={generatingSummary}
-              >
-                {generatingSummary ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Feather name="file-text" size={20} color="white" />
-                    <Text style={styles.publishButtonText}>Create Profile Draft</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.aiCaption}>
-                Our AI model is trained and secure to create your personalized profile
-              </Text>
-            </View>
-          )}
-
-          {/* Responses List */}
-          {hasAnswers && (
-            <>
-              <TouchableOpacity
-                style={styles.responsesHeader}
-                onPress={() => setShowResponses(!showResponses)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.responsesHeaderText}>Your Responses</Text>
-                <Feather
-                  name={showResponses ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color="#6b7280"
-                />
-              </TouchableOpacity>
-
-              {showResponses && answers.map((answer, index) => (
-                <View key={index} style={styles.answerCard}>
-                  <Text style={styles.question}>{answer.question}</Text>
-                  {answer.transcript ? (
-                    <Text style={styles.transcript}>{answer.transcript}</Text>
-                  ) : (
-                    <Text style={styles.noTranscript}>Transcription not available</Text>
-                  )}
-                  <Text style={styles.timestamp}>
-                    {new Date(answer.timestamp).toLocaleDateString()}
-                  </Text>
+                <View style={styles.editBioActions}>
+                  <TouchableOpacity style={styles.cancelEditButton} onPress={() => { setIsEditingProfile(false); setEditedSummary(''); }}>
+                    <Text style={styles.cancelEditText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveBioButton} onPress={handleSaveBio}>
+                    <Text style={styles.saveBioText}>Save</Text>
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </>
+              </View>
+            ) : bioText ? (() => {
+              const words = bioText.split(/\s+/);
+              const isTruncated = words.length > SHORT_BIO_WORDS;
+              const displayText = (!bioExpanded && isTruncated)
+                ? words.slice(0, SHORT_BIO_WORDS).join(' ') + '...'
+                : bioText;
+              return (
+                <>
+                  <Text style={styles.bioText}>{displayText}</Text>
+                  <View style={styles.bioActions}>
+                    {isTruncated && (
+                      <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(!bioExpanded)}>
+                        {bioExpanded ? (
+                          <Text style={styles.addBioLinkText}>Show less</Text>
+                        ) : (
+                          <>
+                            <Text style={styles.addBioLinkText}>Show full bio </Text>
+                            <Text style={styles.addBioSparkle}>✦</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      style={styles.addBioLink}
+                      onPress={() => { setEditedSummary(bioText); setIsEditingProfile(true); }}
+                    >
+                      <Text style={styles.addBioLinkText}>Edit bio</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })() : totalAnswers >= 4 ? (
+              <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
+                {generatingSummary ? (
+                  <ActivityIndicator size="small" color="#00934E" />
+                ) : (
+                  <Text style={styles.addBioLinkText}>Add a full bio</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.bioPlaceholder}>
+                Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to generate your bio
+              </Text>
+            )}
+          </View>
+
+          {/* Quote Card */}
+          {quoteText && (
+            <View style={styles.quoteCard}>
+              {quoteQuestion && <Text style={styles.quoteQuestion}>{quoteQuestion}</Text>}
+              <Text style={styles.quoteText}>"{quoteText}"</Text>
+
+              {answersWithTranscripts.length > 0 && (
+                <>
+                  <TouchableOpacity
+                    style={styles.showResponsesLink}
+                    onPress={() => setShowResponses(!showResponses)}
+                  >
+                    <Text style={styles.showResponsesLinkText}>
+                      {showResponses ? 'Hide responses' : 'Show all responses'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showResponses && [...answersWithTranscripts]
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map((answer, i) => (
+                      <View key={i} style={styles.responseCard}>
+                        <Text style={styles.responseCardQuestion}>{answer.question}</Text>
+                        <Text style={styles.responseCardText}>{answer.transcript}</Text>
+                      </View>
+                    ))
+                  }
+                </>
+              )}
+            </View>
           )}
+
+          {/* Icebreaker Card */}
+          {icebreakerQuestions.length > 0 && (
+            <View style={styles.icebreakerCard}>
+              <Text style={styles.icebreakerLabel}>
+                Icebreakers for {firstName || 'you'}:
+              </Text>
+              {icebreakerQuestions.map((q, i) => (
+                <Text key={i} style={styles.icebreakerQuestion}>{q}</Text>
+              ))}
+            </View>
+          )}
+
+          {/* Get in Touch */}
+          {profileSummary && (
+            <View style={styles.contactCard}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionHeaderLabel}>Get in touch:</Text>
+                <View style={styles.toggleRow}>
+                  <TouchableOpacity onPress={() => handleContactToggle(true)}>
+                    <Text style={[styles.toggleOption, contactPublished && styles.toggleOptionActive]}>ENABLED</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.toggleSep}> / </Text>
+                  <TouchableOpacity onPress={() => handleContactToggle(false)}>
+                    <Text style={[styles.toggleOption, !contactPublished && styles.toggleOptionActive]}>DISABLED</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.emailButton, !contactPublished && styles.emailButtonDisabled]}
+                onPress={() => contactPublished && Linking.openURL(`mailto:${auth.user?.email}`)}
+                activeOpacity={contactPublished ? 0.85 : 1}
+                disabled={!contactPublished}
+              >
+                <Text style={[styles.emailButtonText, !contactPublished && styles.emailButtonTextDisabled]}>Email {firstName || 'me'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.bottomSpacer} />
         </ScrollView>
       )}
     </View>
@@ -1130,39 +727,23 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingBottom: 16,
+    backgroundColor: '#FFF7E6',
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  debugButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#eff6ff',
   },
   menuButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   modalOverlay: {
     flex: 1,
@@ -1193,7 +774,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#545454',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1212,7 +793,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#545454',
     flex: 1,
   },
   loadingContainer: {
@@ -1224,344 +805,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingVertical: 16,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  categoryLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 16,
-    textAlign: 'left',
-  },
-  sectionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionIndicator: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  sectionFeatherContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionCount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  sectionLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  emptyStateMessage: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 180,
-    marginBottom: 24,
-  },
-  summaryCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginLeft: 8,
-  },
-  summaryText: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#374151',
-    marginBottom: 16,
-  },
-  summaryTextInput: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#374151',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#f0f9ff',
-    minHeight: 200,
-  },
-  summaryActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  editButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
-  regenerateButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  regenerateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
-  cancelButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ef4444',
-  },
-  saveButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  saveButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10b981',
-  },
-  generateButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: '#3b82f6',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  responsesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  responsesHeaderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  answerCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  question: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  transcript: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#374151',
-    marginBottom: 12,
-  },
-  noTranscript: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: '#9ca3af',
-    marginBottom: 12,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  profileActionContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  publishButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3b82f6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  aiCaption: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
     paddingHorizontal: 20,
-    lineHeight: 16,
+    paddingTop: 8,
   },
-  publishButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  publishButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-    shadowOpacity: 0,
-  },
-  publishButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
-  publishedContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  publishedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#10b981',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 8,
-  },
-  publishedText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  unpublishButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  unpublishButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  profileBadgeContainer: {
+  // Avatar floats above card — marginBottom pulls card up so card top = 30% through badge (24px)
+  profileBadgeFloat: {
     position: 'relative',
+    alignSelf: 'flex-start',
+    marginLeft: 20,
+    marginBottom: -56, // card top at 24px = 30% of 80px badge; badge extends 56px into card
+    zIndex: 10,
   },
-  cameraIconBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
+  // Profile Card
+  profileCard: {
     backgroundColor: 'white',
     borderRadius: 16,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#3b82f6',
+    paddingTop: 68, // 56px badge overlap + 12px breathing room
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    marginBottom: 16,
   },
   uploadingOverlay: {
     position: 'absolute',
@@ -1570,144 +832,250 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 60,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadPhotoHint: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 4,
-  },
-  shareQuestion: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#3b82f6',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  checkboxLabel: {
-    fontSize: 15,
-    color: '#374151',
-    fontWeight: '500',
-  },
-
-  // Response Card
-  cardContainer: {
-    marginBottom: 24,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  cardSectionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  cardEditLink: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
-  },
-  createCardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
     backgroundColor: 'white',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingVertical: 16,
-    marginBottom: 24,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#00934E',
   },
-  createCardButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#3b82f6',
+  profileName: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#00934E',
+    marginBottom: 10,
   },
-  cardEditContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    gap: 8,
-  },
-  cardEditTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  cardFieldLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6b7280',
-    marginTop: 8,
-  },
-  cardFieldInput: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#111827',
-    backgroundColor: '#f9fafb',
-  },
-  cardEditActions: {
+  tagsRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    columnGap: 6,
+    rowGap: 8,
+    marginBottom: 14,
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  tagText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bioText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#545454',
+    marginBottom: 12,
+  },
+  bioPlaceholder: {
+    fontSize: 14,
+    color: '#BE9B51',
+    fontStyle: 'italic',
     marginTop: 8,
   },
-  cardCancelButton: {
+  bioActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  addBioLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addBioLinkText: {
+    fontSize: 14,
+    color: '#545454',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
+  addBioSparkle: {
+    fontSize: 14,
+    color: '#00934E',
+  },
+  editBioContainer: {
+    marginTop: 8,
+  },
+  editBioInput: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#545454',
+    borderWidth: 1,
+    borderColor: '#00934E',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    minHeight: 160,
+    marginBottom: 10,
+  },
+  editBioActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelEditButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignItems: 'center',
   },
-  cardCancelText: {
+  cancelEditText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#BE9B51',
   },
-  cardSaveButton: {
+  saveBioButton: {
     flex: 2,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#00934E',
     alignItems: 'center',
   },
-  cardSaveText: {
+  saveBioText: {
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
+  },
+  // Quote Card
+  quoteCard: {
+    backgroundColor: '#00934E',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+  },
+  quoteQuestion: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  quoteText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+    lineHeight: 30,
+  },
+  // Section Headers with Toggle
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionHeaderLabel: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#00934E',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleOption: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#BE9B51',
+    letterSpacing: 0.5,
+  },
+  toggleOptionActive: {
+    fontWeight: '700',
+    color: '#545454',
+  },
+  toggleSep: {
+    fontSize: 12,
+    color: '#BE9B51',
+    marginHorizontal: 2,
+  },
+  // Icebreaker Card
+  icebreakerCard: {
+    backgroundColor: '#0277BB',
+    borderRadius: 16,
+    padding: 22,
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  icebreakerLabel: {
+    fontSize: 13,
+    color: 'rgba(147,197,253,0.9)',
+    marginBottom: 14,
+    fontWeight: '500',
+  },
+  icebreakerQuestion: {
+    fontSize: 16,
+    color: 'white',
+    lineHeight: 24,
+    textDecorationLine: 'underline',
+    marginBottom: 12,
+  },
+  // Email Button
+  // Show responses
+  showResponsesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  showResponsesLinkText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.75)',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
+  responseCard: {
+    backgroundColor: '#00934E',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+  },
+  responseCardQuestion: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  responseCardText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    lineHeight: 24,
+  },
+  // Contact Card
+  contactCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  emailButton: {
+    backgroundColor: '#0277BB',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  emailButtonDisabled: {
+    backgroundColor: '#E7E0D3',
+  },
+  emailButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  emailButtonTextDisabled: {
+    color: '#BE9B51',
+  },
+  bottomSpacer: {
+    height: 32,
   },
 });

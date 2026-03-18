@@ -38,7 +38,10 @@ model User {
   communityId        String?
   profileSummary     String?
   profilePublished   Boolean  @default(false)
+  circlesPublished   Boolean  @default(false)
+  contactPublished   Boolean  @default(false)
   profileAnswers     Json?
+  profileInterests   Json?
   profilePictureUrl  String?
   managedCommunityId String?  @unique
   createdAt          DateTime @default(now())

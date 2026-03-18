@@ -30,7 +30,7 @@ export default function ProfileNudge({ headline, message, onAction, onDismiss }:
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fffbeb',
+    backgroundColor: '#FECACA',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 22,
@@ -44,13 +44,14 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1e3a5f',
+    color: '#7F1D1D',
     paddingRight: 28,
   },
   message: {
     fontSize: 14,
-    color: '#374151',
+    color: '#7F1D1D',
     lineHeight: 20,
     marginTop: 4,
+    opacity: 0.8,
   },
 });

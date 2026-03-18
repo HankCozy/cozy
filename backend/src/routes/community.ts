@@ -36,6 +36,9 @@ router.get('/members', authenticateToken, async (req: AuthRequest, res: Response
         role: true,
         profileSummary: true,
         profileAnswers: true,
+        profileInterests: true,
+        circlesPublished: true,
+        contactPublished: true,
         profilePictureUrl: true,
         createdAt: true
       },
@@ -74,6 +77,9 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
         role: true,
         profileSummary: true,
         profileAnswers: true,
+        profileInterests: true,
+        circlesPublished: true,
+        contactPublished: true,
         profilePictureUrl: true,
         createdAt: true
       }
@@ -96,23 +102,10 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
 // GET /api/communities/circles - Get circles for user's community
 router.get('/circles', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { communityId, userId } = req;
+    const { communityId } = req;
 
     if (!communityId) {
       return res.status(400).json({ error: 'Community ID not found' });
-    }
-
-    // Check if user has published profile
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { profilePublished: true }
-    });
-
-    if (!currentUser?.profilePublished) {
-      return res.status(403).json({
-        error: 'Profile not published',
-        message: 'Share your profile to unlock your circles'
-      });
     }
 
     // Fetch all published members in the community
@@ -166,23 +159,10 @@ router.get('/circles', authenticateToken, async (req: AuthRequest, res: Response
 router.get('/circles/:circleId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { circleId } = req.params;
-    const { communityId, userId } = req;
+    const { communityId } = req;
 
     if (!communityId) {
       return res.status(400).json({ error: 'Community ID not found' });
-    }
-
-    // Check if user has published profile
-    const currentUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { profilePublished: true }
-    });
-
-    if (!currentUser?.profilePublished) {
-      return res.status(403).json({
-        error: 'Profile not published',
-        message: 'Share your profile to unlock your circles'
-      });
     }
 
     // Fetch all published members
@@ -249,16 +229,8 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
         lastName: true,
         profileSummary: true,
         profileAnswers: true,
-        profilePublished: true
       }
     });
-
-    if (!currentUser?.profilePublished) {
-      return res.status(403).json({
-        error: 'Profile not published',
-        message: 'Share your profile to get icebreaker matches'
-      });
-    }
 
     // Fetch all other published members (include profilePictureUrl for the card)
     const otherMembers = await prisma.user.findMany({

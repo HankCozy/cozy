@@ -65,7 +65,7 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
 // SECURITY: Validates and sanitizes input
 router.patch('/profile', authenticateToken, validateProfileInput, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, profilePictureUrl } = req.body;
+    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, circlesPublished, contactPublished, profileInterests, profilePictureUrl } = req.body;
     const userId = req.userId;
 
     // Build update data object with only provided fields
@@ -103,6 +103,18 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
 
     if (profilePublished !== undefined) {
       updateData.profilePublished = profilePublished;
+    }
+
+    if (circlesPublished !== undefined) {
+      updateData.circlesPublished = circlesPublished;
+    }
+
+    if (contactPublished !== undefined) {
+      updateData.contactPublished = contactPublished;
+    }
+
+    if (profileInterests !== undefined) {
+      updateData.profileInterests = profileInterests;
     }
 
     if (profilePictureUrl !== undefined) {

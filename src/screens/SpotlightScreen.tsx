@@ -41,7 +41,7 @@ export default function SpotlightScreen() {
   const { token } = auth;
   const [spotlightMatch, setSpotlightMatch] = useState<SpotlightMatch | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profilePublished, setProfilePublished] = useState(false);
+  const [totalAnswers, setTotalAnswers] = useState(0);
   const fetchedRef = useRef(false);
 
   const fetchSpotlight = async () => {
@@ -82,14 +82,14 @@ export default function SpotlightScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const init = async () => {
-        const publishedStr = await AsyncStorage.getItem('profile_published');
-        const published = publishedStr === 'true';
-        setProfilePublished(published);
+        const keys = await AsyncStorage.getAllKeys();
+        const count = keys.filter((k) => k.startsWith('answer_')).length;
+        setTotalAnswers(count);
 
-        if (published && !fetchedRef.current) {
+        if (count >= 4 && !fetchedRef.current) {
           fetchedRef.current = true;
           fetchSpotlight();
-        } else if (!published) {
+        } else if (count < 4) {
           setLoading(false);
         }
       };
@@ -109,10 +109,12 @@ export default function SpotlightScreen() {
           <Text style={styles.headerTitle}>Member spotlight</Text>
         </View>
 
-        {!profilePublished ? (
+        {totalAnswers < 4 ? (
           <View style={styles.lockedContainer}>
             <Feather name="lock" size={32} color="#6B7280" />
-            <Text style={styles.lockText}>Share your profile to unlock member spotlight</Text>
+            <Text style={styles.lockText}>
+              Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Kindred
+            </Text>
           </View>
         ) : loading ? (
           <View style={styles.loadingContainer}>
