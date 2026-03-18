@@ -79,10 +79,13 @@ interface IntersectionsMatch {
   profileInterests: string[];
   sharedTraits: string[];
   icebreakerQuestions: string[];
+  quoteText: string | null;
+  quoteQuestion: string | null;
 }
 
 export default function SpotlightScreen() {
   const { auth } = useAuth();
+  const orgName = auth.user?.community?.organization || 'your community';
   const { token } = auth;
 
   const [match, setMatch] = useState<IntersectionsMatch | null>(null);
@@ -119,6 +122,8 @@ export default function SpotlightScreen() {
             ...data.match,
             sharedTraits: data.match.sharedTraits ?? data.match.sharedInterests ?? [],
             profileInterests: data.match.profileInterests ?? [],
+            quoteText: data.match.quoteText ?? null,
+            quoteQuestion: data.match.quoteQuestion ?? null,
           });
         setBioExpanded(false);
 
@@ -181,19 +186,26 @@ export default function SpotlightScreen() {
     ? icebreakerQuestions
     : match?.icebreakerQuestions ?? [];
 
-  // Quote: shortest answer from summary sentences
-  const bioSentences = bioText?.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 20) ?? [];
-  const quoteText = bioSentences[0] || null;
+  // Use quote from API response (extracted from actual answers)
+  const quoteText = match?.quoteText ?? null;
+  const quoteQuestion = match?.quoteQuestion ?? null;
 
   const firstName = match?.firstName || '';
   const fullName = [match?.firstName, match?.lastName].filter(Boolean).join(' ');
 
+  const Header = () => (
+    <View style={styles.header}>
+      <Text style={styles.title}>Intersections</Text>
+      <Text style={styles.description}>
+        Meet people from across {orgName} who may or may not have followed the same path as you.
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Intersections</Text>
-        </View>
+        <Header />
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#00934E" />
         </View>
@@ -204,7 +216,7 @@ export default function SpotlightScreen() {
   if (totalAnswers < 4) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}><Text style={styles.title}>Intersections</Text></View>
+        <Header />
         <View style={styles.centerState}>
           <Feather name="lock" size={32} color="#BE9B51" />
           <Text style={styles.stateText}>
@@ -218,7 +230,7 @@ export default function SpotlightScreen() {
   if (insufficientMembers) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}><Text style={styles.title}>Intersections</Text></View>
+        <Header />
         <View style={styles.centerState}>
           <Feather name="users" size={32} color="#BE9B51" />
           <Text style={styles.stateText}>Intersections unlocks when 5 members complete their profiles.</Text>
@@ -230,9 +242,7 @@ export default function SpotlightScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Intersections</Text>
-      </View>
+      <Header />
 
       <ScrollView
         style={styles.scrollView}
@@ -319,6 +329,7 @@ export default function SpotlightScreen() {
             {/* Quote card */}
             {quoteText && (
               <View style={styles.quoteCard}>
+                {quoteQuestion && <Text style={styles.quoteQuestion}>{quoteQuestion}</Text>}
                 <Text style={styles.quoteText}>"{quoteText}"</Text>
               </View>
             )}
@@ -356,19 +367,25 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
     color: '#00934E',
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 14,
+    color: '#BE9B51',
+    lineHeight: 20,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 32,
   },
   centerState: {
     flex: 1,
@@ -467,6 +484,12 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 16,
   },
+  quoteQuestion: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
   quoteText: {
     fontSize: 18,
     fontWeight: '700',
@@ -490,7 +513,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     lineHeight: 24,
-    textDecorationLine: 'underline',
     marginBottom: 12,
   },
   // Next match

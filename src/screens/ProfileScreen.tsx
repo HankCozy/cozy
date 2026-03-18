@@ -555,9 +555,6 @@ export default function ProfileScreen() {
                 <ActivityIndicator size="small" color="#fff" />
               </View>
             )}
-            <View style={styles.cameraIconBadge}>
-              <Feather name="camera" size={14} color="#00934E" />
-            </View>
           </TouchableOpacity>
 
           {/* Profile Header Card */}
@@ -1015,7 +1012,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     lineHeight: 24,
-    textDecorationLine: 'underline',
     marginBottom: 12,
   },
   // Email Button

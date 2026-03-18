@@ -295,6 +295,26 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
 
     const matchedDbMember = match ? otherMembers.find(m => m.id === match.userId) : null;
 
+    // Extract shortest answer as quote (prefer community section)
+    const extractQuote = (profileAnswers: any): { text: string; question: string } | null => {
+      if (!profileAnswers) return null;
+      const answers = Array.isArray(profileAnswers) ? profileAnswers : [];
+      const withT = answers.filter((a: any) => a.transcript?.trim().length > 0);
+      if (withT.length === 0) return null;
+      const community = withT.filter((a: any) => a.sectionId === 'community');
+      const pool = community.length > 0 ? community : withT;
+      const wc = (t: string) => t.trim().split(/\s+/).length;
+      const shortest = pool.reduce((s: any, a: any) => !s || wc(a.transcript) < wc(s.transcript) ? a : s, null);
+      if (!shortest) return null;
+      const words = shortest.transcript.trim().split(/\s+/);
+      return {
+        text: words.slice(0, 20).join(' ') + (words.length > 20 ? '...' : ''),
+        question: shortest.question,
+      };
+    };
+
+    const quote = extractQuote(matchedDbMember?.profileAnswers);
+
     res.json({
       success: true,
       match: match ? {
@@ -303,6 +323,8 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
         profileInterests: Array.isArray(matchedDbMember?.profileInterests)
           ? matchedDbMember.profileInterests
           : [],
+        quoteText: quote?.text ?? null,
+        quoteQuestion: quote?.question ?? null,
       } : null
     });
   } catch (error) {
