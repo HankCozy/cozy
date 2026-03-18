@@ -96,7 +96,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 placeholder="Enter your password"
                 secureTextEntry
                 autoCapitalize="none"
-                textContentType="none"
+                textContentType="oneTimeCode"
+                autoComplete="off"
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (

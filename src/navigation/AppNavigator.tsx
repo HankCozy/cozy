@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -280,11 +280,17 @@ function TabsNavigator() {
 }
 
 function AppNavigator() {
+  const { auth, clearPendingOnboarding } = useAuth();
+  const startOnboarding = auth.pendingOnboarding;
+
+  useEffect(() => {
+    if (startOnboarding) clearPendingOnboarding();
+  }, []);
+
   return (
     <RootStack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
+      screenOptions={{ headerShown: false }}
+      initialRouteName={startOnboarding ? 'QuestionFlowStack' : 'MainTabs'}
     >
       <RootStack.Screen name="MainTabs" component={TabsNavigator} />
       <RootStack.Screen name="QuestionFlowStack" component={QuestionFlowNavigator} />

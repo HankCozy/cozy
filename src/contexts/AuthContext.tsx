@@ -22,11 +22,14 @@ export interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  pendingOnboarding: boolean;
 }
 
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string } }
+  | { type: 'LOGIN_SUCCESS_WITH_ONBOARDING'; payload: { user: User; token: string } }
+  | { type: 'CLEAR_PENDING_ONBOARDING' }
   | { type: 'LOGOUT' }
   | { type: 'UPDATE_USER'; payload: Partial<User> };
 
@@ -34,7 +37,8 @@ const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
-  isLoading: true
+  isLoading: true,
+  pendingOnboarding: false,
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -48,8 +52,22 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         user: action.payload.user,
         token: action.payload.token,
         isAuthenticated: true,
-        isLoading: false
+        isLoading: false,
+        pendingOnboarding: false,
       };
+
+    case 'LOGIN_SUCCESS_WITH_ONBOARDING':
+      return {
+        ...state,
+        user: action.payload.user,
+        token: action.payload.token,
+        isAuthenticated: true,
+        isLoading: false,
+        pendingOnboarding: true,
+      };
+
+    case 'CLEAR_PENDING_ONBOARDING':
+      return { ...state, pendingOnboarding: false };
 
     case 'LOGOUT':
       return {
@@ -83,6 +101,7 @@ interface AuthContextType {
     invitationCode: string;
   }) => Promise<{ success: boolean; error?: string; user?: User; token?: string }>;
   completeOnboarding: (user: User, token: string) => Promise<{ success: boolean; error?: string }>;
+  clearPendingOnboarding: () => void;
   logout: () => Promise<void>;
   validateInvitation: (code: string) => Promise<{ valid: boolean; error?: string; invitation?: any }>;
   updateUserProfile: (firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
@@ -185,11 +204,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await SecureStore.setItemAsync('auth_token', token);
       await SecureStore.setItemAsync('auth_user', JSON.stringify(user));
 
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
+      dispatch({ type: 'LOGIN_SUCCESS_WITH_ONBOARDING', payload: { user, token } });
       return { success: true };
     } catch (_error) {
       return { success: false, error: 'Failed to complete onboarding' };
     }
+  };
+
+  const clearPendingOnboarding = () => {
+    dispatch({ type: 'CLEAR_PENDING_ONBOARDING' });
   };
 
   const logout = async () => {
@@ -265,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         completeOnboarding,
+        clearPendingOnboarding,
         logout,
         validateInvitation,
         updateUserProfile
