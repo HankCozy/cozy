@@ -115,7 +115,11 @@ export default function SpotlightScreen() {
       }
 
       if (data.success && data.match) {
-        setMatch(data.match);
+        setMatch({
+            ...data.match,
+            sharedTraits: data.match.sharedTraits ?? data.match.sharedInterests ?? [],
+            profileInterests: data.match.profileInterests ?? [],
+          });
         setBioExpanded(false);
 
         // Update seen list
