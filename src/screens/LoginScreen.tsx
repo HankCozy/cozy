@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   form: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderRadius: 20,
     padding: 12,
     fontSize: 16,
     backgroundColor: '#f9fafb',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    borderRadius: 20,
     padding: 16,
     alignItems: 'center',
     marginTop: 12,

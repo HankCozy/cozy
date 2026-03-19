@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    borderRadius: 20,
   },
   primaryButtonText: {
     fontSize: 16,

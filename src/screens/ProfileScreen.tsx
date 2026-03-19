@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.05)',
   },
   modalOverlay: {
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     width: '90%',
     maxWidth: 400,
     padding: 24,
@@ -816,10 +816,10 @@ const styles = StyleSheet.create({
   // Profile Card
   profileCard: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     paddingTop: 68, // 56px badge overlap + 12px breathing room
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 28,
+    paddingBottom: 40,
     marginBottom: 16,
   },
   uploadingOverlay: {
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 20,
     width: 24,
     height: 24,
     justifyContent: 'center',
@@ -849,15 +849,16 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 26,
     fontWeight: '700',
+    fontFamily: 'Futura',
     color: '#00934E',
-    marginBottom: 10,
+    marginBottom: 30,
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     columnGap: 6,
     rowGap: 8,
-    marginBottom: 14,
+    marginBottom: 30,
   },
   tag: {
     paddingHorizontal: 12,
@@ -909,7 +910,7 @@ const styles = StyleSheet.create({
     color: '#545454',
     borderWidth: 1,
     borderColor: '#00934E',
-    borderRadius: 8,
+    borderRadius: 20,
     padding: 12,
     backgroundColor: '#f9fafb',
     minHeight: 160,
@@ -922,7 +923,7 @@ const styles = StyleSheet.create({
   cancelEditButton: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignItems: 'center',
@@ -935,7 +936,7 @@ const styles = StyleSheet.create({
   saveBioButton: {
     flex: 2,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 20,
     backgroundColor: '#00934E',
     alignItems: 'center',
   },
@@ -946,21 +947,24 @@ const styles = StyleSheet.create({
   },
   // Quote Card
   quoteCard: {
-    backgroundColor: '#00934E',
-    borderRadius: 16,
+    backgroundColor: '#F0FAF5',
+    borderRadius: 20,
     padding: 24,
     marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00934E',
   },
   quoteQuestion: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
+    color: '#545454',
     fontStyle: 'italic',
     marginBottom: 10,
   },
   quoteText: {
     fontSize: 20,
     fontWeight: '700',
-    color: 'white',
+    fontFamily: 'Futura',
+    color: '#007F45',
     lineHeight: 30,
   },
   // Section Headers with Toggle
@@ -973,6 +977,7 @@ const styles = StyleSheet.create({
   sectionHeaderLabel: {
     fontSize: 17,
     fontWeight: '700',
+    fontFamily: 'Futura',
     color: '#00934E',
   },
   toggleRow: {
@@ -997,7 +1002,7 @@ const styles = StyleSheet.create({
   // Icebreaker Card
   icebreakerCard: {
     backgroundColor: '#0277BB',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 22,
     marginBottom: 24,
     marginTop: 8,
@@ -1030,7 +1035,7 @@ const styles = StyleSheet.create({
   },
   responseCard: {
     backgroundColor: '#00934E',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 12,
   },
@@ -1049,13 +1054,13 @@ const styles = StyleSheet.create({
   // Contact Card
   contactCard: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
   },
   emailButton: {
     backgroundColor: '#0277BB',
-    borderRadius: 12,
+    borderRadius: 20,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,

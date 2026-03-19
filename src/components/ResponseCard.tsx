@@ -117,7 +117,7 @@ export default function ResponseCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
     gap: 16,
     shadowColor: '#000',
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   bioBox: {
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
+    borderRadius: 20,
     padding: 16,
   },
   bioText: {
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   quoteBox: {
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
+    borderRadius: 20,
     padding: 16,
     gap: 10,
   },

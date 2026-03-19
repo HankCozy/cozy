@@ -114,7 +114,7 @@ export default function CommunityScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#0277BB" />
         <Text style={styles.loadingText}>Loading circles...</Text>
       </SafeAreaView>
     );
@@ -131,7 +131,7 @@ export default function CommunityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>Your circle:</Text>
+          <Text style={styles.headerSubtitle}>You belong to:</Text>
           <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
         </View>
 
@@ -219,11 +219,11 @@ export default function CommunityScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   contentContainer: {
     paddingBottom: 120,
@@ -232,27 +232,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 28,
+    paddingTop: 32,
     paddingBottom: 16,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     marginBottom: 4,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
   },
   circlesSection: {
     marginTop: 24,
@@ -261,7 +264,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 16,
   },
   overlapToggle: {
@@ -272,25 +276,26 @@ const styles = StyleSheet.create({
   },
   overlapToggleText: {
     fontSize: 13,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
   },
   circlesList: {
     marginTop: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E7E0D3',
     overflow: 'hidden',
   },
   circleListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   circleListItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#E7E0D3',
   },
   circleListDot: {
     width: 12,
@@ -304,12 +309,14 @@ const styles = StyleSheet.create({
   circleListName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 2,
   },
   circleListCount: {
     fontSize: 13,
-    color: '#6B7280',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
   },
   lockedContainer: {
     position: 'relative',
@@ -323,22 +330,22 @@ const styles = StyleSheet.create({
   circleButtonPlaceholder: {
     width: '47%',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E7E0D3',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   circleCountPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#BE9B51',
     marginBottom: 8,
   },
   circleNamePlaceholder: {
     width: 60,
     height: 14,
     borderRadius: 4,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#BE9B51',
   },
   lockOverlay: {
     position: 'absolute',
@@ -348,13 +355,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+    backgroundColor: 'rgba(255, 247, 230, 0.85)',
   },
   lockText: {
     marginTop: 12,
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   smallCommunityContainer: {
@@ -364,12 +372,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: 'Futura',
     color: '#545454',
     textAlign: 'center',
   },
   smallCommunitySubtext: {
     marginTop: 6,
     fontSize: 13,
+    fontFamily: 'Futura',
     color: '#BE9B51',
     textAlign: 'center',
   },

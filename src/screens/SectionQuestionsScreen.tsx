@@ -57,10 +57,9 @@ export const SECTION_BOUNDARIES = {
 export default function SectionQuestionsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { sectionId, sectionName } = route.params;
+  const { sectionId, sectionName, sectionColor = '#00934E', sectionTextColor = '#007F45' } = route.params;
 
   const questions = QUESTIONS_BY_SECTION[sectionId] || [];
-  const [selectedQuestions, setSelectedQuestions] = useState<number[]>([]);
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
 
   // Load answered questions from AsyncStorage
@@ -91,19 +90,10 @@ export default function SectionQuestionsScreen() {
     }, [sectionId])
   );
 
-  const toggleQuestion = (index: number) => {
-    setSelectedQuestions((prev) =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
-    );
-  };
-
-  const handleStartAnswering = () => {
-    const questionsToAnswer = selectedQuestions.map((index) => questions[index]);
+  const handleAnswerQuestion = (question: string) => {
     navigation.navigate('AnswerQuestion', {
       sectionId,
-      questions: questionsToAnswer,
+      questions: [question],
     });
   };
 
@@ -114,63 +104,44 @@ export default function SectionQuestionsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Feather name="arrow-left" size={24} color="#374151" />
+          <Feather name="arrow-left" size={24} color="#545454" />
         </TouchableOpacity>
-        <Text style={styles.title}>{sectionName}</Text>
+        <Text style={[styles.title, { color: sectionTextColor }]}>{sectionName}</Text>
         <Text style={styles.subtitle}>
-          Select the questions you'd like to answer
+          Tap a question to answer it
         </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {questions.map((question, index) => {
-          const isSelected = selectedQuestions.includes(index);
+        {[...questions].sort((a, b) => {
+          const aAnswered = answeredQuestions.has(a) ? 1 : 0;
+          const bAnswered = answeredQuestions.has(b) ? 1 : 0;
+          return aAnswered - bAnswered;
+        }).map((question, index) => {
           const isAnswered = answeredQuestions.has(question);
           return (
             <TouchableOpacity
               key={index}
-              style={[
-                styles.questionCard,
-                isSelected && styles.questionCardSelected,
-              ]}
-              onPress={() => toggleQuestion(index)}
+              style={[styles.questionCard, isAnswered ? [styles.questionCardAnswered, { borderLeftColor: sectionColor, backgroundColor: sectionColor + '12' }] : styles.questionCardUnanswered]}
+              onPress={() => handleAnswerQuestion(question)}
             >
               <View style={styles.questionContent}>
                 <View style={styles.questionTextContainer}>
-                  <Text style={styles.questionText}>{question}</Text>
+                  <Text style={[styles.questionText, isAnswered && { color: sectionTextColor }]}>{question}</Text>
                   {isAnswered && (
                     <View style={styles.answeredBadge}>
-                      <Feather name="check-circle" size={14} color="#10b981" />
-                      <Text style={styles.answeredText}>Answered</Text>
+                      <Feather name="check-circle" size={14} color={sectionTextColor} />
+                      <Text style={[styles.answeredText, { color: sectionTextColor }]}>Answered</Text>
                     </View>
                   )}
                 </View>
-                <View
-                  style={[
-                    styles.checkbox,
-                    isSelected && styles.checkboxSelected,
-                  ]}
-                >
-                  {isSelected && <Feather name="check" size={16} color="white" />}
-                </View>
+                {isAnswered && <Feather name="check-circle" size={22} color={sectionTextColor} />}
               </View>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {selectedQuestions.length > 0 && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleStartAnswering}
-          >
-            <Text style={styles.buttonText}>
-              Start Answering ({selectedQuestions.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -178,13 +149,13 @@ export default function SectionQuestionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   header: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 32,
     position: 'relative',
   },
   backButton: {
@@ -196,12 +167,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   scrollContent: {
@@ -210,22 +183,22 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   questionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderRadius: 20,
+    padding: 28,
+    borderLeftWidth: 4,
   },
-  questionCardSelected: {
-    borderColor: '#3b82f6',
+  questionCardAnswered: {},
+  questionCardUnanswered: {
+    backgroundColor: '#FFFFFF',
+    borderLeftColor: 'transparent',
+  },
+  questionNumber: {
+    fontSize: 13,
+    fontFamily: 'Futura',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
   },
   questionContent: {
     flexDirection: 'row',
@@ -238,7 +211,8 @@ const styles = StyleSheet.create({
   },
   questionText: {
     fontSize: 16,
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 8,
   },
   answeredBadge: {
@@ -248,41 +222,8 @@ const styles = StyleSheet.create({
   },
   answeredText: {
     fontSize: 12,
-    color: '#10b981',
+    fontFamily: 'Futura',
+    color: '#00934E',
     fontWeight: '500',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

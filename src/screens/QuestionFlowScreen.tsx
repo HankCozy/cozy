@@ -12,10 +12,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SECTIONS = [
-  { id: 'intro_identity', name: 'Intro & Identity', icon: 'user', color: '#3b82f6' },
-  { id: 'interests', name: 'Free Time & Interests', icon: 'compass', color: '#10b981' },
-  { id: 'relationships', name: 'Relationships & Reflections', icon: 'heart', color: '#ec4899' },
-  { id: 'community', name: 'You & Your Community', icon: 'users', color: '#f59e0b' },
+  { id: 'intro_identity', name: 'Intro & Identity', icon: 'user', color: '#00934E', textColor: '#007F45', total: 4 },
+  { id: 'interests', name: 'Free Time & Interests', icon: 'compass', color: '#0277BB', textColor: '#0277BB', total: 5 },
+  { id: 'relationships', name: 'Relationships & Reflections', icon: 'heart', color: '#FFA0A6', textColor: '#C0394B', total: 4 },
+  { id: 'community', name: 'You & Your Community', icon: 'users', color: '#FE6627', textColor: '#B54000', total: 2 },
 ];
 
 export default function QuestionFlowScreen() {
@@ -76,6 +76,8 @@ export default function QuestionFlowScreen() {
                 navigation.navigate('SectionQuestions', {
                   sectionId: section.id,
                   sectionName: section.name,
+                  sectionColor: section.color,
+                  sectionTextColor: section.textColor,
                 })
               }
             >
@@ -85,14 +87,12 @@ export default function QuestionFlowScreen() {
               <View style={styles.sectionContent}>
                 <View>
                   <Text style={styles.sectionName}>{section.name}</Text>
-                  {answerCount > 0 && (
-                    <Text style={styles.answerCount}>
-                      {answerCount} {answerCount === 1 ? 'answer' : 'answers'}
-                    </Text>
-                  )}
+                  <Text style={styles.answerCount}>
+                    {answerCount} of {section.total} answered
+                  </Text>
                 </View>
                 <View style={styles.rightSection}>
-                  <Feather name="chevron-right" size={24} color="#9ca3af" />
+                  <Feather name="chevron-right" size={24} color="#BE9B51" />
                 </View>
               </View>
             </TouchableOpacity>
@@ -106,23 +106,25 @@ export default function QuestionFlowScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   header: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   scrollContent: {
@@ -131,19 +133,12 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   sectionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 40,
+    paddingHorizontal: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   iconContainer: {
     width: 48,
@@ -162,12 +157,14 @@ const styles = StyleSheet.create({
   sectionName: {
     fontSize: 19,
     fontWeight: '600',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
   answerCount: {
     fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+    fontFamily: 'Futura',
+    color: '#BE9B51',
+    marginTop: 10,
   },
   rightSection: {
     flexDirection: 'row',

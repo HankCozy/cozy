@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#D4E7F5',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
   },
   loginButtonText: {

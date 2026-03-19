@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    borderRadius: 20,
   },
   backButtonText: {
     fontSize: 16,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: '#eff6ff',
-    borderRadius: 16,
+    borderRadius: 20,
   },
   roleText: {
     fontSize: 14,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 20,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   answerCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
