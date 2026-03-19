@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    borderRadius: 20,
   },
   retryButtonText: {
     color: '#ffffff',
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   communityCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

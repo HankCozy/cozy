@@ -2,14 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
 
 export const CIRCLE_COLORS = [
-  '#60A5FA', // blue
-  '#34D399', // green
-  '#F87171', // coral
-  '#A78BFA', // purple
-  '#FBBF24', // amber
-  '#F472B6', // pink
-  '#2DD4BF', // teal
-  '#FB923C', // orange
+  '#FE6627', // orange — center circle
+  '#0277BB', // blue
+  '#FFA0A6', // pink
+  '#00934E', // green
+  '#FAC63D', // yellow
+  '#0277BB', // blue (repeat for 6th+)
+  '#FFA0A6', // pink (repeat)
 ];
 
 const MAX_CHART_CIRCLES = 6;
@@ -62,9 +61,12 @@ function packBubbles(circles: CircleOverview[], canvasW: number): BubbleData[] {
 
   if (others.length > 0) {
     const angleStep = (2 * Math.PI) / others.length;
+    // Organic start offset + per-index jitter — avoids 0°/90°/180°/270° placements
+    const startOffset = 0.65;
+    const jitters = [0.18, -0.22, 0.31, -0.15, 0.27, -0.19];
     others.forEach((circle, i) => {
       const r = computeRadius(circle.count);
-      const angle = -Math.PI / 2 + angleStep * i;
+      const angle = startOffset + angleStep * i + (jitters[i % jitters.length]);
       const distance = primaryR + r + GAP;
       logical.push({
         circle,
@@ -151,7 +153,7 @@ function BubbleLabel({ name }: { name: string }) {
   if (abbreviated) {
     return (
       <Text
-        style={{ fontSize: 16, fontWeight: '700', color: '#1e293b', textAlign: 'center' }}
+        style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Futura', color: '#FFFFFF', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}
         allowFontScaling={false}
       >
         {name.slice(0, 4) + '...'}
@@ -161,7 +163,7 @@ function BubbleLabel({ name }: { name: string }) {
 
   return (
     <Text
-      style={{ fontSize: 16, fontWeight: '700', color: '#1e293b', textAlign: 'center' }}
+      style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Futura', color: '#FFFFFF', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}
       numberOfLines={2}
       allowFontScaling={false}
       onTextLayout={(e) => {

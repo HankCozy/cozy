@@ -31,7 +31,7 @@ export default function ProfileNudge({ headline, message, onAction, onDismiss }:
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FECACA',
-    borderRadius: 12,
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 22,
     marginBottom: 12,

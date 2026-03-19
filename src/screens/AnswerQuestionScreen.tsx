@@ -337,7 +337,7 @@ export default function AnswerQuestionScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Feather name="arrow-left" size={24} color="#374151" />
+          <Feather name="arrow-left" size={24} color="#545454" />
         </TouchableOpacity>
         {totalAnswers > 0 && (
           <View style={styles.strengthIndicatorContainer}>
@@ -404,7 +404,7 @@ export default function AnswerQuestionScreen() {
           {/* Transcribing - loader in center */}
           {isTranscribing && (
             <View style={styles.transcribingContainer}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+              <ActivityIndicator size="large" color="#0277BB" />
               <Text style={styles.centerHintText}>Transcribing your answer...</Text>
             </View>
           )}
@@ -525,7 +525,7 @@ export default function AnswerQuestionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   header: {
     paddingHorizontal: 20,
@@ -550,7 +550,8 @@ const styles = StyleSheet.create({
   progress: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   strengthIndicatorContainer: {
@@ -561,7 +562,8 @@ const styles = StyleSheet.create({
   questionCounter: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textAlign: 'center',
   },
   content: {
@@ -571,7 +573,8 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 28,
     fontWeight: '400',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
     marginTop: 40,
     marginBottom: 32,
@@ -607,8 +610,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   transcriptBox: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 20,
     marginTop: 8,
   },
@@ -622,7 +625,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0277BB',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -635,7 +638,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   recordingButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#FFA0A6',
   },
   playButton: {
     width: 80,
@@ -656,16 +659,17 @@ const styles = StyleSheet.create({
 
   // Text elements
   privacyBox: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 20,
     marginTop: 24,
   },
   privacyLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -676,30 +680,35 @@ const styles = StyleSheet.create({
   },
   buttonHintText: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
   typeLink: {
     fontSize: 14,
-    color: '#3b82f6',
+    fontFamily: 'Futura',
+    color: '#0277BB',
     textDecorationLine: 'underline',
   },
   centerHintText: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginTop: 16,
     textAlign: 'center',
   },
   transcriptLabel: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 8,
     textAlign: 'center',
   },
   transcriptText: {
     fontSize: 16,
+    fontFamily: 'Futura',
     lineHeight: 24,
-    color: '#111827',
+    color: '#545454',
     textAlign: 'left',
     marginBottom: 12,
   },
@@ -715,17 +724,20 @@ const styles = StyleSheet.create({
   },
   editLinkText: {
     fontSize: 14,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textDecorationLine: 'underline',
   },
   bottomLinkText: {
     fontSize: 14,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textDecorationLine: 'underline',
   },
   fineTuneMessage: {
     fontSize: 12,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textAlign: 'center',
     paddingHorizontal: 40,
   },
@@ -734,33 +746,35 @@ const styles = StyleSheet.create({
   editTextInput: {
     width: '100%',
     minHeight: 200,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
+    borderColor: '#E7E0D3',
+    borderRadius: 20,
     padding: 20,
     fontSize: 16,
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlignVertical: 'top',
     marginTop: 8,
   },
   typeTextInput: {
     width: '100%',
     minHeight: 200,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderColor: '#E7E0D3',
+    borderRadius: 20,
     padding: 16,
     fontSize: 16,
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlignVertical: 'top',
   },
 
   // Bottom buttons
   finishButton: {
     backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 48,
     alignItems: 'center',
@@ -774,7 +788,7 @@ const styles = StyleSheet.create({
   editButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#d1d5db',
     alignItems: 'center',
@@ -787,7 +801,7 @@ const styles = StyleSheet.create({
   doneButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 20,
     backgroundColor: '#3b82f6',
     alignItems: 'center',
   },
@@ -797,16 +811,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
+    backgroundColor: '#00934E',
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 48,
     alignItems: 'center',
     width: '100%',
   },
   nextButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 18,
+    fontFamily: 'Futura',
     fontWeight: '700',
   },
   editButtonRow: {
@@ -817,38 +832,41 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#E7E0D3',
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#6b7280',
+    color: '#545454',
     fontWeight: '600',
+    fontFamily: 'Futura',
     fontSize: 16,
   },
   saveButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
-    backgroundColor: '#10b981',
+    borderRadius: 20,
+    backgroundColor: '#00934E',
     alignItems: 'center',
   },
   saveButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontWeight: '600',
+    fontFamily: 'Futura',
     fontSize: 16,
   },
   continueButton: {
     flex: 1,
     padding: 14,
-    borderRadius: 8,
-    backgroundColor: '#3b82f6',
+    borderRadius: 20,
+    backgroundColor: '#00934E',
     alignItems: 'center',
   },
   continueButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontWeight: '600',
+    fontFamily: 'Futura',
     fontSize: 16,
   },
   navControls: {
@@ -861,7 +879,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#d1d5db',
     backgroundColor: 'white',
@@ -886,7 +904,8 @@ const styles = StyleSheet.create({
   viewProfileLinkText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textDecorationLine: 'underline',
   },
 });

@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#f5f5f5',
-    borderRadius: 12,
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#007AFF',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
     marginTop: 8,
   },

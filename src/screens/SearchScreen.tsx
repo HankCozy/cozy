@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 16,
     backgroundColor: '#ffffff',
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     paddingHorizontal: 12,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   list: {
     marginHorizontal: 20,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     overflow: 'hidden',
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: '#dbeafe',
     justifyContent: 'center',
     alignItems: 'center',

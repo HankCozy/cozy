@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   // Profile card
   profileCard: {
     backgroundColor: 'white',
-    borderRadius: 16,
+    borderRadius: 20,
     paddingTop: 68,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   // Quote card
   quoteCard: {
     backgroundColor: '#00934E',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
     marginBottom: 16,
   },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   // Icebreaker card
   icebreakerCard: {
     backgroundColor: '#0277BB',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 22,
     marginBottom: 24,
   },
