@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -201,26 +202,26 @@ export default function SpotlightScreen() {
   const Header = () => (
     <View style={styles.header}>
       <Text style={styles.title}>Intersections</Text>
-      <Text style={styles.description}>
-        Meet people from across {orgName} who may or may not have followed the same path as you.
+      <Text style={styles.subtitle}>
+        Points of collision and connection across {orgName}
       </Text>
     </View>
   );
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Header />
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#00934E" />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (totalAnswers < 4 && !auth.user?.profilePublished) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Header />
         <View style={styles.centerState}>
           <Feather name="lock" size={32} color="#BE9B51" />
@@ -228,25 +229,25 @@ export default function SpotlightScreen() {
             Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Intersections
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (insufficientMembers) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Header />
         <View style={styles.centerState}>
           <Feather name="users" size={32} color="#BE9B51" />
           <Text style={styles.stateText}>Intersections unlocks when 5 members complete their profiles.</Text>
           <Text style={styles.stateSubtext}>{eligibleCount} of 5 members ready.</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Header />
 
       <ScrollView
@@ -349,7 +350,7 @@ export default function SpotlightScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -359,20 +360,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7E6',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: 'bold',
+    fontFamily: 'Futura',
     color: '#00934E',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  description: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 16,
+    fontFamily: 'Futura',
     color: '#545454',
-    lineHeight: 21,
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
