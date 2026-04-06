@@ -91,7 +91,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <Feather name="chevron-left" size={24} color="#374151" />
+              <Feather name="chevron-left" size={24} color="#545454" />
             </TouchableOpacity>
             <Text style={styles.title}>Join Community</Text>
             <Text style={styles.subtitle}>Create your account with an invitation code</Text>
@@ -105,6 +105,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 value={formData.invitationCode}
                 onChangeText={(code) => setFormData(prev => ({ ...prev, invitationCode: code }))}
                 placeholder="Enter your invitation code"
+                placeholderTextColor="#BE9B51"
                 autoCapitalize="characters"
               />
             </View>
@@ -117,6 +118,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                   value={formData.firstName}
                   onChangeText={(firstName) => setFormData(prev => ({ ...prev, firstName }))}
                   placeholder="First name"
+                  placeholderTextColor="#BE9B51"
                   autoCapitalize="words"
                 />
               </View>
@@ -127,6 +129,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                   value={formData.lastName}
                   onChangeText={(lastName) => setFormData(prev => ({ ...prev, lastName }))}
                   placeholder="Last name"
+                  placeholderTextColor="#BE9B51"
                   autoCapitalize="words"
                 />
               </View>
@@ -139,6 +142,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 value={formData.email}
                 onChangeText={(email) => setFormData(prev => ({ ...prev, email }))}
                 placeholder="Enter your email"
+                placeholderTextColor="#BE9B51"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -146,21 +150,20 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Password *
-              </Text>
+              <Text style={styles.label}>Password *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.password}
                 onChangeText={handlePasswordChange}
                 placeholder="Create a password"
+                placeholderTextColor="#BE9B51"
                 secureTextEntry
                 autoCapitalize="none"
                 textContentType="none"
               />
               <View style={styles.requirementContainer}>
                 {passwordValid === true && (
-                  <Feather name="check-circle" size={14} color="#10b981" style={styles.checkFeather} />
+                  <Feather name="check-circle" size={14} color="#00934E" style={styles.checkFeather} />
                 )}
                 <Text style={[
                   styles.requirementText,
@@ -178,6 +181,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 value={formData.confirmPassword}
                 onChangeText={(confirmPassword) => setFormData(prev => ({ ...prev, confirmPassword }))}
                 placeholder="Confirm your password"
+                placeholderTextColor="#BE9B51"
                 secureTextEntry
                 autoCapitalize="none"
                 textContentType="none"
@@ -185,10 +189,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.button,
-                isLoading && styles.buttonDisabled
-              ]}
+              style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={isLoading}
             >
@@ -213,7 +214,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   keyboardView: {
     flex: 1,
@@ -221,42 +222,38 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
     position: 'relative',
+    paddingTop: 16,
   },
   backButton: {
     position: 'absolute',
     left: 0,
-    top: 0,
+    top: 16,
     padding: 8,
+    zIndex: 2,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   form: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   inputGroup: {
     marginBottom: 20,
@@ -269,61 +266,40 @@ const styles = StyleSheet.create({
     width: '48%',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#E7E0D3',
     borderRadius: 20,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
-  },
-  inputValid: {
-    borderColor: '#10b981',
-  },
-  inputInvalid: {
-    borderColor: '#ef4444',
-  },
-  labelValid: {
-    color: '#10b981',
-    fontWeight: 'bold',
+    backgroundColor: '#FFF7E6',
+    color: '#545454',
   },
   requirementContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   checkFeather: {
     marginRight: 6,
   },
   requirementText: {
     fontSize: 12,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
   },
   requirementTextValid: {
-    color: '#10b981',
+    color: '#00934E',
     fontWeight: 'bold',
   },
-  validationMessage: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#ecfdf5',
-    borderRadius: 6,
-  },
-  validText: {
-    fontSize: 14,
-    color: '#059669',
-  },
-  invalidText: {
-    fontSize: 14,
-    color: '#dc2626',
-  },
   button: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#00934E',
     borderRadius: 20,
     padding: 16,
     alignItems: 'center',
@@ -333,9 +309,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'Futura',
   },
   footer: {
     flexDirection: 'row',
@@ -344,11 +321,13 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
   link: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
+    fontFamily: 'Futura',
+    color: '#00934E',
+    fontWeight: '600',
   },
 });

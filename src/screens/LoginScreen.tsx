@@ -65,7 +65,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <Feather name="chevron-left" size={24} color="#111827" />
+              <Feather name="chevron-left" size={24} color="#545454" />
             </TouchableOpacity>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to your community</Text>
@@ -137,7 +137,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
   },
   keyboardView: {
     flex: 1,
@@ -145,97 +145,95 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
     position: 'relative',
+    paddingTop: 16,
   },
   backButton: {
     position: 'absolute',
-    left: 20,
-    top: 20,
+    left: 0,
+    top: 16,
     padding: 8,
     zIndex: 2,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
   },
   form: {
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Futura',
+    color: '#545454',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#E7E0D3',
     borderRadius: 20,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFF7E6',
+    color: '#545454',
   },
   labelValid: {
-    color: '#10b981',
+    color: '#00934E',
     fontWeight: 'bold',
   },
   requirementContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   checkFeather: {
     marginRight: 6,
   },
   requirementText: {
     fontSize: 12,
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
   },
   requirementTextValid: {
-    color: '#10b981',
+    color: '#00934E',
     fontWeight: 'bold',
   },
   validationMessage: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#ecfdf5',
-    borderRadius: 6,
+    backgroundColor: '#E7E0D3',
+    borderRadius: 10,
   },
   validText: {
     fontSize: 14,
-    color: '#059669',
+    color: '#00934E',
   },
   invalidText: {
     fontSize: 14,
-    color: '#dc2626',
+    color: '#FE6627',
   },
   button: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#00934E',
     borderRadius: 20,
     padding: 16,
     alignItems: 'center',
@@ -245,9 +243,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'Futura',
   },
   footer: {
     flexDirection: 'row',
@@ -256,11 +255,13 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
   link: {
     fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '500',
+    fontFamily: 'Futura',
+    color: '#00934E',
+    fontWeight: '600',
   },
 });

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  Image,
 } from 'react-native';
 
 interface SplashScreenProps {
@@ -15,11 +16,15 @@ export default function SplashScreen({ navigation }: SplashScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.circle} />
+        <Image
+          source={require('../../assets/cozy_app_tile.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
         <Text style={styles.title}>Cozy Circle</Text>
         <Text style={styles.subtitle}>
-          Where your story helps{'\n'}people discover the{'\n'}real you.
+          Sparking in-person connection{'\n'}and community engagement
         </Text>
       </View>
 
@@ -44,7 +49,7 @@ export default function SplashScreen({ navigation }: SplashScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFF7E6',
   },
   content: {
     flex: 1,
@@ -52,23 +57,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  circle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#D4E7F5',
+  logo: {
+    width: 160,
+    height: 160,
     marginBottom: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     marginBottom: 16,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -78,20 +83,22 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loginButton: {
-    backgroundColor: '#D4E7F5',
+    backgroundColor: '#00934E',
     paddingVertical: 16,
     borderRadius: 20,
     alignItems: 'center',
   },
   loginButtonText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#FFFFFF',
   },
   createAccountText: {
     fontSize: 16,
-    color: '#111827',
+    fontFamily: 'Futura',
+    color: '#00934E',
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
