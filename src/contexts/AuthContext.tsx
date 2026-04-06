@@ -8,6 +8,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   role: 'MEMBER' | 'MANAGER' | 'ADMIN';
+  profilePublished?: boolean;
   profilePictureUrl?: string;
   community?: {
     id: string;

@@ -98,6 +98,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        profilePublished: user.profilePublished,
         profilePictureUrl: user.profilePictureUrl,
         community: user.community ? {
           id: user.community.id,
@@ -238,6 +239,7 @@ router.post('/register', validateRegistrationInput, async (req: Request, res: Re
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        profilePublished: user.profilePublished,
         profilePictureUrl: user.profilePictureUrl,
         community: user.community ? {
           id: user.community.id,

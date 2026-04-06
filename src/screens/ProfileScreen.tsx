@@ -16,7 +16,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { generateProfile, extractProfileTags, updateProfileSettings, QuestionAnswer, getProfilePictureUrl } from '../services/api';
-import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import ProfileNudge from '../components/ProfileNudge';
@@ -209,16 +208,7 @@ export default function ProfileScreen() {
       AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_question_flow');
-          setTimeout(() => {
-            navigation.getParent('RootStack')?.navigate('QuestionFlowStack', {
-              screen: 'AnswerQuestion',
-              params: {
-                sectionId: 'all',
-                questions: ALL_QUESTIONS_ORDERED,
-                isFirstTimeOnboarding: true,
-              },
-            });
-          }, 0);
+          navigation.navigate('Questions');
         }
       });
 

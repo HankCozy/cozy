@@ -37,25 +37,66 @@ The app operates in closed, invitation-only communities. Users belong to specifi
 | Name | Hex | Usage |
 |---|---|---|
 | Pink | `#FFA0A6` | Tags, accents, nudge banners |
-| Orange | `#FE6627` | Tags, accents |
+| Orange | `#FE6627` | Tags, accents, invalid/error states |
 | Green | `#00934E` | Primary brand color — profile names, labels, quote cards, buttons |
 | Blue | `#0277BB` | Buttons, icebreaker cards, Circles screen bubbles |
 | Yellow | `#FAC63D` | Tags, accents |
-| Warm White | `#FFF7E6` | Screen backgrounds |
-| Black | `#545454` | Primary body text |
+| Warm White | `#FFF7E6` | Screen backgrounds, input backgrounds |
+| Black | `#545454` | Primary body text, icons |
 | White | `#FFFFFF` | Card backgrounds |
 | Inactive Gray | `#BE9B51` | Disabled states, inactive toggles, placeholder text |
-| Darker Warm White | `#E7E0D3` | Secondary backgrounds, tag fills |
+| Darker Warm White | `#E7E0D3` | Secondary backgrounds, tag fills, input borders |
 
 ### Tag Color Priority
 For interest/affinity tags, use in this order: Green → Pink → Yellow → Orange → Darker Warm White. Blue is reserved for buttons and Circles screen elements.
 
-## Icon Library
+### Typography
+
+**Primary font: Futura** — used for all headings, labels, buttons, and body text.
+
+| Role | Size | Weight | Color |
+|---|---|---|---|
+| Screen title | 28px | bold (700) | `#00934E` |
+| Section label / input label | 15px | 600 | `#545454` |
+| Body / subtitle | 16px | 400 | `#545454` |
+| Button text | 16–17px | 700 | `#FFFFFF` |
+| Footer / link text | 14px | 600 | `#00934E` |
+| Requirement / hint text | 12px | 400 | `#BE9B51` |
+
+- Always set `fontFamily: 'Futura'` explicitly — do not rely on system default
+- Valid states use `#00934E`; invalid/error states use `#FE6627`
+
+### Component Patterns
+
+**Inputs**
+- Border: 1px `#E7E0D3`, border radius: 20
+- Background: `#FFF7E6`, text color: `#545454`
+- Placeholder text color: `#BE9B51`
+- Padding: 14px
+
+**Buttons (primary)**
+- Background: `#00934E`, border radius: 20, padding: 16px vertical
+- Text: `#FFFFFF`, 16–17px, weight 700, Futura
+- Disabled: `opacity: 0.6`
+
+**Cards**
+- Background: `#FFFFFF`, border radius: 20, padding: 24px
+- No drop shadow — flat style, no `shadowColor`/`elevation`
+
+**Screen containers**
+- Background: `#FFF7E6`
+- Horizontal padding: 24px
+
+**Validation / feedback messages**
+- Background: `#E7E0D3`, border radius: 10
+- Valid text: `#00934E` / Invalid text: `#FE6627`
+
+### Icon Library
 
 **All icons use Feather Icons** from `@expo/vector-icons` for consistency:
 - Import: `import { Feather } from '@expo/vector-icons';`
 - Usage: `<Feather name="icon-name" size={24} color="#00934E" />`
-- **Do NOT mix icon libraries** - always use Feather for all icons in the app
+- **Do NOT mix icon libraries** — always use Feather for all icons in the app
 
 **Common Icons Used:**
 - `user` - Profile/person icon
@@ -184,12 +225,47 @@ npx expo start --web   # Web browser testing
 - `src/services/` - API calls (api.ts)
 - `src/utils/` - Helpers (imageCompression, resetOnboarding, profileStrength)
 
+### Screen Inventory
+
+**Auth / Onboarding**
+- `SplashScreen` — Landing screen with logo, tagline, Login / Create Account CTAs
+- `LoginScreen` — Email + password login
+- `RegisterScreen` — Invitation code + account creation
+- `NameScreen` — Capture first/last name post-registration
+- `OnboardingScreen` — Intro flow shown after first login
+- `QuestionFlowScreen` — Full-screen onboarding question flow (no tab bar)
+- `AnswerQuestionScreen` — Individual voice/text answer recording
+- `SectionQuestionsScreen` — Section-level question list
+
+**Main App (tab bar)**
+- `ProfileScreen` — Current user's profile — answers, AI bio, tags, publish controls
+- `CommunityScreen` — "Your Circles" — bubble chart of interest groups + members
+- `SpotlightScreen` — Kindred / matching — Tinder-style cross-interest match cards
+- `SearchScreen` — Search members within a community
+
+**Detail / Secondary**
+- `MemberProfileScreen` — View another user's full profile
+- `CircleDetailScreen` — Drill into a specific circle and its members
+- `AccountScreen` — Account settings, logout
+
+**Manager / Admin**
+- `ManagerDashboardScreen` — Community manager tools
+- `AdminDashboardScreen` — Super-admin overview
+- `AdminCreateCommunityScreen` — Create a new community
+- `AdminEditCommunityScreen` — Edit existing community settings
+
+**Misc**
+- `PrivacyPolicyScreen` — Privacy policy viewer
+
 ### Key Files
 - `App.tsx` - Main app entry point
 - `app.json` - Expo configuration
 - `package.json` - Dependencies and scripts
 - `src/contexts/AuthContext.tsx` - Authentication state management
 - `src/navigation/AppNavigator.tsx` - Navigation flow
+
+### Known Bugs / Tech Debt
+- **AsyncStorage user isolation** (`src/contexts/AuthContext.tsx`): `logout()` clears SecureStore but does NOT clear AsyncStorage. Answer keys (`answer_*`, `profile_*`) persist across user sessions on the same device. Fix: filter and `multiRemove` those keys in both `logout()` and `login()`. Low urgency — only affects shared devices.
 
 ## Development Patterns
 

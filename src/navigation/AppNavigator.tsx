@@ -331,16 +331,15 @@ function AppNavigator() {
   );
 }
 
-export default function RootNavigator() {
+export default function RootNavigator({ navigationRef }: { navigationRef?: any }) {
   const { auth } = useAuth();
 
   if (auth.isLoading) {
-    // You can add a loading screen component here
     return null;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {auth.isAuthenticated ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );

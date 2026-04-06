@@ -99,7 +99,7 @@ export default function CommunityScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    determineProfileStatus();
+    loadAnswerCount();
     fetchCircles();
     setRefreshing(false);
   };
@@ -139,7 +139,7 @@ export default function CommunityScreen() {
         <View style={styles.circlesSection}>
           <Text style={styles.sectionTitle}>Your circles:</Text>
 
-          {totalAnswers < 4 ? (
+          {totalAnswers < 4 && !user?.profilePublished ? (
             <View style={styles.lockedContainer}>
               <View style={styles.circlesGridDimmed}>
                 {[1, 2, 3, 4].map((i) => (

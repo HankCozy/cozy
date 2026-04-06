@@ -160,7 +160,7 @@ export default function SpotlightScreen() {
         const count = keys.filter((k) => k.startsWith('answer_')).length;
         setTotalAnswers(count);
 
-        if (count >= 4) {
+        if (count >= 4 || auth.user?.profilePublished) {
           await fetchMatch();
         }
         setLoading(false);
@@ -218,7 +218,7 @@ export default function SpotlightScreen() {
     );
   }
 
-  if (totalAnswers < 4) {
+  if (totalAnswers < 4 && !auth.user?.profilePublished) {
     return (
       <View style={styles.container}>
         <Header />
