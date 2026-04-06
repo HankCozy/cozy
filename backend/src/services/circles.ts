@@ -394,7 +394,7 @@ Use the exact integer memberId values from the Community Members list above.
       lastName: chosen.member.lastName || '',
       profileSummary: chosen.member.profileSummary || null,
       matchScore: chosen.matchScore || 0.7,
-      sharedTraits: chosen.sharedTraits || [],
+      sharedTraits: chosen.sharedInterests || [],
       icebreakerQuestions: chosen.icebreakerQuestions || [],
     };
   } catch (error) {

@@ -275,6 +275,10 @@ router.get('/icebreaker', authenticateToken, async (req: AuthRequest, res: Respo
       });
     }
 
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const userProfile: MemberProfile = {
       id: currentUser.id,
       firstName: currentUser.firstName,
