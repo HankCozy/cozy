@@ -209,14 +209,16 @@ export default function ProfileScreen() {
       AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_question_flow');
-          navigation.getParent()?.navigate('QuestionFlowStack', {
-            screen: 'AnswerQuestion',
-            params: {
-              sectionId: 'all',
-              questions: ALL_QUESTIONS_ORDERED,
-              isFirstTimeOnboarding: true,
-            },
-          });
+          setTimeout(() => {
+            navigation.getParent('RootStack')?.navigate('QuestionFlowStack', {
+              screen: 'AnswerQuestion',
+              params: {
+                sectionId: 'all',
+                questions: ALL_QUESTIONS_ORDERED,
+                isFirstTimeOnboarding: true,
+              },
+            });
+          }, 0);
         }
       });
 
