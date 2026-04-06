@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
 
 export const CIRCLE_COLORS = [
@@ -147,32 +147,57 @@ function computeOverlapLayout(bubbles: BubbleData[], canvasW: number): Array<{x:
   }));
 }
 
-function BubbleLabel({ name }: { name: string }) {
-  const [abbreviated, setAbbreviated] = useState(false);
+// Estimate rendered width of an uppercase Futura label at a given font size
+function estimateLabelWidth(name: string, fontSize: number): number {
+  return name.length * fontSize * 0.62 + 8;
+}
 
-  if (abbreviated) {
-    return (
-      <Text
-        style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Futura', color: '#FFFFFF', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}
-        allowFontScaling={false}
-      >
-        {name.slice(0, 4) + '...'}
-      </Text>
-    );
+interface LabelLayout {
+  x: number;
+  y: number;
+  fontSize: number;
+  textColor: string;
+  isInside: boolean;
+}
+
+function computeLabelLayout(bubbles: BubbleData[]): LabelLayout[] {
+  const labels: (LabelLayout & { width: number; height: number })[] = bubbles.map((b) => {
+    const name = (b.circle.shortName ?? b.circle.name).toUpperCase();
+    const fontSize = Math.max(9, Math.min(14, b.r * 0.24));
+    const labelW = estimateLabelWidth(name, fontSize);
+    const isInside = labelW < b.r * 1.75;
+    return {
+      x: b.x,
+      y: isInside ? b.y : b.y + b.r + fontSize + 2,
+      fontSize,
+      textColor: isInside ? '#FFFFFF' : b.color,
+      isInside,
+      width: labelW,
+      height: fontSize * 1.4,
+    };
+  });
+
+  // Iterative vertical collision resolution — labels never overlap
+  for (let iter = 0; iter < 50; iter++) {
+    let changed = false;
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        const a = labels[i];
+        const b = labels[j];
+        const overlapX = Math.abs(a.x - b.x) < (a.width + b.width) / 2 + 4;
+        const overlapY = Math.abs(a.y - b.y) < (a.height + b.height) / 2 + 3;
+        if (overlapX && overlapY) {
+          const push = ((a.height + b.height) / 2 + 3 - Math.abs(a.y - b.y)) / 2 + 1;
+          if (a.y <= b.y) { labels[i].y -= push; labels[j].y += push; }
+          else             { labels[i].y += push; labels[j].y -= push; }
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
   }
 
-  return (
-    <Text
-      style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Futura', color: '#FFFFFF', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}
-      numberOfLines={2}
-      allowFontScaling={false}
-      onTextLayout={(e) => {
-        if (e.nativeEvent.lines.length > 1) setAbbreviated(true);
-      }}
-    >
-      {name}
-    </Text>
-  );
+  return labels;
 }
 
 export default function CircleBubbleChart({ circles, onPress, showOverlap = false }: Props) {
@@ -233,6 +258,8 @@ export default function CircleBubbleChart({ circles, onPress, showOverlap = fals
 
   if (separatedBubbles.length === 0) return null;
 
+  const labelLayouts = computeLabelLayout(separatedBubbles);
+
   return (
     <View style={{ height: CANVAS_HEIGHT, position: 'relative' }}>
       {separatedBubbles.map((bubble, i) => {
@@ -265,16 +292,38 @@ export default function CircleBubbleChart({ circles, onPress, showOverlap = fals
                   flex: 1,
                   borderRadius: r,
                   backgroundColor: color + 'B3', // 70% opacity — blends nicely when overlapping
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  paddingHorizontal: 12,
                 }}
-              >
-                {!showOverlap && <BubbleLabel name={circle.shortName ?? circle.name} />}
-              </View>
+              />
             </TouchableOpacity>
           </Animated.View>
           </Animated.View>
+        );
+      })}
+
+      {/* Label layer — rendered above circles, never overlaps */}
+      {!showOverlap && labelLayouts.map((label, i) => {
+        if (i >= separatedBubbles.length) return null;
+        const bubble = separatedBubbles[i];
+        const name = (bubble.circle.shortName ?? bubble.circle.name).toUpperCase();
+        const labelW = estimateLabelWidth(name, label.fontSize);
+        return (
+          <Text
+            key={`label-${bubble.circle.id}`}
+            style={{
+              position: 'absolute',
+              left: label.x - labelW / 2,
+              top: label.y - label.fontSize * 0.7,
+              width: labelW,
+              fontSize: label.fontSize,
+              color: label.textColor,
+              fontFamily: 'Futura',
+              fontWeight: '700',
+              textAlign: 'center',
+            }}
+            numberOfLines={1}
+          >
+            {name}
+          </Text>
         );
       })}
     </View>
