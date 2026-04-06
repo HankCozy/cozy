@@ -313,6 +313,7 @@ function TabsNavigator() {
 function AppNavigator() {
   return (
     <RootStack.Navigator
+      id="RootStack"
       screenOptions={{
         headerShown: false,
       }}
