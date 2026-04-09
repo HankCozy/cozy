@@ -136,7 +136,7 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
     <SafeAreaView style={styles.container}>
       {/* Shared animation canvas — scrubs as user swipes */}
       <LottieView
-        source={require('../../assets/animations/onboarding.json')}
+        source={require('../../assets/animations/onboarding_animation.json')}
         progress={lottieProgress}
         style={styles.lottie}
         loop={false}
