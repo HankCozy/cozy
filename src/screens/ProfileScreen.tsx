@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     fontFamily: 'Futura',
-    color: '#00934E',
+    color: '#545454',
     marginBottom: 30,
   },
   tagsRow: {

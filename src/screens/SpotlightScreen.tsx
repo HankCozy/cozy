@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#00934E',
+    color: '#545454',
     marginBottom: 10,
   },
   tagsRow: {
