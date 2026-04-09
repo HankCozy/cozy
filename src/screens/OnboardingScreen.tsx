@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import {
   Animated,
   SafeAreaView,
 } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { useAuth, User } from '../contexts/AuthContext';
 import { navigationRef } from '../services/navigationService';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
-import Waveform from '../components/Waveform';
 
 const { width } = Dimensions.get('window');
 
@@ -21,8 +21,6 @@ interface OnboardingSlide {
   id: string;
   title: string;
   description: string;
-  placeholderColor: string;
-  placeholderType: 'single' | 'multiple' | 'waveform';
   showButton?: boolean;
   buttonText?: string;
 }
@@ -32,36 +30,26 @@ const createSlides = (communityName: string): OnboardingSlide[] => [
     id: '1',
     title: 'Welcome to Cozy Circle',
     description: 'An app that fosters\nreal world connection.',
-    placeholderColor: '#93c5fd', // Light blue
-    placeholderType: 'single',
   },
   {
     id: '3',
     title: 'Cozy Circle helps you find connection points.',
     description: '',
-    placeholderColor: '#a78bfa', // Purple
-    placeholderType: 'multiple',
   },
   {
     id: '5',
     title: 'And foster real, in-person engagement.',
     description: '',
-    placeholderColor: '#fbbf24', // Yellow
-    placeholderType: 'multiple',
   },
   {
     id: '5b',
     title: `Cozy Circle brings you closer to the people of ${communityName}`,
     description: `This is a private community. Only members of ${communityName} can access your Cozy Circle profile.`,
-    placeholderColor: '#fbbf24', // Yellow
-    placeholderType: 'multiple',
   },
   {
     id: '6',
     title: "You tell us about yourself and we'll turn your words into points of connection.",
     description: '',
-    placeholderColor: '#a78bfa', // Purple
-    placeholderType: 'waveform',
     showButton: true,
     buttonText: 'Get started',
   },
@@ -81,78 +69,19 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const { completeOnboarding } = useAuth();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim2 = useRef(new Animated.Value(0)).current;
-  const fadeAnim3 = useRef(new Animated.Value(0)).current;
-  const descAnim = useRef(new Animated.Value(0)).current;
 
-  // Fade animation for slide 2 (index 1): frame1 → frame2
-  useEffect(() => {
-    if (currentIndex === 1) {
-      fadeAnim.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      }, 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, fadeAnim]);
+  // Drives Lottie scrubbing — maps scroll offset to 0–1
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-  // Fade animation for slide 3 (index 2): frame2 → frame3
-  useEffect(() => {
-    if (currentIndex === 2) {
-      fadeAnim2.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim2, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }).start();
-      }, 800);
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, fadeAnim2]);
-
-  // Pan/zoom animation for slide 4 (index 3): frame3 → frame4
-  useEffect(() => {
-    if (currentIndex === 3) {
-      fadeAnim3.setValue(0);
-      descAnim.setValue(0);
-      const timeout = setTimeout(() => {
-        Animated.timing(fadeAnim3, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
-      }, 800);
-      // Description pulse in after 1.5s
-      const descTimeout = setTimeout(() => {
-        Animated.spring(descAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8,
-        }).start();
-      }, 1500);
-      return () => {
-        clearTimeout(timeout);
-        clearTimeout(descTimeout);
-      };
-    }
-  }, [currentIndex, fadeAnim3, descAnim]);
-
-  // Get community name from route params
   const communityName = route.params?.user?.community?.organization || 'Your Community';
   const slides = createSlides(communityName);
+
+  // progress 0→1 across all slides
+  const lottieProgress = Animated.divide(scrollX, width * (slides.length - 1));
 
   const handleGetStarted = async () => {
     if (route.params?.user && route.params?.token) {
       await completeOnboarding(route.params.user, route.params.token);
-      // Nav tree switches from AuthNavigator → AppNavigator here.
-      // Use the root ref to navigate since the old navigator is gone.
       setTimeout(() => {
         navigationRef.navigate('QuestionFlowStack', {
           screen: 'AnswerQuestion',
@@ -174,194 +103,48 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
     }
   }).current;
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-  }).current;
-
-  const renderPlaceholder = (item: OnboardingSlide) => {
-    // Slide 3 (id '3') - fade animation: frame1 → frame2
-    if (item.id === '3') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame1.png')}
-              style={[
-                styles.fadeImage,
-                { opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require('../../assets/frame2.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                { opacity: fadeAnim },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
-
-    // Slide 3 (id '5') - fade animation: frame2 → frame3
-    if (item.id === '5') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame2.png')}
-              style={[
-                styles.fadeImage,
-                { opacity: fadeAnim2.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require('../../assets/frame3.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                { opacity: fadeAnim2 },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
-
-    // Slide 4 (id '5b') - pan/zoom animation: frame3 → frame4
-    if (item.id === '5b') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.fadeImageContainer}>
-            <Animated.Image
-              source={require('../../assets/frame3.png')}
-              style={[
-                styles.fadeImage,
-                {
-                  opacity: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                  transform: [
-                    { translateY: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [66, 126] }) },
-                    { translateX: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [0, -100] }) },
-                    { scale: fadeAnim3.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }) },
-                  ],
-                },
-              ]}
-              resizeMode="contain"
-            />
-            <Animated.Image
-              source={require('../../assets/frame4.png')}
-              style={[
-                styles.fadeImage,
-                styles.fadeImageAbsolute,
-                {
-                  opacity: fadeAnim3,
-                  transform: [
-                    { scale: 1.7 },
-                    { translateY: 56 },
-                  ],
-                },
-              ]}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-      );
-    }
-
-    if (item.placeholderType === 'single') {
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={[styles.singleCircle, { backgroundColor: item.placeholderColor }]} />
-        </View>
-      );
-    } else if (item.placeholderType === 'multiple') {
-      const secondColor = item.id === '5' ? '#fbbf24' : item.placeholderColor;
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={styles.multipleCirclesRow}>
-            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
-            <View style={[styles.smallCircle, { backgroundColor: secondColor }]} />
-            <View style={[styles.smallCircle, { backgroundColor: item.placeholderColor }]} />
-          </View>
-        </View>
-      );
-    } else {
-      // Waveform placeholder - uses shared Waveform component
-      return (
-        <View style={styles.placeholderContainer}>
-          <View style={{ marginTop: 320 }}>
-            <Waveform isRecording alwaysShow scale={1.25} />
-          </View>
-        </View>
-      );
-    }
-  };
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const renderSlide = ({ item }: { item: OnboardingSlide }) => (
     <View style={styles.slide}>
-      <View style={styles.content}>
-        {renderPlaceholder(item)}
-        {item.id === '5b' ? (
-          <Text style={[styles.title, { marginTop: 80 }]}>
-            Cozy Circle brings you closer to the people of{' '}
-            <Text style={styles.underline}>{communityName}</Text>
-          </Text>
-        ) : (
-          <Text style={[styles.title, item.id === '6' && { marginTop: 80 }]}>{item.title}</Text>
-        )}
-        {item.id === '5b' ? (
-          <Animated.Text
-            style={[
-              styles.description,
-              {
-                opacity: descAnim,
-                transform: [
-                  { scale: descAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) },
-                ],
-              },
-            ]}
-          >
-            This is a private community. Only members of{' '}
-            <Animated.Text style={styles.underline}>{communityName}</Animated.Text>
-            {' '}can access your Cozy Circle profile.
-          </Animated.Text>
-        ) : item.description !== '' ? (
-          <Text style={styles.description}>{item.description}</Text>
-        ) : null}
-        {item.showButton && item.buttonText && (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleGetStarted}
-          >
-            <Text style={styles.primaryButtonText}>{item.buttonText}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderDots = () => (
-    <View style={styles.dotsContainer}>
-      {slides.map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.dot,
-            currentIndex === index && styles.activeDot,
-          ]}
-        />
-      ))}
+      {item.id === '5b' ? (
+        <Text style={styles.title}>
+          Cozy Circle brings you closer to the people of{' '}
+          <Text style={styles.underline}>{communityName}</Text>
+        </Text>
+      ) : (
+        <Text style={styles.title}>{item.title}</Text>
+      )}
+      {item.id === '5b' ? (
+        <Text style={styles.description}>
+          This is a private community. Only members of{' '}
+          <Text style={styles.underline}>{communityName}</Text>
+          {' '}can access your Cozy Circle profile.
+        </Text>
+      ) : item.description !== '' ? (
+        <Text style={styles.description}>{item.description}</Text>
+      ) : null}
+      {item.showButton && item.buttonText && (
+        <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
+          <Text style={styles.primaryButtonText}>{item.buttonText}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <FlatList
+      {/* Shared animation canvas — scrubs as user swipes */}
+      <LottieView
+        source={require('../../assets/animations/onboarding.json')}
+        progress={lottieProgress}
+        style={styles.lottie}
+        loop={false}
+        autoPlay={false}
+      />
+
+      {/* Text content scrolls per-slide */}
+      <Animated.FlatList
         ref={flatListRef}
         data={slides}
         renderItem={renderSlide}
@@ -371,9 +154,22 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       />
 
-      {renderDots()}
+      {/* Pagination dots */}
+      <View style={styles.dotsContainer}>
+        {slides.map((_, index) => (
+          <View
+            key={index}
+            style={[styles.dot, currentIndex === index && styles.activeDot]}
+          />
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
@@ -383,51 +179,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  lottie: {
+    width,
+    height: 300,
+  },
   slide: {
     width,
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  content: {
+    paddingTop: 24,
     alignItems: 'center',
-    maxWidth: 360,
-  },
-  placeholderContainer: {
-    height: 200,
-    marginBottom: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fadeImageContainer: {
-    width: 200,
-    height: 200,
-    position: 'relative',
-  },
-  fadeImage: {
-    width: '100%',
-    height: '100%',
-  },
-  fadeImageAbsolute: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-  singleCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-  },
-  multipleCirclesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  smallCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
   },
   title: {
     fontSize: 22,
