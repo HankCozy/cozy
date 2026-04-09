@@ -7,8 +7,9 @@ import {
   Dimensions,
   TouchableOpacity,
   ViewToken,
-  Animated,
   SafeAreaView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useAuth, User } from '../contexts/AuthContext';
@@ -70,23 +71,18 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
   const flatListRef = useRef<FlatList>(null);
   const { completeOnboarding } = useAuth();
 
-  // Drives Lottie scrubbing — maps scroll offset to 0–1
-  const scrollX = useRef(new Animated.Value(0)).current;
-  // Plain Animated.Value for Lottie — Animated.divide returns a frozen object
-  // that lottie-react-native v7 cannot mutate on RN 0.81+
-  const lottieProgress = useRef(new Animated.Value(0)).current;
+  // Plain number 0–1 drives Lottie progress — avoids Animated.Value freeze
+  // issues in RN 0.81 new architecture (Fabric/JSI)
+  const [lottieProgress, setLottieProgress] = useState(0);
 
   const communityName = route.params?.user?.community?.organization || 'Your Community';
   const slides = createSlides(communityName);
 
-  // Keep lottieProgress in sync with scroll position
-  React.useEffect(() => {
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
     const totalWidth = width * (slides.length - 1);
-    const id = scrollX.addListener(({ value }) => {
-      lottieProgress.setValue(Math.max(0, Math.min(1, value / totalWidth)));
-    });
-    return () => scrollX.removeListener(id);
-  }, []);
+    setLottieProgress(Math.max(0, Math.min(1, x / totalWidth)));
+  };
 
   const handleGetStarted = async () => {
     if (route.params?.user && route.params?.token) {
@@ -146,14 +142,14 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
       {/* Shared animation canvas — scrubs as user swipes */}
       <LottieView
         source={require('../../assets/animations/onboarding_animation.json')}
-        progress={lottieProgress}
+        progress={lottieProgress as any}
         style={styles.lottie}
         loop={false}
         autoPlay={false}
       />
 
       {/* Text content scrolls per-slide */}
-      <Animated.FlatList
+      <FlatList
         ref={flatListRef}
         data={slides}
         renderItem={renderSlide}
@@ -163,10 +159,7 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
       />
 
