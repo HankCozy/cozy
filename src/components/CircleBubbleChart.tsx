@@ -237,7 +237,7 @@ export default function CircleBubbleChart({ circles, onPress, showOverlap = fals
                 style={{
                   flex: 1,
                   borderRadius: r,
-                  backgroundColor: color + 'B3',
+                  backgroundColor: showOverlap ? color + 'B3' : color,
                   justifyContent: 'center',
                   alignItems: 'center',
                   paddingHorizontal: 8,
