@@ -72,12 +72,21 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
 
   // Drives Lottie scrubbing — maps scroll offset to 0–1
   const scrollX = useRef(new Animated.Value(0)).current;
+  // Plain Animated.Value for Lottie — Animated.divide returns a frozen object
+  // that lottie-react-native v7 cannot mutate on RN 0.81+
+  const lottieProgress = useRef(new Animated.Value(0)).current;
 
   const communityName = route.params?.user?.community?.organization || 'Your Community';
   const slides = createSlides(communityName);
 
-  // progress 0→1 across all slides
-  const lottieProgress = Animated.divide(scrollX, width * (slides.length - 1));
+  // Keep lottieProgress in sync with scroll position
+  React.useEffect(() => {
+    const totalWidth = width * (slides.length - 1);
+    const id = scrollX.addListener(({ value }) => {
+      lottieProgress.setValue(Math.max(0, Math.min(1, value / totalWidth)));
+    });
+    return () => scrollX.removeListener(id);
+  }, []);
 
   const handleGetStarted = async () => {
     if (route.params?.user && route.params?.token) {
