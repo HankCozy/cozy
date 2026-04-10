@@ -461,7 +461,7 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.menuButton} onPress={() => setShowSettingsMenu(true)}>
-            <Feather name="menu" size={24} color="#BE9B51" />
+            <Feather name="settings" size={24} color="#BE9B51" />
           </TouchableOpacity>
         </View>
       </View>
