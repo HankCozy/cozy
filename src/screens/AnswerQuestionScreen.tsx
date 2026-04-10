@@ -14,7 +14,6 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   useAudioRecorder,
-  useAudioPlayer,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
@@ -67,8 +66,6 @@ export default function AnswerQuestionScreen() {
     ? RecordingPresets.LOW_QUALITY
     : RecordingPresets.HIGH_QUALITY;
   const recorder = useAudioRecorder(recordingPreset);
-  const player = useAudioPlayer(recordingUri || '');
-
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
@@ -92,7 +89,6 @@ export default function AnswerQuestionScreen() {
         if (granted && Platform.OS === 'android') {
           try {
             const inputs = await recorder.getAvailableInputs();
-            console.log('[AnswerScreen] Available audio inputs:', inputs);
 
             const micInput = inputs.find(input =>
               input.name.toLowerCase().includes('mic') ||
@@ -101,7 +97,6 @@ export default function AnswerQuestionScreen() {
 
             if (micInput) {
               await recorder.setInput(micInput);
-              console.log('[AnswerScreen] Selected microphone input:', micInput.name);
             } else {
               console.warn('[AnswerScreen] No microphone input found, using default');
             }
@@ -168,16 +163,6 @@ export default function AnswerQuestionScreen() {
       setInputMode('idle');
       Alert.alert('Error', 'Failed to stop recording. Please try again.');
     }
-  };
-
-  const playRecording = () => {
-    if (recordingUri) {
-      player.play();
-    }
-  };
-
-  const stopPlayback = () => {
-    player.pause();
   };
 
   const handleTypeInstead = () => {
@@ -252,21 +237,6 @@ export default function AnswerQuestionScreen() {
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();
         }
-      } else if (isFirstTimeOnboarding && currentQuestionIndex === 0) {
-        // After Q1 of onboarding, transition into the tab navigator so Q2+
-        // shows the bottom nav bar. Keep isFirstTimeOnboarding: true so the
-        // final question still navigates to Profile and marks onboarding done.
-        navigation.getParent()?.navigate('MainTabs', {
-          screen: 'Questions',
-          params: {
-            screen: 'AnswerQuestion',
-            params: {
-              sectionId: 'all',
-              questions: questions.slice(1),
-              isFirstTimeOnboarding: true,
-            },
-          },
-        });
       } else {
         // Reset for next question
         setCurrentQuestionIndex((prev) => prev + 1);
@@ -292,11 +262,8 @@ export default function AnswerQuestionScreen() {
     }
 
     try {
-      console.log('[AnswerScreen] Starting save process...');
-
       // Validate file before transcription
       const fileInfo = await FileSystem.getInfoAsync(audioUri);
-      console.log('[AnswerScreen] File info:', fileInfo);
 
       if (!fileInfo.exists) {
         throw new Error('Recording file does not exist');
@@ -306,13 +273,9 @@ export default function AnswerQuestionScreen() {
         throw new Error(`Recording file is invalid (size: ${fileInfo.size} bytes)`);
       }
 
-      console.log('[AnswerScreen] File validation passed - size:', fileInfo.size, 'bytes');
-
       // Start transcription
       setIsTranscribing(true);
-      console.log('[AnswerScreen] Calling transcribeAudio...');
       const transcriptText = await transcribeAudio(audioUri);
-      console.log('[AnswerScreen] Transcript received:', transcriptText);
 
       // NEW: Show transcript instead of auto-advancing
       setTranscript(transcriptText);
@@ -381,10 +344,10 @@ export default function AnswerQuestionScreen() {
                   color="white"
                 />
               </TouchableOpacity>
+              <Waveform isRecording={isRecording} />
               {isRecording && (
                 <Text style={styles.centerHintText}>Recording</Text>
               )}
-              <Waveform isRecording={isRecording} />
               {isFirstTimeOnboarding && currentQuestionIndex === 0 && !isRecording && (
                 <View style={styles.privacyBox}>
                   <Text style={styles.privacyLabel}>We transcribe your audio to find connection points. We do not share or save your voice recording.</Text>
@@ -587,7 +550,8 @@ const styles = StyleSheet.create({
     paddingTop: 40,
   },
   bottomArea: {
-    paddingVertical: 20,
+    paddingTop: 20,
+    paddingBottom: 112,
     alignItems: 'center',
     gap: 16,
     minHeight: 100,
@@ -638,7 +602,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   recordingButton: {
-    backgroundColor: '#FFA0A6',
+    backgroundColor: '#FE6627',
   },
   playButton: {
     width: 80,
@@ -811,7 +775,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#00934E',
+    backgroundColor: '#0277BB',
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 48,
@@ -847,7 +811,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 20,
-    backgroundColor: '#00934E',
+    backgroundColor: '#0277BB',
     alignItems: 'center',
   },
   saveButtonText: {
@@ -860,7 +824,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 20,
-    backgroundColor: '#00934E',
+    backgroundColor: '#0277BB',
     alignItems: 'center',
   },
   continueButtonText: {

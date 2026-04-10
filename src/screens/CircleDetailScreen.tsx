@@ -9,12 +9,10 @@ import {
   RefreshControl,
   Alert,
   SafeAreaView,
-  Modal,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
-import ResponseCard from '../components/ResponseCard';
 import { API_BASE_URL } from '../config/api';
 
 interface CircleMember {
@@ -30,23 +28,12 @@ interface Circle {
   members: CircleMember[];
 }
 
-interface MemberDetail {
-  profileSummary: string | null;
-  profilePictureUrl: string | null;
-}
-
 type RouteParams = {
   CircleDetail: {
     circleId: string;
     circleName: string;
   };
 };
-
-function extractHeadline(summary: string | null, fallback: string): string {
-  if (!summary) return fallback;
-  const sentences = summary.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 10);
-  return sentences[0]?.trim() || fallback;
-}
 
 export default function CircleDetailScreen() {
   const navigation = useNavigation<any>();
@@ -57,11 +44,6 @@ export default function CircleDetailScreen() {
   const [circle, setCircle] = useState<Circle | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Member card modal state
-  const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
-  const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
-  const [loadingMemberCard, setLoadingMemberCard] = useState(false);
 
   const fetchCircleDetails = async () => {
     try {
@@ -94,32 +76,6 @@ export default function CircleDetailScreen() {
     }
   };
 
-  const fetchMemberDetail = async (userId: string) => {
-    setLoadingMemberCard(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/communities/members/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.user) {
-          setMemberDetail({
-            profileSummary: data.user.profileSummary ?? null,
-            profilePictureUrl: data.user.profilePictureUrl ?? null,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch member detail:', error);
-    } finally {
-      setLoadingMemberCard(false);
-    }
-  };
-
   useEffect(() => {
     fetchCircleDetails();
   }, [circleId, token]);
@@ -129,43 +85,27 @@ export default function CircleDetailScreen() {
     fetchCircleDetails();
   };
 
-  const handleMemberPress = (member: CircleMember) => {
-    setSelectedMember(member);
-    setMemberDetail(null);
-    fetchMemberDetail(member.userId);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedMember(null);
-    setMemberDetail(null);
-  };
-
-  const handleViewFullProfile = () => {
-    if (!selectedMember) return;
-    const userId = selectedMember.userId;
-    handleCloseModal();
-    navigation.navigate('MemberProfile', { userId });
-  };
-
-  const handleBack = () => {
-    navigation.goBack();
-  };
-
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading circle...</Text>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Feather name="chevron-left" size={24} color="#545454" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color="#00934E" />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Feather name="chevron-left" size={24} color="#111827" />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Feather name="chevron-left" size={24} color="#545454" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerSubtitle}>{user?.community?.organization}</Text>
@@ -177,17 +117,16 @@ export default function CircleDetailScreen() {
       </View>
 
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00934E" />
         }
       >
-        {/* Members List */}
         {circle?.members.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="users" size={48} color="#d1d5db" />
-            <Text style={styles.emptyStateText}>No members in this circle</Text>
+            <Feather name="users" size={48} color="#E7E0D3" />
+            <Text style={styles.emptyStateText}>No members in this circle yet</Text>
           </View>
         ) : (
           <View style={styles.membersList}>
@@ -195,11 +134,12 @@ export default function CircleDetailScreen() {
               <TouchableOpacity
                 key={member.userId}
                 style={styles.memberCard}
-                onPress={() => handleMemberPress(member)}
+                onPress={() => navigation.navigate('MemberProfile', { userId: member.userId })}
+                activeOpacity={0.7}
               >
                 <View style={styles.memberAvatar}>
                   <Text style={styles.memberInitials}>
-                    {member.firstName?.[0]?.toUpperCase() || '?'}
+                    {member.firstName?.[0]?.toUpperCase() || ''}
                     {member.lastName?.[0]?.toUpperCase() || ''}
                   </Text>
                 </View>
@@ -207,145 +147,104 @@ export default function CircleDetailScreen() {
                   <Text style={styles.memberName}>
                     {member.firstName} {member.lastName}
                   </Text>
-                  <Text style={styles.memberTagline}>{member.tagline}</Text>
+                  {member.tagline ? (
+                    <Text style={styles.memberTagline} numberOfLines={1}>{member.tagline}</Text>
+                  ) : null}
                 </View>
-                <Feather name="chevron-right" size={20} color="#9ca3af" />
+                <Feather name="chevron-right" size={20} color="#BE9B51" />
               </TouchableOpacity>
             ))}
           </View>
         )}
       </ScrollView>
-
-      {/* Member Card Modal */}
-      <Modal
-        visible={selectedMember !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={handleCloseModal}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={handleCloseModal}
-        >
-          <TouchableOpacity
-            style={styles.modalSheet}
-            activeOpacity={1}
-            onPress={() => {}}
-          >
-            {/* Drag handle */}
-            <View style={styles.dragHandle} />
-
-            {loadingMemberCard ? (
-              <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color="#3b82f6" />
-              </View>
-            ) : selectedMember ? (
-              <ResponseCard
-                firstName={selectedMember.firstName}
-                lastName={selectedMember.lastName}
-                profilePictureUrl={memberDetail?.profilePictureUrl ?? null}
-                headline={extractHeadline(memberDetail?.profileSummary ?? null, selectedMember.tagline)}
-                tags={[]}
-                onViewProfile={handleViewFullProfile}
-              />
-            ) : null}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  contentContainer: {
-    paddingBottom: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
+    backgroundColor: '#FFF7E6',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#E7E0D3',
   },
   backButton: {
     padding: 4,
-    marginRight: 8,
+    marginRight: 12,
   },
   headerContent: {
     flex: 1,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     marginBottom: 2,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#00934E',
   },
   memberCountBadge: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#E7E0D3',
     justifyContent: 'center',
     alignItems: 'center',
   },
   memberCountText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#92400E',
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#545454',
   },
-  membersList: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 40,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  membersList: {
     gap: 12,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   memberAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#E8F5EE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   memberInitials: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#92400E',
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#00934E',
   },
   memberInfo: {
     flex: 1,
@@ -353,49 +252,24 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontFamily: 'Futura',
+    color: '#545454',
+    marginBottom: 3,
   },
   memberTagline: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontStyle: 'italic',
+    fontSize: 13,
+    fontFamily: 'Futura',
+    color: '#BE9B51',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
+    paddingVertical: 64,
+    gap: 16,
   },
   emptyStateText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
+    fontFamily: 'Futura',
+    color: '#BE9B51',
     textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#f9fafb',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#d1d5db',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 4,
-  },
-  modalLoading: {
-    paddingVertical: 40,
-    alignItems: 'center',
   },
 });

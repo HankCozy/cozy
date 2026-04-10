@@ -29,6 +29,7 @@ export default [
       'node_modules/**',
       '.expo/**',
       'dist/**',
+      'backend/dist/**',
       'backend/src/generated/**',
       'backend/prisma/migrations/**',
       'backend/check_users.js',

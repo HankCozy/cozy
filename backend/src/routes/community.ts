@@ -74,6 +74,7 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
         id: true,
         firstName: true,
         lastName: true,
+        email: true,
         role: true,
         profileSummary: true,
         profileAnswers: true,
@@ -91,7 +92,11 @@ router.get('/members/:userId', authenticateToken, async (req: AuthRequest, res: 
 
     res.json({
       success: true,
-      user
+      user: {
+        ...user,
+        // Only expose email when contact info sharing is enabled
+        email: user.contactPublished ? user.email : null,
+      }
     });
   } catch (error) {
     console.error('Fetch user profile error:', error);

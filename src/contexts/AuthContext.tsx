@@ -75,7 +75,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextType {
   auth: AuthState;
   dispatch: React.Dispatch<AuthAction>;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (_email: string, _password: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: {
     email: string;
     password: string;

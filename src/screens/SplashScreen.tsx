@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loginButton: {
-    backgroundColor: '#00934E',
+    backgroundColor: '#0277BB',
     paddingVertical: 16,
     borderRadius: 20,
     alignItems: 'center',

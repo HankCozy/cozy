@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
     flex: 2,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#00934E',
+    backgroundColor: '#0277BB',
     alignItems: 'center',
   },
   saveBioText: {

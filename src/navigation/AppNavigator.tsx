@@ -18,7 +18,6 @@ import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
 import SpotlightScreen from '../screens/SpotlightScreen';
-import SearchScreen from '../screens/SearchScreen';
 import CircleDetailScreen from '../screens/CircleDetailScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';

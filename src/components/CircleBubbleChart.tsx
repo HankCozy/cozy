@@ -35,7 +35,7 @@ interface BubbleData {
 
 interface Props {
   circles: CircleOverview[];
-  onPress: (circle: CircleOverview) => void;
+  onPress: (_circle: CircleOverview) => void;
   showOverlap?: boolean;
 }
 

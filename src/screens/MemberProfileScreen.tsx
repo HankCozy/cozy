@@ -6,29 +6,79 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Image,
   Alert,
+  Linking,
+  SafeAreaView,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileBadge from '../components/ProfileBadge';
 import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
+
+const TAG_PALETTE = [
+  { bg: '#00934E', text: 'white' },
+  { bg: '#FFA0A6', text: 'white' },
+  { bg: '#FAC63D', text: '#545454' },
+  { bg: '#FE6627', text: 'white' },
+  { bg: '#E7E0D3', text: '#545454' },
+];
+
+const SHORT_BIO_WORDS = 55;
+
+function stripIcebreakerQuestions(summary: string): string {
+  const patterns = [
+    /---\s*\*?\*?Icebreaker Questions/i,
+    /\*\*Icebreaker Questions/i,
+    /---/,
+  ];
+  for (const pattern of patterns) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      return summary.substring(0, match.index).trim();
+    }
+  }
+  return summary;
+}
+
+function parseIcebreakerQuestions(summary: string): string[] {
+  const separators = [
+    /---\s*\*?\*?Icebreaker Questions[:\s]*/i,
+    /\*\*Icebreaker Questions\*\*[:\s]*/i,
+    /---/,
+  ];
+  let section = '';
+  for (const pattern of separators) {
+    const match = summary.match(pattern);
+    if (match && match.index !== undefined) {
+      section = summary.substring(match.index + match[0].length);
+      break;
+    }
+  }
+  if (!section) return [];
+  const lines = section.split('\n').map(l => l.trim()).filter(Boolean);
+  const questions: string[] = [];
+  for (const line of lines) {
+    const cleaned = line.replace(/^\d+\.\s*/, '').replace(/^\*\*|\*\*$/g, '').trim();
+    if (cleaned.length > 10) {
+      questions.push(cleaned);
+      if (questions.length >= 3) break;
+    }
+  }
+  return questions;
+}
 
 interface MemberProfile {
   id: string;
   firstName: string | null;
   lastName: string | null;
+  email: string | null;
   role: 'MEMBER' | 'MANAGER';
   profileSummary: string | null;
+  profileInterests: string[];
+  contactPublished: boolean;
   profilePictureUrl: string | null;
-  profileAnswers: Array<{
-    sectionId: string;
-    question: string;
-    transcript?: string;
-    timestamp: string;
-  }>;
-  createdAt: string;
 }
 
 export default function MemberProfileScreen() {
@@ -41,7 +91,8 @@ export default function MemberProfileScreen() {
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profilePictureSignedUrl, setProfilePictureSignedUrl] = useState<string | null>(null);
+  const [signedPictureUrl, setSignedPictureUrl] = useState<string | null>(null);
+  const [bioExpanded, setBioExpanded] = useState(false);
 
   useEffect(() => {
     fetchMemberProfile();
@@ -58,40 +109,26 @@ export default function MemberProfileScreen() {
         },
       });
 
-      // Check for authentication errors
       if (response.status === 401 || response.status === 403) {
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => logout() }]
-        );
+        Alert.alert('Session Expired', 'Your session has expired. Please login again.', [
+          { text: 'OK', onPress: () => logout() },
+        ]);
         return;
       }
 
       const data = await response.json();
-
       if (data.success) {
         setMember(data.user);
-
-        // Fetch signed URL for profile picture if user has one
         if (data.user.profilePictureUrl && token) {
-          const signedUrl = await getProfilePictureUrl(userId, token);
-          setProfilePictureSignedUrl(signedUrl);
+          const url = await getProfilePictureUrl(userId, token);
+          setSignedPictureUrl(url);
         }
       } else {
         setError(data.error || 'Failed to load profile');
       }
-    } catch (error) {
-      console.error('Failed to fetch member profile:', error);
-      if (error instanceof Error && error.message === 'TOKEN_EXPIRED') {
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => logout() }]
-        );
-      } else {
-        setError('Failed to load profile. Please try again.');
-      }
+    } catch (err) {
+      console.error('Failed to fetch member profile:', err);
+      setError('Failed to load profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,322 +136,292 @@ export default function MemberProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Feather name="chevron-left" size={24} color="#545454" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color="#00934E" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error || !member) {
     return (
-      <View style={styles.errorContainer}>
-        <Feather name="alert-circle" size={48} color="#ef4444" />
-        <Text style={styles.errorText}>{error || 'Profile not found'}</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Feather name="chevron-left" size={24} color="#545454" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerState}>
+          <Feather name="alert-circle" size={48} color="#BE9B51" />
+          <Text style={styles.stateText}>{error || 'Profile not found'}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  const firstName = member.firstName || '';
+  const fullName = [member.firstName, member.lastName].filter(Boolean).join(' ');
+  const bioText = member.profileSummary ? stripIcebreakerQuestions(member.profileSummary) : null;
+  const icebreakers = member.profileSummary ? parseIcebreakerQuestions(member.profileSummary) : [];
+  const quoteText = bioText?.split(/(?<=[.!?])\s+/).find(s => s.trim().length > 30) ?? null;
+  const tags = (member.profileInterests ?? []).slice(0, 6);
+
+  const words = bioText?.split(/\s+/) ?? [];
+  const isTruncated = words.length > SHORT_BIO_WORDS;
+  const displayBio = (!bioExpanded && isTruncated)
+    ? words.slice(0, SHORT_BIO_WORDS).join(' ') + '...'
+    : bioText;
+
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Feather name="arrow-left" size={24} color="#111827" />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Feather name="chevron-left" size={24} color="#545454" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Member Info Header */}
-        <View style={styles.memberInfoCard}>
-          {profilePictureSignedUrl ? (
-            <Image
-              source={{ uri: profilePictureSignedUrl }}
-              style={styles.memberAvatarImage}
-            />
-          ) : (
-            <View style={styles.memberAvatar}>
-              <Feather name="user" size={56} color="white" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile card with straddling avatar */}
+        <View style={styles.profileCardWrapper}>
+          <View style={styles.profileCard}>
+            {/* Spacer for avatar overlap */}
+            <View style={styles.avatarSpacer} />
+          <Text style={styles.profileName}>{fullName}</Text>
+
+          {tags.length > 0 && (
+            <View style={styles.tagsRow}>
+              {tags.map((tag, i) => {
+                const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+                return (
+                  <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
+                    <Text style={[styles.tagText, { color: palette.text }]}>
+                      {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
-          <Text style={styles.memberName}>
-            {member.firstName} {member.lastName}
-          </Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {member.role === 'MANAGER' ? 'Manager' : 'Member'}
-            </Text>
+
+          {/* Bio */}
+          {displayBio ? (
+            <>
+              <Text style={styles.bioText}>{displayBio}</Text>
+              {isTruncated && (
+                <TouchableOpacity style={styles.expandLink} onPress={() => setBioExpanded(!bioExpanded)}>
+                  <Text style={styles.expandLinkText}>
+                    {bioExpanded ? 'Show less' : 'Show full bio ✦'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : null}
+          </View>
+
+          {/* Avatar straddling top-left of card */}
+          <View style={styles.avatarAbsolute}>
+            <ProfileBadge
+              firstName={firstName}
+              lastName={member.lastName || ''}
+              totalAnswers={4}
+              profilePictureUrl={signedPictureUrl}
+              size={80}
+            />
           </View>
         </View>
 
-        {/* Profile Summary */}
-        {member.profileSummary && (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Feather name="file-text" size={20} color="#3b82f6" />
-              <Text style={styles.summaryTitle}>Profile Summary</Text>
-            </View>
-            <Text style={styles.summaryText}>{member.profileSummary}</Text>
+        {/* Quote card */}
+        {quoteText && (
+          <View style={styles.quoteCard}>
+            <Text style={styles.quoteText}>"{quoteText}"</Text>
           </View>
         )}
 
-        {/* Q&A Answers */}
-        {member.profileAnswers && member.profileAnswers.length > 0 && (
-          <View style={styles.answersSection}>
-            <Text style={styles.answersHeader}>
-              Profile Answers ({member.profileAnswers.length})
+        {/* Icebreaker card */}
+        {icebreakers.length > 0 && (
+          <View style={styles.icebreakerCard}>
+            <Text style={styles.icebreakerLabel}>
+              Ask {firstName || 'them'}:
             </Text>
-            {member.profileAnswers.map((answer, index) => (
-              <View key={index} style={styles.answerCard}>
-                <Text style={styles.question}>{answer.question}</Text>
-                {answer.transcript ? (
-                  <Text style={styles.transcript}>{answer.transcript}</Text>
-                ) : (
-                  <Text style={styles.noTranscript}>No transcript available</Text>
-                )}
-                <Text style={styles.timestamp}>
-                  {new Date(answer.timestamp).toLocaleDateString()}
-                </Text>
-              </View>
+            {icebreakers.map((q, i) => (
+              <Text key={i} style={styles.icebreakerQuestion}>{q}</Text>
             ))}
           </View>
         )}
 
-        {/* Empty State */}
-        {!member.profileSummary && (!member.profileAnswers || member.profileAnswers.length === 0) && (
-          <View style={styles.emptyState}>
-            <Feather name="user" size={48} color="#d1d5db" />
-            <Text style={styles.emptyStateText}>No profile content yet</Text>
-            <Text style={styles.emptyStateSubtext}>
-              This member hasn't added any profile information.
-            </Text>
-          </View>
+        {/* Email button */}
+        {member.contactPublished && member.email && (
+          <TouchableOpacity
+            style={styles.emailButton}
+            onPress={() => Linking.openURL(`mailto:${member.email}`)}
+          >
+            <Feather name="mail" size={18} color="#0277BB" />
+            <Text style={styles.emailButtonText}>Email {firstName || 'them'}</Text>
+          </TouchableOpacity>
         )}
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    paddingHorizontal: 32,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ef4444',
-    textAlign: 'center',
-  },
-  backButton: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#3b82f6',
-    borderRadius: 20,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    backgroundColor: '#FFF7E6',
   },
   header: {
-    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 4,
+    width: 36,
+  },
+  centerState: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
   },
-  headerBackButton: {
-    width: 40,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  headerSpacer: {
-    width: 40,
+  stateText: {
+    fontSize: 16,
+    fontFamily: 'Futura',
+    color: '#545454',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  memberInfoCard: {
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 24,
-  },
-  memberAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
+  profileCardWrapper: {
+    position: 'relative',
+    marginTop: 40,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
   },
-  memberAvatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    paddingTop: 16,
+    gap: 16,
   },
-  memberAvatarImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+  avatarSpacer: {
+    height: 44,
   },
-  memberName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
+  avatarAbsolute: {
+    position: 'absolute',
+    top: -40,
+    left: 20,
   },
-  roleBadge: {
+  profileName: {
+    fontSize: 26,
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#00934E',
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#eff6ff',
     borderRadius: 20,
   },
-  roleText: {
-    fontSize: 14,
+  tagText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#3b82f6',
+    fontFamily: 'Futura',
   },
-  summaryCard: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginLeft: 8,
-  },
-  summaryText: {
+  bioText: {
     fontSize: 15,
-    lineHeight: 24,
-    color: '#374151',
+    fontFamily: 'Futura',
+    color: '#545454',
+    lineHeight: 22,
   },
-  answersSection: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+  expandLink: {
+    marginTop: 4,
   },
-  answersHeader: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+  expandLinkText: {
+    fontSize: 14,
+    fontFamily: 'Futura',
+    color: '#BE9B51',
+    textDecorationLine: 'underline',
+  },
+  quoteCard: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00934E',
+    padding: 24,
     marginBottom: 16,
   },
-  answerCard: {
-    backgroundColor: '#ffffff',
+  quoteText: {
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#00934E',
+    lineHeight: 30,
+  },
+  icebreakerCard: {
+    backgroundColor: '#E3F2FD',
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderLeftWidth: 4,
+    borderLeftColor: '#0277BB',
+    padding: 22,
+    marginBottom: 16,
   },
-  question: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  transcript: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#374151',
-    marginBottom: 12,
-  },
-  noTranscript: {
+  icebreakerLabel: {
     fontSize: 14,
+    color: '#545454',
     fontStyle: 'italic',
-    color: '#9ca3af',
+    fontFamily: 'Futura',
+    marginBottom: 14,
+    fontWeight: '500',
+  },
+  icebreakerQuestion: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#0277BB',
+    lineHeight: 24,
     marginBottom: 12,
   },
-  timestamp: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  emptyState: {
+  emailButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 64,
-    paddingHorizontal: 32,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#0277BB',
+    marginBottom: 16,
   },
-  emptyStateText: {
+  emailButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
+    fontFamily: 'Futura',
+    color: '#0277BB',
   },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
+  bottomSpacer: {
+    height: 32,
   },
 });

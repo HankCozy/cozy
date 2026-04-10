@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,23 @@ import { useAuth, User } from '../contexts/AuthContext';
 import { navigationRef } from '../services/navigationService';
 import { ALL_QUESTIONS_ORDERED } from './SectionQuestionsScreen';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// startOffset: 1 = frozen at last frame ("resolved")
+const SLIDE_ANIMATIONS = [
+  { source: require('../../assets/animations/ob_frame1.json'),            startOffset: 0, durationMs: 1430, loop: false, scale: 1   },
+  { source: require('../../assets/animations/ob_frame2.json'),            startOffset: 0, durationMs: 2100, loop: false, scale: 1   },
+  { source: require('../../assets/animations/ob_frame4.json'),            startOffset: 0, durationMs: 3440, loop: false, scale: 1   },
+  { source: require('../../assets/animations/ob_frame4.json'),            startOffset: 1, durationMs: 3440, loop: false, scale: 1   },
+  { source: require('../../assets/animations/recording_wave.json'),       startOffset: 0, durationMs: 1820, loop: true,  scale: 0.5 },
+];
 
 interface OnboardingSlide {
   id: string;
-  title: string;
-  description: string;
+  heading?: string;       // large green title — screen 1 only
+  subheading?: string;    // smaller green below heading — screen 1 only
+  body?: string;          // body text — screens 2–5
+  boldCommunityName?: boolean;
   showButton?: boolean;
   buttonText?: string;
 }
@@ -29,28 +40,25 @@ interface OnboardingSlide {
 const createSlides = (communityName: string): OnboardingSlide[] => [
   {
     id: '1',
-    title: 'Welcome to Cozy Circle',
-    description: 'An app that fosters\nreal world connection.',
+    heading: 'Welcome to Cozy Circle',
+    subheading: 'An app that fosters\nreal world connection.',
+  },
+  {
+    id: '2',
+    body: `There's a lot of great people to get to know at ${communityName}.`,
+    boldCommunityName: true,
   },
   {
     id: '3',
-    title: 'Cozy Circle helps you find connection points.',
-    description: '',
+    body: 'Cozy Circle finds overlaps and connection points...',
+  },
+  {
+    id: '4',
+    body: '...to help you get closer to your community.',
   },
   {
     id: '5',
-    title: 'And foster real, in-person engagement.',
-    description: '',
-  },
-  {
-    id: '5b',
-    title: `Cozy Circle brings you closer to the people of ${communityName}`,
-    description: `This is a private community. Only members of ${communityName} can access your Cozy Circle profile.`,
-  },
-  {
-    id: '6',
-    title: "You tell us about yourself and we'll turn your words into points of connection.",
-    description: '',
+    body: "To get started, let's chat through a few friendly questions.\n\nNothing serious, nothing boring.",
     showButton: true,
     buttonText: 'Get started',
   },
@@ -68,20 +76,90 @@ interface OnboardingScreenProps {
 
 export default function OnboardingScreen({ navigation, route }: OnboardingScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-  const { completeOnboarding } = useAuth();
-
-  // Plain number 0–1 drives Lottie progress — avoids Animated.Value freeze
-  // issues in RN 0.81 new architecture (Fabric/JSI)
+  const [committedSlide, setCommittedSlide] = useState(0);
   const [lottieProgress, setLottieProgress] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const rafRef = useRef<number | null>(null);
+  const isDraggingRef = useRef(false);
+  const pendingSlideRef = useRef<number | null>(null);
+  const prevCommittedSlideRef = useRef(0);
+  const { completeOnboarding } = useAuth();
 
   const communityName = route.params?.user?.community?.organization || 'Your Community';
   const slides = createSlides(communityName);
+  const currentSlide = slides[currentIndex];
+  const { source: lottieSource, loop: lottieLoop, scale: lottieScale } = SLIDE_ANIMATIONS[committedSlide];
+
+  const cancelPlayback = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  const startPlayback = useCallback((slideIndex: number, fromProgress: number) => {
+    const { durationMs: dur, loop } = SLIDE_ANIMATIONS[slideIndex];
+    if (loop) return;
+    const remaining = 1 - fromProgress;
+    if (remaining <= 0) return;
+    const playDuration = remaining * dur;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTime) / playDuration);
+      setLottieProgress(fromProgress + t * remaining);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+        if (pendingSlideRef.current !== null) {
+          const next = pendingSlideRef.current;
+          pendingSlideRef.current = null;
+          setCommittedSlide(next);
+          setLottieProgress(SLIDE_ANIMATIONS[next].startOffset);
+        }
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    prevCommittedSlideRef.current = committedSlide;
+  }, [committedSlide]);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!isDraggingRef.current) return;
     const x = e.nativeEvent.contentOffset.x;
-    const totalWidth = width * (slides.length - 1);
-    setLottieProgress(Math.max(0, Math.min(1, x / totalWidth)));
+    const slide = Math.min(Math.floor(x / width), slides.length - 1);
+    if (slide !== committedSlide) return;
+    const raw = Math.max(0, Math.min(1, x / width - slide));
+    const { startOffset: so } = SLIDE_ANIMATIONS[slide];
+    setLottieProgress(so + raw * (1 - so));
+  };
+
+  const handleScrollBeginDrag = () => {
+    cancelPlayback();
+    isDraggingRef.current = true;
+  };
+
+  const handleScrollEndDrag = () => {
+    isDraggingRef.current = false;
+    startPlayback(committedSlide, lottieProgress);
+  };
+
+  const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const newSlide = Math.min(Math.round(x / width), slides.length - 1);
+    if (newSlide === committedSlide) return;
+    const goingBack = newSlide < committedSlide;
+    if (goingBack || rafRef.current === null) {
+      // Going back or no animation running — switch immediately
+      cancelPlayback();
+      setCommittedSlide(newSlide);
+      setLottieProgress(SLIDE_ANIMATIONS[newSlide].startOffset);
+    } else {
+      // Going forward, animation still playing — wait for it to finish
+      pendingSlideRef.current = newSlide;
+    }
   };
 
   const handleGetStarted = async () => {
@@ -110,49 +188,41 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
-  const renderSlide = ({ item }: { item: OnboardingSlide }) => (
-    <View style={styles.slide}>
-      {item.id === '5b' ? (
-        <Text style={styles.title}>
-          Cozy Circle brings you closer to the people of{' '}
-          <Text style={styles.underline}>{communityName}</Text>
-        </Text>
-      ) : (
-        <Text style={styles.title}>{item.title}</Text>
-      )}
-      {item.id === '5b' ? (
-        <Text style={styles.description}>
-          This is a private community. Only members of{' '}
-          <Text style={styles.underline}>{communityName}</Text>
-          {' '}can access your Cozy Circle profile.
-        </Text>
-      ) : item.description !== '' ? (
-        <Text style={styles.description}>{item.description}</Text>
-      ) : null}
-      {item.showButton && item.buttonText && (
-        <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
-          <Text style={styles.primaryButtonText}>{item.buttonText}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* Shared animation canvas — scrubs as user swipes */}
       <LottieView
-        source={require('../../assets/animations/onboarding_animation.json')}
-        progress={lottieProgress as any}
-        style={styles.lottie}
-        loop={false}
-        autoPlay={false}
+        key={committedSlide}
+        source={lottieSource}
+        progress={lottieLoop ? undefined : (lottieProgress as any)}
+        loop={lottieLoop}
+        autoPlay={lottieLoop}
+        resizeMode="contain"
+        style={[styles.lottie, { transform: [{ scale: lottieScale }] }]}
       />
 
-      {/* Text content scrolls per-slide */}
+      <View style={styles.textArea}>
+        {currentSlide.heading && (
+          <Text style={styles.title}>{currentSlide.heading}</Text>
+        )}
+        {currentSlide.subheading && (
+          <Text style={styles.subtitle}>{currentSlide.subheading}</Text>
+        )}
+
+        {currentSlide.boldCommunityName ? (
+          <Text style={styles.body}>
+            There's a lot of great people to get to know at{' '}
+            <Text style={styles.bold}>{communityName}</Text>.
+          </Text>
+        ) : currentSlide.body ? (
+          <Text style={styles.body}>{currentSlide.body}</Text>
+        ) : null}
+
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={slides}
-        renderItem={renderSlide}
+        renderItem={() => <View style={styles.ghostSlide} />}
         keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
@@ -161,10 +231,20 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
         viewabilityConfig={viewabilityConfig}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        style={StyleSheet.absoluteFill}
       />
 
-      {/* Pagination dots */}
-      <View style={styles.dotsContainer}>
+      {/* Rendered after FlatList so it sits above it in the touch stack */}
+      {currentSlide.showButton && currentSlide.buttonText && (
+        <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
+          <Text style={styles.primaryButtonText}>{currentSlide.buttonText}</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.dotsContainer} pointerEvents="none">
         {slides.map((_, index) => (
           <View
             key={index}
@@ -179,64 +259,83 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFF7E6',
   },
   lottie: {
     width,
-    height: 300,
+    height: height * 0.56,
   },
-  slide: {
-    width,
+  textArea: {
+    flex: 1,
     paddingHorizontal: 40,
-    paddingTop: 24,
+    paddingTop: 20,
     alignItems: 'center',
+  },
+  ghostSlide: {
+    width,
+    height: '100%',
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 22,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 20,
+    fontWeight: '700',
+    fontFamily: 'Futura',
+    color: '#00934E',
     textAlign: 'center',
     lineHeight: 30,
+    marginBottom: 6,
   },
-  description: {
-    fontSize: 17,
-    color: '#6b7280',
+  subtitle: {
+    fontSize: 16,
+    fontFamily: 'Futura',
+    color: '#545454',
     textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: 12,
+    lineHeight: 24,
+  },
+  body: {
+    fontSize: 16,
+    fontFamily: 'Futura',
+    color: '#545454',
+    textAlign: 'center',
+    lineHeight: 24,
     maxWidth: 288,
   },
-  underline: {
-    textDecorationLine: 'underline',
-    textDecorationColor: '#6b7280',
+  bold: {
+    fontWeight: '700',
+    fontFamily: 'Futura',
   },
   primaryButton: {
-    marginTop: 40,
+    position: 'absolute',
+    bottom: 110,
+    alignSelf: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 32,
-    backgroundColor: '#3b82f6',
+    paddingHorizontal: 48,
+    backgroundColor: '#0277BB',
     borderRadius: 20,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: 'Futura',
     color: '#ffffff',
     textAlign: 'center',
   },
   dotsContainer: {
+    position: 'absolute',
+    bottom: 32,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 60,
   },
   dot: {
     width: 40,
     height: 3,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#E7E0D3',
     marginHorizontal: 3,
   },
   activeDot: {
-    backgroundColor: '#111827',
+    backgroundColor: '#545454',
   },
 });

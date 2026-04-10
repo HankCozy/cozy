@@ -20,7 +20,6 @@ const SECTIONS = [
 
 export default function QuestionFlowScreen() {
   const navigation = useNavigation<any>();
-  const [completedSections, setCompletedSections] = useState<string[]>([]);
   const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
 
   useFocusEffect(
@@ -31,23 +30,16 @@ export default function QuestionFlowScreen() {
 
   const loadCompletionStatus = async () => {
     try {
-      const completed: string[] = [];
       const counts: Record<string, number> = {};
 
-      // Check completion status for each section
+      // Count answers for each section
       for (const section of SECTIONS) {
-        const isCompleted = await AsyncStorage.getItem(`section_${section.id}_completed`);
-        if (isCompleted === 'true') {
-          completed.push(section.id);
-        }
-
         // Count answers for this section
         const allKeys = await AsyncStorage.getAllKeys();
         const sectionAnswers = allKeys.filter(key => key.startsWith(`answer_${section.id}_`));
         counts[section.id] = sectionAnswers.length;
       }
 
-      setCompletedSections(completed);
       setAnswerCounts(counts);
     } catch (err) {
       console.error('Failed to load completion status', err);
@@ -65,7 +57,6 @@ export default function QuestionFlowScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {SECTIONS.map((section) => {
-          const isCompleted = completedSections.includes(section.id);
           const answerCount = answerCounts[section.id] || 0;
 
           return (

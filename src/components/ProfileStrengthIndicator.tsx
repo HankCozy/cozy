@@ -13,7 +13,7 @@ interface ProfileStrengthIndicatorProps {
 export default function ProfileStrengthIndicator({
   totalAnswers,
   showLabel = true,
-  compact = false,
+  compact: _compact = false,
 }: ProfileStrengthIndicatorProps) {
   const level = getStrengthLevel(totalAnswers);
   const color = getStrengthColor(level);
