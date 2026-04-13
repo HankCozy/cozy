@@ -108,6 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (token && userStr) {
           const user = JSON.parse(userStr);
+
+          // Guard against stale answers from a different user on this device
+          const cachedUserId = await AsyncStorage.getItem('current_user_id');
+          if (cachedUserId !== user.id) {
+            // Different user — clear their leftover answers (can't re-hydrate
+            // without a network call here, but login() will handle that)
+            await hydrateAnswersFromBackend([]);
+          }
+          await AsyncStorage.setItem('current_user_id', user.id);
+
           dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
@@ -164,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Swap out any stale local answers for this user's backend answers
         await hydrateAnswersFromBackend(data.user.profileAnswers ?? []);
+        await AsyncStorage.setItem('current_user_id', data.user.id);
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data.user, token: data.token } });
         return { success: true };
@@ -209,6 +220,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // SECURITY: Save to SecureStore (encrypted storage)
       await SecureStore.setItemAsync('auth_token', token);
       await SecureStore.setItemAsync('auth_user', JSON.stringify(user));
+
+      // New registrations start with no answers — clear any stale local data
+      await hydrateAnswersFromBackend([]);
+      await AsyncStorage.setItem('current_user_id', user.id);
 
       dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token } });
       return { success: true };
