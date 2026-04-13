@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { navigationRef } from '../services/navigationService';
+import { useAuth } from '../contexts/AuthContext';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -23,7 +25,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
 import ProfileStrengthIndicator from '../components/ProfileStrengthIndicator';
 import CategoriesIcon from '../components/CategoriesIcon';
-import { transcribeAudio } from '../services/api';
+import { transcribeAudio, saveAnswers } from '../services/api';
 import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
 
 // Helper to determine which section a question belongs to
@@ -37,6 +39,7 @@ function getSectionIdForQuestionIndex(index: number): string {
 export default function AnswerQuestionScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { auth } = useAuth();
   const { sectionId, questions, isFirstTimeOnboarding } = route.params;
 
   // Safety check
@@ -205,40 +208,53 @@ export default function AnswerQuestionScreen() {
     }
 
     try {
-      // Determine which section this question belongs to
       const actualSectionId = sectionId === 'all'
         ? getSectionIdForQuestionIndex(currentQuestionIndex)
         : sectionId;
 
-      const key = `answer_${actualSectionId}_${Date.now()}`;
+      const ts = Date.now();
+      const key = `answer_${actualSectionId}_${ts}`;
       const answerData = {
         sectionId: actualSectionId,
         question: currentQuestion,
-        ...(recordingUri && { audioUri: recordingUri }), // Only if recorded
+        ...(recordingUri && { audioUri: recordingUri }),
         transcript: transcript.trim(),
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(ts).toISOString(),
       };
 
       await AsyncStorage.setItem(key, JSON.stringify(answerData));
 
-      // Immediately update total count
+      // Read all answers and sync to backend (fire-and-forget)
       const allKeys = await AsyncStorage.getAllKeys();
       const answerKeys = allKeys.filter((k) => k.startsWith('answer_'));
-      setTotalAnswers(answerKeys.length);
+      const newTotal = answerKeys.length;
+      setTotalAnswers(newTotal);
 
-      // Advance to next question or finish
+      if (auth.token) {
+        const rawAnswers = await AsyncStorage.multiGet(answerKeys);
+        const answers = rawAnswers
+          .map(([, v]) => (v ? JSON.parse(v) : null))
+          .filter(Boolean);
+        saveAnswers(answers, auth.token); // intentionally not awaited
+      }
+
+      // Graduate to main app once threshold is reached during onboarding
+      const GRADUATION_THRESHOLD = 4;
+      if (isFirstTimeOnboarding && newTotal >= GRADUATION_THRESHOLD) {
+        await AsyncStorage.setItem('onboarding_completed', 'true');
+        navigationRef.navigate('MainTabs', { screen: 'Profile' });
+        return;
+      }
+
       if (isLastQuestion) {
-        // If first-time onboarding, mark as complete and navigate to profile
         if (isFirstTimeOnboarding) {
           await AsyncStorage.setItem('onboarding_completed', 'true');
-          navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
+          navigationRef.navigate('MainTabs', { screen: 'Profile' });
         } else {
-          // Regular flow - mark section complete and go back to Questions tab
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();
         }
       } else {
-        // Reset for next question
         setCurrentQuestionIndex((prev) => prev + 1);
         setRecordingUri(null);
         setTranscript(null);
@@ -298,9 +314,15 @@ export default function AnswerQuestionScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (isFirstTimeOnboarding) {
+              navigationRef.navigate('MainTabs', { screen: 'Profile' });
+            } else {
+              navigation.goBack();
+            }
+          }}
         >
-          <Feather name="arrow-left" size={24} color="#545454" />
+          <Feather name={isFirstTimeOnboarding ? 'x' : 'arrow-left'} size={24} color="#545454" />
         </TouchableOpacity>
         {totalAnswers > 0 && (
           <View style={styles.strengthIndicatorContainer}>

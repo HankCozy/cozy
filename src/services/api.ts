@@ -129,6 +129,24 @@ export async function extractProfileTags(summary: string, token: string): Promis
 }
 
 /**
+ * Sync all current answers to the backend (fire-and-forget — never blocks UI)
+ */
+export async function saveAnswers(answers: object[], token: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/users/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ profileAnswers: answers }),
+    });
+  } catch (err) {
+    console.error('[API] Failed to sync answers to backend:', err);
+  }
+}
+
+/**
  * Update profile visibility settings (circlesPublished, contactPublished, profileInterests)
  */
 export async function updateProfileSettings(

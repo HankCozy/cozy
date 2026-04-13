@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL as BASE_URL } from '../config/api';
 
 export interface User {
@@ -120,6 +121,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadAuth();
   }, []);
 
+  // Clear any locally-cached answers from a previous user session, then
+  // re-populate from the newly-logged-in user's backend answers.
+  const hydrateAnswersFromBackend = async (profileAnswers: any[]) => {
+    try {
+      const existingKeys = await AsyncStorage.getAllKeys();
+      const staleKeys = existingKeys.filter(
+        k => k.startsWith('answer_') || k.startsWith('section_') || k === 'onboarding_completed'
+      );
+      if (staleKeys.length > 0) await AsyncStorage.multiRemove(staleKeys);
+
+      for (const answer of profileAnswers) {
+        const ts = answer.timestamp ? new Date(answer.timestamp).getTime() : Date.now();
+        const key = `answer_${answer.sectionId}_${ts}`;
+        await AsyncStorage.setItem(key, JSON.stringify(answer));
+      }
+    } catch (err) {
+      console.error('[AUTH] Failed to hydrate answers from backend:', err);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     try {
       const url = `${API_BASE_URL}/api/auth/login`;
@@ -140,6 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // SECURITY: Save to SecureStore (encrypted storage)
         await SecureStore.setItemAsync('auth_token', data.token);
         await SecureStore.setItemAsync('auth_user', JSON.stringify(data.user));
+
+        // Swap out any stale local answers for this user's backend answers
+        await hydrateAnswersFromBackend(data.user.profileAnswers ?? []);
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user: data.user, token: data.token } });
         return { success: true };

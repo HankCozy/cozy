@@ -100,6 +100,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         profilePublished: user.profilePublished,
         profilePictureUrl: user.profilePictureUrl,
+        profileAnswers: user.profileAnswers ?? [],
         community: user.community ? {
           id: user.community.id,
           organization: user.community.organization,
