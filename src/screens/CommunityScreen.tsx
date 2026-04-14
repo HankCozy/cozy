@@ -128,10 +128,12 @@ export default function CommunityScreen() {
           <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
         </View>
         <View style={styles.centerState}>
-          <Feather name="lock" size={32} color="#BE9B51" />
-          <Text style={styles.lockText}>
-            Answer {10 - totalAnswers} more questions to unlock your circles
-          </Text>
+          <View style={styles.lockContent}>
+            <Feather name="lock" size={32} color="#BE9B51" />
+            <Text style={styles.lockText}>
+              Answer {10 - totalAnswers} more questions to unlock your circles
+            </Text>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -265,9 +267,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 16,
     paddingHorizontal: 32,
-    paddingTop: 60,
+  },
+  lockContent: {
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 120,
   },
   circlesSection: {
     marginTop: 24,
