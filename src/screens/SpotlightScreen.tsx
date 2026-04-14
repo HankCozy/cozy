@@ -161,7 +161,7 @@ export default function SpotlightScreen() {
         const count = keys.filter((k) => k.startsWith('answer_')).length;
         setTotalAnswers(count);
 
-        if (count >= 4 || auth.user?.profilePublished) {
+        if (count >= 10 || auth.user?.profilePublished) {
           await fetchMatch();
         }
         setLoading(false);
@@ -219,14 +219,14 @@ export default function SpotlightScreen() {
     );
   }
 
-  if (totalAnswers < 4 && !auth.user?.profilePublished) {
+  if (totalAnswers < 10 && !auth.user?.profilePublished) {
     return (
       <SafeAreaView style={styles.container}>
         <Header />
         <View style={styles.centerState}>
           <Feather name="lock" size={32} color="#BE9B51" />
           <Text style={styles.stateText}>
-            Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock Intersections
+            Answer {10 - totalAnswers} more questions to unlock Intersections
           </Text>
         </View>
       </SafeAreaView>
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     fontFamily: 'Futura',
-    color: '#00934E',
+    color: '#FFA0A6',
     marginBottom: 8,
   },
   subtitle: {
@@ -388,8 +388,8 @@ const styles = StyleSheet.create({
   centerState: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
+    justifyContent: 'flex-start',
+    paddingTop: 60,
     gap: 16,
     paddingHorizontal: 32,
   },

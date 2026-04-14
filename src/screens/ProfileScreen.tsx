@@ -15,7 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { generateProfile, extractProfileTags, updateProfileSettings, QuestionAnswer, getProfilePictureUrl } from '../services/api';
+import { generateProfile, extractProfileTags, updateProfileSettings, fetchProfileFromServer, QuestionAnswer, getProfilePictureUrl } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
 import ProfileNudge from '../components/ProfileNudge';
@@ -99,9 +99,6 @@ function computeNudge(totalAnswers: number, profileSummary: string | null): Nudg
   if (totalAnswers === 0) {
     return { id: 'zero', headline: "Let's get started", message: "Tap here to answer your first question", actionTarget: 'questions' };
   }
-  if (totalAnswers <= 3 && !profileSummary) {
-    return { id: 'getting_started', headline: "You're almost there", message: `Answer ${4 - totalAnswers} more question${4 - totalAnswers === 1 ? '' : 's'} to generate your profile`, actionTarget: 'questions' };
-  }
   return null;
 }
 
@@ -121,6 +118,7 @@ export default function ProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [dismissedNudgeId, setDismissedNudgeId] = useState<string | null>(null);
+  const [unlockBannerDismissed, setUnlockBannerDismissed] = useState(false);
   const [profileInterests, setProfileInterests] = useState<string[]>([]);
   const [contactPublished, setContactPublished] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -181,6 +179,25 @@ export default function ProfileScreen() {
         AsyncStorage.getItem('profile_interests'),
         AsyncStorage.getItem('contact_published'),
       ]);
+
+      // If no local profile summary, attempt to hydrate from server (new device scenario)
+      if (!savedSummary && token) {
+        const serverProfile = await fetchProfileFromServer(token);
+        if (serverProfile?.profileSummary) {
+          await AsyncStorage.setItem('profile_summary', serverProfile.profileSummary);
+          await AsyncStorage.setItem('profile_published', String(serverProfile.profilePublished));
+          await AsyncStorage.setItem('contact_published', String(serverProfile.contactPublished));
+          setProfileSummary(serverProfile.profileSummary);
+          setIsPublished(serverProfile.profilePublished);
+          setContactPublished(serverProfile.contactPublished);
+          if (serverProfile.profileInterests?.length > 0) {
+            await AsyncStorage.setItem('profile_interests', JSON.stringify(serverProfile.profileInterests));
+            setProfileInterests(serverProfile.profileInterests);
+          }
+          return;
+        }
+      }
+
       if (savedSummary) setProfileSummary(savedSummary);
       setIsPublished(publishedStatus === 'true');
       setContactPublished(contactPub === 'true');
@@ -511,16 +528,16 @@ export default function ProfileScreen() {
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
 
-          {/* Nudge Banner */}
+          {/* Nudge Banner — zero answers: one-time CTA (AsyncStorage persisted) */}
           {(() => {
+            if (totalAnswers !== 0) return null;
             const nudge = computeNudge(totalAnswers, profileSummary);
-            const showNudge = nudge !== null && nudge.id !== dismissedNudgeId;
-            if (!showNudge || !nudge) return null;
+            if (!nudge || nudge.id === dismissedNudgeId) return null;
             return (
               <ProfileNudge
                 headline={nudge.headline}
                 message={nudge.message}
-                onAction={nudge.actionTarget === 'questions' ? () => navigation.navigate('Questions') : undefined}
+                onAction={() => navigation.navigate('Questions')}
                 onDismiss={async () => {
                   await AsyncStorage.setItem('nudge_dismissed_id', nudge.id);
                   setDismissedNudgeId(nudge.id);
@@ -528,6 +545,15 @@ export default function ProfileScreen() {
               />
             );
           })()}
+
+          {/* Unlock Banner — 1–9 answers: session-only dismiss */}
+          {totalAnswers > 0 && totalAnswers < 10 && !unlockBannerDismissed && (
+            <ProfileNudge
+              message={`Answer ${10 - totalAnswers} more questions to unlock your circles`}
+              onAction={() => navigation.navigate('Questions')}
+              onDismiss={() => setUnlockBannerDismissed(true)}
+            />
+          )}
 
           {/* Avatar floating above card — top of card starts 30% through badge */}
           <TouchableOpacity
@@ -621,7 +647,7 @@ export default function ProfileScreen() {
                   </View>
                 </>
               );
-            })() : totalAnswers >= 4 ? (
+            })() : totalAnswers >= 10 ? (
               <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
                 {generatingSummary ? (
                   <ActivityIndicator size="small" color="#00934E" />
@@ -631,7 +657,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ) : (
               <Text style={styles.bioPlaceholder}>
-                Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to generate your bio
+                Answer {10 - totalAnswers} more question{10 - totalAnswers === 1 ? '' : 's'} to generate your bio
               </Text>
             )}
           </View>
@@ -649,8 +675,14 @@ export default function ProfileScreen() {
                     onPress={() => setShowResponses(!showResponses)}
                   >
                     <Text style={styles.showResponsesLinkText}>
-                      {showResponses ? 'Hide responses' : 'Show all responses'}
+                      {showResponses ? 'Hide all responses' : 'View all responses'}
                     </Text>
+                    <Feather
+                      name={showResponses ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color="#00934E"
+                      style={{ marginLeft: 4 }}
+                    />
                   </TouchableOpacity>
 
                   {showResponses && [...answersWithTranscripts]
@@ -1016,31 +1048,32 @@ const styles = StyleSheet.create({
   showResponsesLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 4,
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingVertical: 4,
   },
   showResponsesLinkText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    textDecorationLine: 'underline',
-    fontWeight: '500',
+    color: '#00934E',
+    fontWeight: '600',
+    fontFamily: 'Futura',
   },
   responseCard: {
-    backgroundColor: '#00934E',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
   },
   responseCardQuestion: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
+    color: '#00934E',
     fontStyle: 'italic',
     marginBottom: 8,
   },
   responseCardText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: '#545454',
     lineHeight: 24,
   },
   // Contact Card

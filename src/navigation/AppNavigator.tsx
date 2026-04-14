@@ -244,7 +244,6 @@ function TabsNavigator() {
       initialRouteName="Profile"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FE6627',
         tabBarInactiveTintColor: '#545454',
         tabBarStyle: {
           position: 'absolute',
@@ -272,6 +271,7 @@ function TabsNavigator() {
         component={QuestionsTabNavigator}
         options={{
           tabBarLabel: 'Questions',
+          tabBarActiveTintColor: '#00934E',
           tabBarIcon: ({ color, size }) => (
             <Feather name="mic" size={size} color={color} />
           ),
@@ -282,6 +282,7 @@ function TabsNavigator() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
+          tabBarActiveTintColor: '#FE6627',
           tabBarIcon: ({ color, size }) => (
             <Feather name="user" size={size} color={color} />
           ),
@@ -292,6 +293,7 @@ function TabsNavigator() {
         component={CommunityScreen}
         options={{
           tabBarLabel: 'Your circles',
+          tabBarActiveTintColor: '#0277BB',
           tabBarIcon: ({ color }) => <VennIcon color={color} />,
         }}
       />
@@ -300,6 +302,7 @@ function TabsNavigator() {
         component={SpotlightScreen}
         options={{
           tabBarLabel: 'Intersections',
+          tabBarActiveTintColor: '#FFA0A6',
           tabBarIcon: ({ color, size }) => (
             <Feather name="users" size={size} color={color} />
           ),

@@ -60,6 +60,35 @@ const authenticateToken = (req: AuthRequest, res: Response, next: express.NextFu
   }
 };
 
+// GET /api/users/profile
+// Fetch the authenticated user's profile data for cross-device hydration
+router.get('/profile', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        profileSummary: true,
+        profileAnswers: true,
+        profilePublished: true,
+        profileInterests: true,
+        circlesPublished: true,
+        contactPublished: true,
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    res.json({ success: true, profile: user });
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch profile' });
+  }
+});
+
 // PATCH /api/users/profile
 // Update user's profile (name, summary, answers, published status)
 // SECURITY: Validates and sanitizes input

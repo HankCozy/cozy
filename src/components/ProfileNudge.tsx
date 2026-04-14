@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 interface ProfileNudgeProps {
-  headline: string;
+  headline?: string;
   message: string;
   onAction?: () => void;
   onDismiss: () => void;
@@ -22,7 +22,7 @@ export default function ProfileNudge({ headline, message, onAction, onDismiss }:
       >
         <Feather name="x" size={16} color="#9ca3af" />
       </TouchableOpacity>
-      <Text style={styles.headline}>{headline}</Text>
+      {!!headline && <Text style={styles.headline}>{headline}</Text>}
       <Text style={styles.message}>{message}</Text>
     </Wrapper>
   );

@@ -23,13 +23,18 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import Waveform from '../components/Waveform';
-import ProfileStrengthIndicator from '../components/ProfileStrengthIndicator';
 import CategoriesIcon from '../components/CategoriesIcon';
 import { transcribeAudio, saveAnswers } from '../services/api';
 import { SECTION_BOUNDARIES } from './SectionQuestionsScreen';
 
 // Helper to determine which section a question belongs to
-function getSectionIdForQuestionIndex(index: number): string {
+// Onboarding uses a 10-question set: 0-3 intro_identity, 4-8 interests, 9 community
+function getSectionIdForQuestionIndex(index: number, isOnboarding: boolean): string {
+  if (isOnboarding) {
+    if (index <= 3) return 'intro_identity';
+    if (index <= 8) return 'interests';
+    return 'community';
+  }
   if (index <= SECTION_BOUNDARIES.intro_identity.end) return 'intro_identity';
   if (index <= SECTION_BOUNDARIES.interests.end) return 'interests';
   if (index <= SECTION_BOUNDARIES.relationships.end) return 'relationships';
@@ -209,7 +214,7 @@ export default function AnswerQuestionScreen() {
 
     try {
       const actualSectionId = sectionId === 'all'
-        ? getSectionIdForQuestionIndex(currentQuestionIndex)
+        ? getSectionIdForQuestionIndex(currentQuestionIndex, isFirstTimeOnboarding)
         : sectionId;
 
       const ts = Date.now();
@@ -239,7 +244,7 @@ export default function AnswerQuestionScreen() {
       }
 
       // Graduate to main app once threshold is reached during onboarding
-      const GRADUATION_THRESHOLD = 4;
+      const GRADUATION_THRESHOLD = 10;
       if (isFirstTimeOnboarding && newTotal >= GRADUATION_THRESHOLD) {
         await AsyncStorage.setItem('onboarding_completed', 'true');
         navigationRef.navigate('MainTabs', { screen: 'Profile' });
@@ -324,14 +329,11 @@ export default function AnswerQuestionScreen() {
         >
           <Feather name={isFirstTimeOnboarding ? 'x' : 'arrow-left'} size={24} color="#545454" />
         </TouchableOpacity>
-        {totalAnswers > 0 && (
+        {totalAnswers > 0 && totalAnswers < 10 && (
           <View style={styles.strengthIndicatorContainer}>
-            <ProfileStrengthIndicator
-              totalAnswers={totalAnswers}
-              showLabel={false}
-              compact={true}
-            />
-            <Text style={styles.questionCounter}>{totalAnswers}/15 questions answered</Text>
+            <Text style={styles.questionCounter}>
+              Answer {10 - totalAnswers} more questions to unlock your circles
+            </Text>
           </View>
         )}
         {!isFirstTimeOnboarding && (

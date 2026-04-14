@@ -120,6 +120,23 @@ export default function CommunityScreen() {
     );
   }
 
+  if (totalAnswers < 10 && !user?.profilePublished) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerSubtitle}>You belong to:</Text>
+          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
+        </View>
+        <View style={styles.centerState}>
+          <Feather name="lock" size={32} color="#BE9B51" />
+          <Text style={styles.lockText}>
+            Answer {10 - totalAnswers} more questions to unlock your circles
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -137,35 +154,18 @@ export default function CommunityScreen() {
 
         {/* Circles Section */}
         <View style={styles.circlesSection}>
-          <Text style={styles.sectionTitle}>Your circles:</Text>
+            <Text style={styles.sectionTitle}>Your circles:</Text>
 
-          {totalAnswers < 4 && !user?.profilePublished ? (
-            <View style={styles.lockedContainer}>
-              <View style={styles.circlesGridDimmed}>
-                {[1, 2, 3, 4].map((i) => (
-                  <View key={i} style={styles.circleButtonPlaceholder}>
-                    <View style={styles.circleCountPlaceholder} />
-                    <View style={styles.circleNamePlaceholder} />
-                  </View>
-                ))}
-              </View>
-              <View style={styles.lockOverlay}>
-                <Feather name="lock" size={32} color="#6B7280" />
-                <Text style={styles.lockText}>
-                  Answer {4 - totalAnswers} more question{4 - totalAnswers === 1 ? '' : 's'} to unlock your circles
+            {smallCommunity ? (
+              <View style={styles.smallCommunityContainer}>
+                <Text style={styles.smallCommunityText}>
+                  Circles unlock when 5 members complete their profiles.
+                </Text>
+                <Text style={styles.smallCommunitySubtext}>
+                  {eligibleCount} of 5 members ready.
                 </Text>
               </View>
-            </View>
-          ) : smallCommunity ? (
-            <View style={styles.smallCommunityContainer}>
-              <Text style={styles.smallCommunityText}>
-                Circles unlock when 5 members complete their profiles.
-              </Text>
-              <Text style={styles.smallCommunitySubtext}>
-                {eligibleCount} of 5 members ready.
-              </Text>
-            </View>
-          ) : (
+            ) : (
             <>
               <CircleBubbleChart
                 key={realCircles.length}
@@ -208,7 +208,7 @@ export default function CommunityScreen() {
                 })}
               </View>
             </>
-          )}
+            )}
         </View>
 
       </ScrollView>
@@ -244,26 +244,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 32,
     paddingBottom: 16,
+    alignItems: 'center',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Futura',
-    color: '#BE9B51',
+    fontWeight: '400',
+    color: '#545454',
     marginBottom: 4,
+    textAlign: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     fontFamily: 'Futura',
-    color: '#00934E',
+    color: '#0277BB',
+    textAlign: 'center',
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 16,
+    paddingHorizontal: 32,
+    paddingTop: 60,
   },
   circlesSection: {
     marginTop: 24,
     paddingHorizontal: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     fontFamily: 'Futura',
     color: '#545454',
     marginBottom: 16,
@@ -358,10 +370,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 247, 230, 0.85)',
   },
   lockText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'Futura',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#545454',
     textAlign: 'center',
   },

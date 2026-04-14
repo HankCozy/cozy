@@ -128,6 +128,32 @@ export async function extractProfileTags(summary: string, token: string): Promis
   }
 }
 
+export interface ServerProfile {
+  profileSummary: string | null;
+  profileAnswers: any;
+  profilePublished: boolean;
+  profileInterests: string[];
+  circlesPublished: boolean;
+  contactPublished: boolean;
+}
+
+/**
+ * Fetch the authenticated user's profile from the server (for cross-device hydration)
+ */
+export async function fetchProfileFromServer(token: string): Promise<ServerProfile | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await response.json();
+    if (data.success) return data.profile as ServerProfile;
+    return null;
+  } catch (err) {
+    console.error('[API] Failed to fetch profile from server:', err);
+    return null;
+  }
+}
+
 /**
  * Sync all current answers to the backend (fire-and-forget — never blocks UI)
  */

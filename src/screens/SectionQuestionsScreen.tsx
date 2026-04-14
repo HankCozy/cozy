@@ -46,6 +46,13 @@ export const ALL_QUESTIONS_ORDERED = [
   ...QUESTIONS_BY_SECTION.community,
 ];
 
+// 10-question onboarding set: all intro_identity (4) + all interests (5) + final community question (1)
+export const ONBOARDING_QUESTIONS = [
+  ...QUESTIONS_BY_SECTION.intro_identity,
+  ...QUESTIONS_BY_SECTION.interests,
+  QUESTIONS_BY_SECTION.community[QUESTIONS_BY_SECTION.community.length - 1],
+];
+
 // Also export section boundaries for tracking
 export const SECTION_BOUNDARIES = {
   intro_identity: { start: 0, end: 3 },
