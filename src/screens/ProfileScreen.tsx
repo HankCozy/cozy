@@ -45,6 +45,11 @@ const TAG_PALETTE = [
   { bg: '#E7E0D3', text: '#545454' }, // darker warm white (dark text)
 ];
 
+function stripProfileHeader(summary: string): string {
+  // Remove "[Name] Community Profile" or similar title prefixes Claude may add
+  return summary.replace(/^[^\n.!?]{0,60}Community Profile[\s\n]*/i, '').trim();
+}
+
 function stripIcebreakerQuestions(summary: string): string {
   const patterns = [
     /---\s*\*?\*?Icebreaker Questions/i,
@@ -265,6 +270,7 @@ export default function ProfileScreen() {
         style: 'narrative',
         firstName: auth.user?.firstName,
         lastName: auth.user?.lastName,
+        pronouns: auth.user?.pronouns,
       });
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);

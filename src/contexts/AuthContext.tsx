@@ -8,6 +8,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
+  pronouns?: string;
   role: 'MEMBER' | 'MANAGER' | 'ADMIN';
   profilePublished?: boolean;
   profilePictureUrl?: string;
@@ -82,12 +83,13 @@ interface AuthContextType {
     password: string;
     firstName?: string;
     lastName?: string;
+    pronouns?: string;
     invitationCode: string;
   }) => Promise<{ success: boolean; error?: string; user?: User; token?: string }>;
   completeOnboarding: (user: User, token: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   validateInvitation: (code: string) => Promise<{ valid: boolean; error?: string; invitation?: any }>;
-  updateUserProfile: (firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
+  updateUserProfile: (firstName: string, lastName: string, pronouns?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -193,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string;
     firstName?: string;
     lastName?: string;
+    pronouns?: string;
     invitationCode: string;
   }) => {
     try {
@@ -263,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateUserProfile = async (firstName: string, lastName: string) => {
+  const updateUserProfile = async (firstName: string, lastName: string, pronouns?: string) => {
     try {
       if (!auth.token || !auth.user) {
         return { success: false, error: 'Not authenticated' };
@@ -275,18 +278,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${auth.token}`
         },
-        body: JSON.stringify({ firstName, lastName })
+        body: JSON.stringify({ firstName, lastName, pronouns })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Update local user state
-        // SECURITY: Update in SecureStore
-        const updatedUser = { ...auth.user, firstName, lastName };
+        const updatedUser = { ...auth.user, firstName, lastName, pronouns };
         await SecureStore.setItemAsync('auth_user', JSON.stringify(updatedUser));
 
-        dispatch({ type: 'UPDATE_USER', payload: { firstName, lastName } });
+        dispatch({ type: 'UPDATE_USER', payload: { firstName, lastName, pronouns } });
 
         return { success: true };
       } else {

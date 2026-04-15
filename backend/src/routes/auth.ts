@@ -97,6 +97,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        pronouns: user.pronouns,
         role: user.role,
         profilePublished: user.profilePublished,
         profilePictureUrl: user.profilePictureUrl,
@@ -119,7 +120,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 // SECURITY: Validates and sanitizes registration input
 router.post('/register', validateRegistrationInput, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, firstName, lastName, invitationCode } = req.body;
+    const { email, password, firstName, lastName, pronouns, invitationCode } = req.body;
 
     // Input validation
     if (!email || !password || !invitationCode) {
@@ -201,6 +202,7 @@ router.post('/register', validateRegistrationInput, async (req: Request, res: Re
           passwordHash,
           firstName: firstName || null,
           lastName: lastName || null,
+          pronouns: pronouns || null,
           role: assignedRole,
           communityId: invitation.communityId,
           managedCommunityId: managedCommunityId
@@ -239,6 +241,7 @@ router.post('/register', validateRegistrationInput, async (req: Request, res: Re
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        pronouns: user.pronouns,
         role: user.role,
         profilePublished: user.profilePublished,
         profilePictureUrl: user.profilePictureUrl,

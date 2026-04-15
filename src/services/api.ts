@@ -79,7 +79,7 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
 export async function generateProfile(
   answers: QuestionAnswer[],
   token: string,
-  options?: { maxWords?: number; style?: 'professional' | 'casual' | 'narrative' }
+  options?: { maxWords?: number; style?: 'professional' | 'casual' | 'narrative' | 'snippet'; pronouns?: string }
 ): Promise<string> {
   try {
     console.log('[API] Generating profile from', answers.length, 'answers');

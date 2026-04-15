@@ -34,6 +34,7 @@ model User {
   passwordHash       String
   firstName          String?
   lastName           String?
+  pronouns           String?
   role               Role     @default(MEMBER)
   communityId        String?
   profileSummary     String?

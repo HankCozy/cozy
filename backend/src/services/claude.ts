@@ -15,9 +15,10 @@ export interface QuestionAnswer {
 
 export interface ProfileGenerationOptions {
   maxWords?: number;
-  style?: 'professional' | 'casual' | 'narrative';
+  style?: 'professional' | 'casual' | 'narrative' | 'snippet';
   firstName?: string;
   lastName?: string;
+  pronouns?: string;
 }
 
 /**
@@ -27,7 +28,7 @@ export async function generateProfileSummary(
   answers: QuestionAnswer[],
   options: ProfileGenerationOptions = {}
 ): Promise<string> {
-  const { maxWords = 400, style = 'narrative', firstName, lastName } = options;
+  const { maxWords = 400, style = 'narrative', firstName, lastName, pronouns } = options;
   const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'this person';
 
   // Group answers by section
@@ -89,7 +90,13 @@ VERIFICATION CHECK - Before writing each sentence, ask yourself:
 - "Can I point to specific words in their answers that support this?"
 - If the answer is no, DO NOT write it.
 
-Create a ${style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile. Above all else, prioritize FACTUAL ACCURACY - every detail must be traceable to their actual words.
+CRITICAL FORMAT RULES:
+- Do NOT start with a title, heading, or "[Name] Community Profile" prefix of any kind
+- Begin directly with the first sentence of the narrative — no preamble
+- Do NOT use section headers or bold labels anywhere in the profile text
+- PRONOUNS: Use "${pronouns || 'they/them'}" pronouns throughout the ENTIRE bio without exception. NEVER mix pronoun sets. NEVER guess or infer pronouns from the person's name.
+
+Create a ${style === 'snippet' ? 'concise' : style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile. Above all else, prioritize FACTUAL ACCURACY - every detail must be traceable to their actual words.
 
 1. ALWAYS use "${userName}" (and only this exact name) throughout the profile - NEVER substitute or invent a different name
 2. Make ${firstName || 'them'} sound interesting and authentic, but ONLY using details from their actual answers - never embellish or invent
@@ -118,7 +125,7 @@ EXAMPLES OF FORBIDDEN HALLUCINATIONS:
 
 Remember: A shorter, accurate profile is VASTLY superior to a longer profile with invented details.
 
-After the profile summary, add a blank line and then provide 3 thoughtful icebreaker questions that would help someone connect with ${firstName || 'this person'} based on their answers. Format them as:
+${style !== 'snippet' ? `After the profile summary, add a blank line and then provide 3 thoughtful icebreaker questions that would help someone connect with ${firstName || 'this person'} based on their answers. Format them as:
 
 ---
 **Icebreaker Questions:**
@@ -126,7 +133,7 @@ After the profile summary, add a blank line and then provide 3 thoughtful icebre
 2. [Second question about something specific they mentioned]
 3. [Third question that invites deeper conversation]
 
-The primary goal is that this profile leads to real-world connections - help readers understand who ${firstName || 'this person'} truly is and why they'd want to meet them. Avoid generic statements or clichés.`;
+The primary goal is that this profile leads to real-world connections - help readers understand who ${firstName || 'this person'} truly is and why they'd want to meet them. Avoid generic statements or clichés.` : `The primary goal is that this snippet gives someone an immediate, authentic sense of who ${firstName || 'this person'} is. Keep it to ${maxWords} words or fewer.`}`;
 
   try {
     console.log('[Claude Service] Sending request to Claude API...');

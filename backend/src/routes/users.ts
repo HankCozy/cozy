@@ -94,7 +94,7 @@ router.get('/profile', authenticateToken, async (req: AuthRequest, res: Response
 // SECURITY: Validates and sanitizes input
 router.patch('/profile', authenticateToken, validateProfileInput, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, profileSummary, profileAnswers, profilePublished, circlesPublished, contactPublished, profileInterests, profilePictureUrl } = req.body;
+    const { firstName, lastName, pronouns, profileSummary, profileAnswers, profilePublished, circlesPublished, contactPublished, profileInterests, profilePictureUrl } = req.body;
     const userId = req.userId;
 
     // Build update data object with only provided fields
@@ -119,6 +119,10 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
 
       updateData.firstName = firstName.trim();
       updateData.lastName = lastName.trim();
+    }
+
+    if (pronouns !== undefined) {
+      updateData.pronouns = pronouns || null;
     }
 
     // Handle profile fields (optional)
@@ -173,6 +177,7 @@ router.patch('/profile', authenticateToken, validateProfileInput, async (req: Au
         email: updatedUser.email,
         firstName: updatedUser.firstName,
         lastName: updatedUser.lastName,
+        pronouns: updatedUser.pronouns,
         role: updatedUser.role,
         profilePictureUrl: updatedUser.profilePictureUrl,
         community: updatedUser.community ? {
