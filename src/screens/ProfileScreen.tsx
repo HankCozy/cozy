@@ -253,6 +253,9 @@ export default function ProfileScreen() {
   );
 
   const handleGenerateSummary = async () => {
+    if (totalAnswers < 6) {
+      return; // UI gate should prevent this, but hard-block just in case
+    }
     const answersWithT = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
     if (answersWithT.length === 0) {
       Alert.alert('No Transcripts', 'Record and transcribe some answers before generating a bio.');
@@ -585,86 +588,91 @@ export default function ProfileScreen() {
           <View style={styles.profileCard}>
             <Text style={styles.profileName}>{fullName}</Text>
 
-            {/* Interest Tags */}
-            {profileInterests.length > 0 && (
-              <View style={styles.tagsRow}>
-                {profileInterests.slice(0, 6).map((tag, i) => {
-                  const palette = TAG_PALETTE[i % TAG_PALETTE.length];
-                  return (
-                    <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
-                      <Text style={[styles.tagText, { color: palette.text }]}>
-                        {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Bio */}
-            {isEditingProfile ? (
-              <View style={styles.editBioContainer}>
-                <TextInput
-                  ref={textInputRef}
-                  style={styles.editBioInput}
-                  value={editedSummary}
-                  onChangeText={setEditedSummary}
-                  multiline
-                  textAlignVertical="top"
-                  autoFocus
-                />
-                <View style={styles.editBioActions}>
-                  <TouchableOpacity style={styles.cancelEditButton} onPress={() => { setIsEditingProfile(false); setEditedSummary(''); }}>
-                    <Text style={styles.cancelEditText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.saveBioButton} onPress={handleSaveBio}>
-                    <Text style={styles.saveBioText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : bioText ? (() => {
-              const words = bioText.split(/\s+/);
-              const isTruncated = words.length > SHORT_BIO_WORDS;
-              const displayText = (!bioExpanded && isTruncated)
-                ? words.slice(0, SHORT_BIO_WORDS).join(' ') + '...'
-                : bioText;
-              return (
-                <>
-                  <Text style={styles.bioText}>{displayText}</Text>
-                  <View style={styles.bioActions}>
-                    {isTruncated && (
-                      <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(!bioExpanded)}>
-                        {bioExpanded ? (
-                          <Text style={styles.addBioLinkText}>Show less</Text>
-                        ) : (
-                          <>
-                            <Text style={styles.addBioLinkText}>Show full bio </Text>
-                            <Text style={styles.addBioSparkle}>✦</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      style={styles.addBioLink}
-                      onPress={() => { setEditedSummary(bioText); setIsEditingProfile(true); }}
-                    >
-                      <Text style={styles.addBioLinkText}>Edit bio</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              );
-            })() : totalAnswers >= 6 ? (
-              <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
-                {generatingSummary ? (
-                  <ActivityIndicator size="small" color="#00934E" />
-                ) : (
-                  <Text style={styles.addBioLinkText}>Add a full bio</Text>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.bioPlaceholder}>
-                Answer {6 - totalAnswers} more question{6 - totalAnswers === 1 ? '' : 's'} to generate your bio
+            {/* Tags + Bio — only shown once profile is complete (6+ answers) */}
+            {totalAnswers < 6 ? (
+              <Text style={styles.profileIncompleteText}>
+                Answer {6 - totalAnswers} more question{6 - totalAnswers === 1 ? '' : 's'} to complete your profile
               </Text>
+            ) : (
+              <>
+                {/* Interest Tags */}
+                {profileInterests.length > 0 && (
+                  <View style={styles.tagsRow}>
+                    {profileInterests.slice(0, 6).map((tag, i) => {
+                      const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+                      return (
+                        <View key={i} style={[styles.tag, { backgroundColor: palette.bg }]}>
+                          <Text style={[styles.tagText, { color: palette.text }]}>
+                            {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Bio */}
+                {isEditingProfile ? (
+                  <View style={styles.editBioContainer}>
+                    <TextInput
+                      ref={textInputRef}
+                      style={styles.editBioInput}
+                      value={editedSummary}
+                      onChangeText={setEditedSummary}
+                      multiline
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                    <View style={styles.editBioActions}>
+                      <TouchableOpacity style={styles.cancelEditButton} onPress={() => { setIsEditingProfile(false); setEditedSummary(''); }}>
+                        <Text style={styles.cancelEditText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.saveBioButton} onPress={handleSaveBio}>
+                        <Text style={styles.saveBioText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : bioText ? (() => {
+                  const words = bioText.split(/\s+/);
+                  const isTruncated = words.length > SHORT_BIO_WORDS;
+                  const displayText = (!bioExpanded && isTruncated)
+                    ? words.slice(0, SHORT_BIO_WORDS).join(' ') + '...'
+                    : bioText;
+                  return (
+                    <>
+                      <Text style={styles.bioText}>{displayText}</Text>
+                      <View style={styles.bioActions}>
+                        {isTruncated && (
+                          <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(!bioExpanded)}>
+                            {bioExpanded ? (
+                              <Text style={styles.addBioLinkText}>Show less</Text>
+                            ) : (
+                              <>
+                                <Text style={styles.addBioLinkText}>Show full bio </Text>
+                                <Text style={styles.addBioSparkle}>✦</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={styles.addBioLink}
+                          onPress={() => { setEditedSummary(bioText); setIsEditingProfile(true); }}
+                        >
+                          <Text style={styles.addBioLinkText}>Edit bio</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  );
+                })() : (
+                  <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
+                    {generatingSummary ? (
+                      <ActivityIndicator size="small" color="#00934E" />
+                    ) : (
+                      <Text style={styles.addBioLinkText}>Add a bio</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
 
@@ -906,6 +914,15 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#545454',
     marginBottom: 12,
+  },
+  profileIncompleteText: {
+    fontSize: 15,
+    color: '#BE9B51',
+    fontFamily: 'Futura',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+    lineHeight: 22,
   },
   bioPlaceholder: {
     fontSize: 14,
