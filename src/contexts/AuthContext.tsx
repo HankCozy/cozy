@@ -237,9 +237,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      // SECURITY: Remove from SecureStore
+      // Clear encrypted auth credentials
       await SecureStore.deleteItemAsync('auth_token');
       await SecureStore.deleteItemAsync('auth_user');
+
+      // Clear all local profile/session data from AsyncStorage
+      const keys = await AsyncStorage.getAllKeys();
+      const keysToRemove = keys.filter((k) =>
+        k.startsWith('answer_') ||
+        k.startsWith('section_') ||
+        k.startsWith('profile_') ||
+        k === 'onboarding_completed' ||
+        k === 'current_user_id' ||
+        k === 'contact_published' ||
+        k === 'nudge_dismissed_id' ||
+        k === 'pending_question_flow'
+      );
+      if (keysToRemove.length > 0) await AsyncStorage.multiRemove(keysToRemove);
+
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       console.error('Failed to logout:', error);
