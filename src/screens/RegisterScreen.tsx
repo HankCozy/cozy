@@ -29,11 +29,19 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [passwordValid, setPasswordValid] = useState<boolean | null>(null);
+  const [pronouns, setPronouns] = useState<string | null>(null);
   const { register } = useAuth();
 
+  const PRONOUN_OPTIONS = [
+    { label: 'He / Him', value: 'he/him' },
+    { label: 'She / Her', value: 'she/her' },
+    { label: 'They / Them', value: 'they/them' },
+    { label: 'Prefer not to say', value: '' },
+  ];
+
   const handleRegister = async () => {
-    if (!formData.email || !formData.password || !formData.invitationCode) {
-      Alert.alert('Error', 'Please fill in required fields');
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.invitationCode) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
@@ -53,6 +61,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
       password: formData.password,
       firstName: formData.firstName,
       lastName: formData.lastName,
+      pronouns: pronouns ?? undefined,
       invitationCode: formData.invitationCode
     });
 
@@ -112,7 +121,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>First Name</Text>
+                <Text style={styles.label}>First Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.firstName}
@@ -123,7 +132,7 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                 />
               </View>
               <View style={[styles.inputGroup, styles.halfWidth]}>
-                <Text style={styles.label}>Last Name</Text>
+                <Text style={styles.label}>Last Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.lastName}
@@ -132,6 +141,26 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
                   placeholderTextColor="#BE9B51"
                   autoCapitalize="words"
                 />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Your pronouns <Text style={styles.optional}>(optional)</Text></Text>
+              <View style={styles.pronounsRow}>
+                {PRONOUN_OPTIONS.map((option) => {
+                  const isSelected = pronouns === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value || 'none'}
+                      style={[styles.pronounPill, isSelected && styles.pronounPillActive]}
+                      onPress={() => setPronouns(isSelected ? null : option.value)}
+                    >
+                      <Text style={[styles.pronounPillText, isSelected && styles.pronounPillTextActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -328,6 +357,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Futura',
     color: '#00934E',
+    fontWeight: '600',
+  },
+  optional: {
+    fontWeight: '400',
+    color: '#BE9B51',
+    fontSize: 13,
+  },
+  pronounsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  pronounPill: {
+    borderWidth: 1,
+    borderColor: '#E7E0D3',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFF7E6',
+  },
+  pronounPillActive: {
+    backgroundColor: '#00934E',
+    borderColor: '#00934E',
+  },
+  pronounPillText: {
+    fontSize: 14,
+    color: '#545454',
+    fontFamily: 'Futura',
+  },
+  pronounPillTextActive: {
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });
