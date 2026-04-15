@@ -258,7 +258,7 @@ export default function MemberProfileScreen() {
           </View>
         )}
 
-        {/* Email button */}
+        {/* MESSAGING_DISABLED: Email button — hidden until messaging is ready to ship
         {member.contactPublished && member.email && (
           <TouchableOpacity
             style={styles.emailButton}
@@ -268,6 +268,7 @@ export default function MemberProfileScreen() {
             <Text style={styles.emailButtonText}>Email {firstName || 'them'}</Text>
           </TouchableOpacity>
         )}
+        */}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>

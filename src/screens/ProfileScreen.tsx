@@ -717,7 +717,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Get in Touch */}
+          {/* MESSAGING_DISABLED: Get in Touch — hidden until messaging is ready to ship
           {profileSummary && (
             <View style={styles.contactCard}>
               <View style={styles.sectionHeaderRow}>
@@ -743,6 +743,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           )}
+          */}
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
