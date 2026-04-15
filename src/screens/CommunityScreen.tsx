@@ -120,7 +120,7 @@ export default function CommunityScreen() {
     );
   }
 
-  if (totalAnswers < 10 && !user?.profilePublished) {
+  if (totalAnswers < 6 && !user?.profilePublished) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
@@ -131,7 +131,7 @@ export default function CommunityScreen() {
           <View style={styles.lockContent}>
             <Feather name="lock" size={32} color="#BE9B51" />
             <Text style={styles.lockText}>
-              Answer {10 - totalAnswers} more questions to unlock your circles
+              Answer {6 - totalAnswers} more questions to unlock your circles
             </Text>
           </View>
         </View>

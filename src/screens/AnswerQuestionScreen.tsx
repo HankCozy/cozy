@@ -244,17 +244,17 @@ export default function AnswerQuestionScreen() {
       }
 
       // Graduate to main app once threshold is reached during onboarding
-      const GRADUATION_THRESHOLD = 10;
+      const GRADUATION_THRESHOLD = 2;
       if (isFirstTimeOnboarding && newTotal >= GRADUATION_THRESHOLD) {
         await AsyncStorage.setItem('onboarding_completed', 'true');
-        navigationRef.navigate('MainTabs', { screen: 'Profile' });
+        navigationRef.navigate('MainTabs', { screen: 'Questions' });
         return;
       }
 
       if (isLastQuestion) {
         if (isFirstTimeOnboarding) {
           await AsyncStorage.setItem('onboarding_completed', 'true');
-          navigationRef.navigate('MainTabs', { screen: 'Profile' });
+          navigationRef.navigate('MainTabs', { screen: 'Questions' });
         } else {
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();
@@ -329,10 +329,10 @@ export default function AnswerQuestionScreen() {
         >
           <Feather name={isFirstTimeOnboarding ? 'x' : 'arrow-left'} size={24} color="#545454" />
         </TouchableOpacity>
-        {totalAnswers > 0 && totalAnswers < 10 && (
+        {totalAnswers > 0 && totalAnswers < 6 && (
           <View style={styles.strengthIndicatorContainer}>
             <Text style={styles.questionCounter}>
-              Answer {10 - totalAnswers} more questions to unlock your circles
+              Answer {6 - totalAnswers} more questions to unlock your circles
             </Text>
           </View>
         )}

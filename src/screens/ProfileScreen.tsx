@@ -546,10 +546,10 @@ export default function ProfileScreen() {
             );
           })()}
 
-          {/* Unlock Banner — 1–9 answers: session-only dismiss */}
-          {totalAnswers > 0 && totalAnswers < 10 && !unlockBannerDismissed && (
+          {/* Unlock Banner — 1–5 answers: session-only dismiss */}
+          {totalAnswers > 0 && totalAnswers < 6 && !unlockBannerDismissed && (
             <ProfileNudge
-              message={`Answer ${10 - totalAnswers} more questions to unlock your circles`}
+              message={`Answer ${6 - totalAnswers} more questions to unlock your circles`}
               onAction={() => navigation.navigate('Questions')}
               onDismiss={() => setUnlockBannerDismissed(true)}
             />
@@ -647,7 +647,7 @@ export default function ProfileScreen() {
                   </View>
                 </>
               );
-            })() : totalAnswers >= 10 ? (
+            })() : totalAnswers >= 6 ? (
               <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
                 {generatingSummary ? (
                   <ActivityIndicator size="small" color="#00934E" />
@@ -657,7 +657,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ) : (
               <Text style={styles.bioPlaceholder}>
-                Answer {10 - totalAnswers} more question{10 - totalAnswers === 1 ? '' : 's'} to generate your bio
+                Answer {6 - totalAnswers} more question{6 - totalAnswers === 1 ? '' : 's'} to generate your bio
               </Text>
             )}
           </View>
@@ -828,6 +828,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 100,
   },
   // Avatar floats above card — marginBottom pulls card up so card top = 30% through badge (24px)
   profileBadgeFloat: {

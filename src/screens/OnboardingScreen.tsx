@@ -14,7 +14,7 @@ import {
 import LottieView from 'lottie-react-native';
 import { useAuth, User } from '../contexts/AuthContext';
 import { navigationRef } from '../services/navigationService';
-import { ONBOARDING_QUESTIONS } from './SectionQuestionsScreen';
+import { INITIAL_ONBOARDING_QUESTIONS } from './SectionQuestionsScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -170,7 +170,7 @@ export default function OnboardingScreen({ navigation, route }: OnboardingScreen
           screen: 'AnswerQuestion',
           params: {
             sectionId: 'all',
-            questions: ONBOARDING_QUESTIONS,
+            questions: INITIAL_ONBOARDING_QUESTIONS,
             isFirstTimeOnboarding: true,
           },
         });

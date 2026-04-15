@@ -53,6 +53,9 @@ export const ONBOARDING_QUESTIONS = [
   QUESTIONS_BY_SECTION.community[QUESTIONS_BY_SECTION.community.length - 1],
 ];
 
+// 2-question initial onboarding: first two intro_identity questions shown before category picker
+export const INITIAL_ONBOARDING_QUESTIONS = QUESTIONS_BY_SECTION.intro_identity.slice(0, 2);
+
 // Also export section boundaries for tracking
 export const SECTION_BOUNDARIES = {
   intro_identity: { start: 0, end: 3 },
