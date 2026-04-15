@@ -18,7 +18,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { generateProfile, extractProfileTags, updateProfileSettings, fetchProfileFromServer, QuestionAnswer, getProfilePictureUrl } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileBadge from '../components/ProfileBadge';
-import ProfileNudge from '../components/ProfileNudge';
 import { compressProfilePicture } from '../utils/imageCompression';
 import { API_BASE_URL } from '../config/api';
 
@@ -93,19 +92,6 @@ function parseIcebreakerQuestions(summary: string): string[] {
   return questions;
 }
 
-interface NudgeData {
-  id: string;
-  headline: string;
-  message: string;
-  actionTarget?: 'questions';
-}
-
-function computeNudge(totalAnswers: number, profileSummary: string | null): NudgeData | null {
-  if (totalAnswers === 0) {
-    return { id: 'zero', headline: "Let's get started", message: "Tap here to answer your first question", actionTarget: 'questions' };
-  }
-  return null;
-}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
@@ -122,8 +108,6 @@ export default function ProfileScreen() {
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [dismissedNudgeId, setDismissedNudgeId] = useState<string | null>(null);
-  const [unlockBannerDismissed, setUnlockBannerDismissed] = useState(false);
   const [profileInterests, setProfileInterests] = useState<string[]>([]);
   const [contactPublished, setContactPublished] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -132,7 +116,7 @@ export default function ProfileScreen() {
 
   const SHORT_BIO_WORDS = 55;
 
-  const totalAnswers = Object.values(answerCounts).reduce((sum, count) => sum + count, 0);
+  const totalAnswers = answers.length;
   const firstName = auth.user?.firstName || '';
   const fullName = [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(' ') || 'Your Profile';
 
@@ -234,9 +218,6 @@ export default function ProfileScreen() {
         }
       });
 
-      AsyncStorage.getItem('nudge_dismissed_id').then((id) => {
-        setDismissedNudgeId(id);
-      });
 
       if (auth.user?.id && token) {
         getProfilePictureUrl(auth.user.id, token)
@@ -536,33 +517,6 @@ export default function ProfileScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-
-          {/* Nudge Banner — zero answers: one-time CTA (AsyncStorage persisted) */}
-          {(() => {
-            if (totalAnswers !== 0) return null;
-            const nudge = computeNudge(totalAnswers, profileSummary);
-            if (!nudge || nudge.id === dismissedNudgeId) return null;
-            return (
-              <ProfileNudge
-                headline={nudge.headline}
-                message={nudge.message}
-                onAction={() => navigation.navigate('Questions')}
-                onDismiss={async () => {
-                  await AsyncStorage.setItem('nudge_dismissed_id', nudge.id);
-                  setDismissedNudgeId(nudge.id);
-                }}
-              />
-            );
-          })()}
-
-          {/* Unlock Banner — 1–5 answers: session-only dismiss */}
-          {totalAnswers > 0 && totalAnswers < 6 && !unlockBannerDismissed && (
-            <ProfileNudge
-              message={`Answer ${6 - totalAnswers} more questions to unlock your circles`}
-              onAction={() => navigation.navigate('Questions')}
-              onDismiss={() => setUnlockBannerDismissed(true)}
-            />
-          )}
 
           {/* Avatar floating above card — top of card starts 30% through badge */}
           <TouchableOpacity

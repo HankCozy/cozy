@@ -518,6 +518,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bottomSpacer: {
-    height: 32,
+    height: 100,
   },
 });
