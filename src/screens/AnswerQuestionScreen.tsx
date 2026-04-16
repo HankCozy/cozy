@@ -243,21 +243,27 @@ export default function AnswerQuestionScreen() {
         saveAnswers(answers, auth.token); // intentionally not awaited
       }
 
-      // Graduate to main app once threshold is reached during onboarding
+      // When the user hits exactly 6 answers, send them to Profile regardless of flow
+      if (newTotal === 6) {
+        if (isFirstTimeOnboarding) {
+          await AsyncStorage.setItem('onboarding_completed', 'true');
+        }
+        navigationRef.navigate('MainTabs', { screen: 'Profile' });
+        return;
+      }
+
+      // Graduate to main app at 2 answers during onboarding (before reaching 6)
       const GRADUATION_THRESHOLD = 2;
       if (isFirstTimeOnboarding && newTotal >= GRADUATION_THRESHOLD) {
         await AsyncStorage.setItem('onboarding_completed', 'true');
-        // At 6+ answers, send user to Profile so they see the "Add a bio" prompt
-        const targetTab = newTotal >= 6 ? 'Profile' : 'Questions';
-        navigationRef.navigate('MainTabs', { screen: targetTab });
+        navigationRef.navigate('MainTabs', { screen: 'Questions' });
         return;
       }
 
       if (isLastQuestion) {
         if (isFirstTimeOnboarding) {
           await AsyncStorage.setItem('onboarding_completed', 'true');
-          const targetTab = newTotal >= 6 ? 'Profile' : 'Questions';
-          navigationRef.navigate('MainTabs', { screen: targetTab });
+          navigationRef.navigate('MainTabs', { screen: 'Questions' });
         } else {
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();

@@ -18,7 +18,7 @@ import { getProfilePictureUrl } from '../services/api';
 import { API_BASE_URL } from '../config/api';
 
 const SEEN_KEY = 'intersections_seen_ids';
-const MAX_SEEN = 8;
+const MAX_SEEN = 40;
 const SHORT_BIO_WORDS = 55;
 
 const TAG_PALETTE = [

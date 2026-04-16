@@ -45,7 +45,7 @@ export interface IcebreakerMatch {
 
 // In-memory cache for circles (per community)
 const circlesCache = new Map<string, { data: CirclesResult; timestamp: number }>();
-const CACHE_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Get circles for a community, using cache if available

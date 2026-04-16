@@ -263,6 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
+    paddingTop: 60,
     paddingHorizontal: 32,
   },
   lockContent: {

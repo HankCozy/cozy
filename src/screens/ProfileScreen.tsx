@@ -233,10 +233,56 @@ export default function ProfileScreen() {
     }, [auth.user?.id, token])
   );
 
+  // Auto-generate short snippet when profile reaches 6 answers and has no summary yet
+  React.useEffect(() => {
+    if (loading || totalAnswers < 6 || profileSummary || generatingSummary || !token) return;
+    const answersWithT = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
+    if (answersWithT.length === 0) return;
+
+    const autoGenerate = async () => {
+      try {
+        setGeneratingSummary(true);
+        const questionAnswers: QuestionAnswer[] = answersWithT.map((a) => ({
+          sectionId: a.sectionId,
+          question: a.question,
+          transcript: a.transcript!,
+        }));
+        const summary = await generateProfile(questionAnswers, token, {
+          maxWords: 100,
+          style: 'snippet',
+          firstName: auth.user?.firstName,
+          lastName: auth.user?.lastName,
+          pronouns: auth.user?.pronouns,
+        });
+        await AsyncStorage.setItem('profile_summary', summary);
+        setProfileSummary(summary);
+        await AsyncStorage.setItem('profile_published', 'true');
+        setIsPublished(true);
+        await fetch(`${API_BASE_URL}/api/users/profile`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileSummary: summary, profileAnswers: answers, profilePublished: true }),
+        });
+        if (token) {
+          const tags = await extractProfileTags(stripIcebreakerQuestions(summary), token);
+          if (tags.length > 0) {
+            await AsyncStorage.setItem('profile_interests', JSON.stringify(tags));
+            setProfileInterests(tags);
+            await updateProfileSettings({ profileInterests: tags }, token);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to auto-generate snippet:', error);
+      } finally {
+        setGeneratingSummary(false);
+      }
+    };
+    autoGenerate();
+  }, [loading, totalAnswers, profileSummary]);
+
+  // "Write full profile" — user-initiated long-form narrative generation
   const handleGenerateSummary = async () => {
-    if (totalAnswers < 6) {
-      return; // UI gate should prevent this, but hard-block just in case
-    }
+    if (totalAnswers < 6) return;
     const answersWithT = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
     if (answersWithT.length === 0) {
       Alert.alert('No Transcripts', 'Record and transcribe some answers before generating a bio.');
@@ -596,13 +642,22 @@ export default function ProfileScreen() {
                     <>
                       <Text style={styles.bioText}>{displayText}</Text>
                       <View style={styles.bioActions}>
-                        {isTruncated && (
-                          <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(!bioExpanded)}>
-                            {bioExpanded ? (
-                              <Text style={styles.addBioLinkText}>Show less</Text>
+                        {/* Binary: Show less when expanded, Write full profile when collapsed */}
+                        {isTruncated && bioExpanded ? (
+                          <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(false)}>
+                            <Text style={styles.addBioLinkText}>Show less</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.addBioLink}
+                            onPress={handleGenerateSummary}
+                            disabled={generatingSummary}
+                          >
+                            {generatingSummary ? (
+                              <ActivityIndicator size="small" color="#00934E" />
                             ) : (
                               <>
-                                <Text style={styles.addBioLinkText}>Show full bio </Text>
+                                <Text style={styles.addBioLinkText}>Write full profile </Text>
                                 <Text style={styles.addBioSparkle}>✦</Text>
                               </>
                             )}
@@ -618,13 +673,10 @@ export default function ProfileScreen() {
                     </>
                   );
                 })() : (
-                  <TouchableOpacity style={styles.addBioLink} onPress={handleGenerateSummary} disabled={generatingSummary}>
-                    {generatingSummary ? (
-                      <ActivityIndicator size="small" color="#00934E" />
-                    ) : (
-                      <Text style={styles.addBioLinkText}>Add a bio</Text>
-                    )}
-                  </TouchableOpacity>
+                  <View style={styles.generatingState}>
+                    <ActivityIndicator size="small" color="#00934E" />
+                    <Text style={styles.generatingText}>Building your profile...</Text>
+                  </View>
                 )}
               </>
             )}
@@ -667,19 +719,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* Icebreaker Card */}
-          {icebreakerQuestions.length > 0 && (
-            <View style={styles.icebreakerCard}>
-              <Text style={styles.icebreakerLabel}>
-                Icebreakers for {firstName || 'you'}:
-              </Text>
-              {icebreakerQuestions.map((q, i) => (
-                <Text key={i} style={styles.icebreakerQuestion}>{q}</Text>
-              ))}
-            </View>
-          )}
-
-          {/* MESSAGING_DISABLED: Get in Touch — hidden until messaging is ready to ship
+          {/* Communication Preference */}
           {profileSummary && (
             <View style={styles.contactCard}>
               <View style={styles.sectionHeaderRow}>
@@ -705,7 +745,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           )}
-          */}
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
@@ -902,6 +941,17 @@ const styles = StyleSheet.create({
   },
   addBioSparkle: {
     fontSize: 14,
+    color: '#00934E',
+  },
+  generatingState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  generatingText: {
+    fontSize: 14,
+    fontFamily: 'Futura',
     color: '#00934E',
   },
   editBioContainer: {
