@@ -90,17 +90,20 @@ export default function CommunityScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      setLoading(true);
-      loadAnswerCount();
-      fetchCircles();
-      setLoading(false);
+      const init = async () => {
+        setLoading(true);
+        await loadAnswerCount();
+        await fetchCircles();
+        setLoading(false);
+      };
+      init();
     }, [token, user?.id])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadAnswerCount();
-    fetchCircles();
+    await loadAnswerCount();
+    await fetchCircles();
     setRefreshing(false);
   };
 
@@ -113,9 +116,14 @@ export default function CommunityScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0277BB" />
-        <Text style={styles.loadingText}>Loading circles...</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Text style={styles.headerSubtitle}>You belong to:</Text>
+          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color="#0277BB" />
+        </View>
       </SafeAreaView>
     );
   }
@@ -229,18 +237,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 120,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF7E6',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontFamily: 'Futura',
-    color: '#545454',
   },
   header: {
     paddingHorizontal: 28,

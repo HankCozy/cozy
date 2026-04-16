@@ -247,14 +247,17 @@ export default function AnswerQuestionScreen() {
       const GRADUATION_THRESHOLD = 2;
       if (isFirstTimeOnboarding && newTotal >= GRADUATION_THRESHOLD) {
         await AsyncStorage.setItem('onboarding_completed', 'true');
-        navigationRef.navigate('MainTabs', { screen: 'Questions' });
+        // At 6+ answers, send user to Profile so they see the "Add a bio" prompt
+        const targetTab = newTotal >= 6 ? 'Profile' : 'Questions';
+        navigationRef.navigate('MainTabs', { screen: targetTab });
         return;
       }
 
       if (isLastQuestion) {
         if (isFirstTimeOnboarding) {
           await AsyncStorage.setItem('onboarding_completed', 'true');
-          navigationRef.navigate('MainTabs', { screen: 'Questions' });
+          const targetTab = newTotal >= 6 ? 'Profile' : 'Questions';
+          navigationRef.navigate('MainTabs', { screen: targetTab });
         } else {
           await AsyncStorage.setItem(`section_${actualSectionId}_completed`, 'true');
           navigation.popToTop();

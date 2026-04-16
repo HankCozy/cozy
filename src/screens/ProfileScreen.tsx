@@ -208,28 +208,28 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      loadAnswers();
-      loadProfileData();
+      const init = async () => {
+        await Promise.all([loadAnswers(), loadProfileData()]);
 
-      AsyncStorage.getItem('pending_question_flow').then(async (pending) => {
+        const pending = await AsyncStorage.getItem('pending_question_flow');
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_question_flow');
           navigation.navigate('Questions');
         }
-      });
 
-
-      if (auth.user?.id && token) {
-        getProfilePictureUrl(auth.user.id, token)
-          .then(url => setProfilePictureUrl(url))
-          .catch(error => {
-            if (error.message === 'TOKEN_EXPIRED') {
-              Alert.alert('Session Expired', 'Your session has expired. Please login again.', [
-                { text: 'OK', onPress: () => logout() },
-              ]);
-            }
-          });
-      }
+        if (auth.user?.id && token) {
+          getProfilePictureUrl(auth.user.id, token)
+            .then(url => setProfilePictureUrl(url))
+            .catch(error => {
+              if (error.message === 'TOKEN_EXPIRED') {
+                Alert.alert('Session Expired', 'Your session has expired. Please login again.', [
+                  { text: 'OK', onPress: () => logout() },
+                ]);
+              }
+            });
+        }
+      };
+      init();
     }, [auth.user?.id, token])
   );
 
