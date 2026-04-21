@@ -68,9 +68,8 @@ export default function CommunityScreen() {
           setEligibleCount(data.eligibleCount ?? 0);
         } else {
           setCircles(data.circles);
-          const realCount = data.circles.filter((c: CircleOverview) => c.id !== 'all').length;
-          setSmallCommunity(realCount === 0);
-          setEligibleCount(data.circles.reduce((sum: number, c: CircleOverview) => sum + c.count, 0));
+          setSmallCommunity(false);
+          setEligibleCount(data.eligibleCount ?? data.circles.reduce((sum: number, c: CircleOverview) => sum + c.count, 0));
         }
       }
     } catch (error) {
@@ -173,6 +172,15 @@ export default function CommunityScreen() {
                 </Text>
                 <Text style={styles.smallCommunitySubtext}>
                   {eligibleCount} of 5 members ready.
+                </Text>
+              </View>
+            ) : sortedRealCircles.length === 0 ? (
+              <View style={styles.smallCommunityContainer}>
+                <Text style={styles.smallCommunityText}>
+                  Your circles are being set up.
+                </Text>
+                <Text style={styles.smallCommunitySubtext}>
+                  Pull down to refresh.
                 </Text>
               </View>
             ) : (

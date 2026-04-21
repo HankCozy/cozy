@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -340,7 +341,7 @@ export default function AnswerQuestionScreen() {
         </TouchableOpacity>
         {totalAnswers > 0 && totalAnswers < 6 && (
           <View style={styles.strengthIndicatorContainer}>
-            <Text style={styles.questionCounter}>
+            <Text style={styles.questionCounter} maxFontSizeMultiplier={1.3}>
               Answer {6 - totalAnswers} more questions to unlock your circles
             </Text>
           </View>
@@ -355,11 +356,16 @@ export default function AnswerQuestionScreen() {
         )}
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Question at top */}
-        <Text style={styles.question} maxFontSizeMultiplier={1.2}>{currentQuestion}</Text>
+        <Text style={styles.question} maxFontSizeMultiplier={1.3}>{currentQuestion}</Text>
 
-        {/* Center content area - scrollable */}
+        {/* Center content area */}
         <View style={styles.centerContent}>
           {/* Recording UI - button stays in same position, changes color only */}
           {(inputMode === 'idle' && !recordingUri && !transcript && !isTranscribing) && (
@@ -379,18 +385,18 @@ export default function AnswerQuestionScreen() {
               </TouchableOpacity>
               <Waveform isRecording={isRecording} />
               {isRecording && (
-                <Text style={styles.centerHintText}>Recording</Text>
+                <Text style={styles.centerHintText} maxFontSizeMultiplier={1.3}>Recording</Text>
               )}
               {isFirstTimeOnboarding && currentQuestionIndex === 0 && !isRecording && (
                 <View style={styles.privacyBox}>
-                  <Text style={styles.privacyLabel}>We transcribe your audio to find connection points. We do not share or save your voice recording.</Text>
+                  <Text style={styles.privacyLabel} maxFontSizeMultiplier={1.3}>We transcribe your audio to find connection points. We do not share or save your voice recording.</Text>
                 </View>
               )}
               {!isRecording && (
                 <View style={styles.hintTextContainer}>
-                  <Text style={styles.buttonHintText}>Tap to start recording or </Text>
+                  <Text style={styles.buttonHintText} maxFontSizeMultiplier={1.3}>Tap to start recording or </Text>
                   <TouchableOpacity onPress={handleTypeInstead}>
-                    <Text style={styles.typeLink}>type instead</Text>
+                    <Text style={styles.typeLink} maxFontSizeMultiplier={1.3}>type instead</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -401,30 +407,24 @@ export default function AnswerQuestionScreen() {
           {isTranscribing && (
             <View style={styles.transcribingContainer}>
               <ActivityIndicator size="large" color="#0277BB" />
-              <Text style={styles.centerHintText}>Transcribing your answer...</Text>
+              <Text style={styles.centerHintText} maxFontSizeMultiplier={1.3}>Transcribing your answer...</Text>
             </View>
           )}
 
           {/* Transcript display - scrollable text */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
             <View style={styles.transcriptWrapper}>
-              <Text style={styles.transcriptLabel}>Your response:</Text>
+              <Text style={styles.transcriptLabel} maxFontSizeMultiplier={1.3}>Your response:</Text>
               <View style={styles.transcriptBox}>
-                <Text style={styles.transcriptText}>{transcript}</Text>
+                <Text style={styles.transcriptText} maxFontSizeMultiplier={1.3}>{transcript}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.editLinkButton}
-                onPress={handleStartEditing}
-              >
-                <Text style={styles.editLinkText}>Edit</Text>
-              </TouchableOpacity>
             </View>
           )}
 
           {/* Editing transcript - text input */}
           {isEditingTranscript && (
             <View style={styles.editWrapper}>
-              <Text style={styles.transcriptLabel}>Your response:</Text>
+              <Text style={styles.transcriptLabel} maxFontSizeMultiplier={1.3}>Your response:</Text>
               <TextInput
                 style={styles.editTextInput}
                 value={editedTranscript}
@@ -450,13 +450,21 @@ export default function AnswerQuestionScreen() {
         </View>
 
         {/* Bottom area - status, links, buttons */}
-        <View style={styles.bottomArea}>
+        <View style={styles.bottomArea} pointerEvents="box-none">
 
-          {/* Transcript shown - Next button */}
+          {/* Transcript shown - Next (primary) + Edit (secondary) */}
           {transcript && !isEditingTranscript && inputMode === 'idle' && (
-            <TouchableOpacity style={styles.nextButton} onPress={handleDone}>
-              <Text style={styles.nextButtonText}>Next</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity style={styles.nextButton} onPress={handleDone}>
+                <Text style={styles.nextButtonText} maxFontSizeMultiplier={1.3}>Next</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.editLinkButton, { alignSelf: 'center', marginTop: 12 }]}
+                onPress={handleStartEditing}
+              >
+                <Text style={styles.editLinkText} maxFontSizeMultiplier={1.3}>Edit</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           {/* Editing mode - Save/Cancel buttons */}
@@ -469,13 +477,13 @@ export default function AnswerQuestionScreen() {
                   setEditedTranscript('');
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText} maxFontSizeMultiplier={1.3}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={handleSaveEditedTranscript}
               >
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text style={styles.saveButtonText} maxFontSizeMultiplier={1.3}>Save</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -490,30 +498,19 @@ export default function AnswerQuestionScreen() {
                   setTypedAnswer('');
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText} maxFontSizeMultiplier={1.3}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.continueButton}
                 onPress={handleSaveTypedAnswer}
               >
-                <Text style={styles.continueButtonText}>Continue</Text>
+                <Text style={styles.continueButtonText} maxFontSizeMultiplier={1.3}>Continue</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* View Profile link - only show when transcript is visible */}
-          {!isFirstTimeOnboarding && transcript && !isTranscribing && !isEditingTranscript && inputMode === 'idle' && (
-            <TouchableOpacity
-              style={styles.viewProfileLink}
-              onPress={() => {
-                navigation.getParent()?.navigate('MainTabs', { screen: 'Profile' });
-              }}
-            >
-              <Text style={styles.viewProfileLinkText}>View Profile</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -566,25 +563,28 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: 8,
+  },
   question: {
     fontSize: 28,
     fontWeight: '400',
     fontFamily: 'Futura',
     color: '#545454',
     textAlign: 'center',
-    marginTop: 40,
-    marginBottom: 32,
+    marginTop: 16,
+    marginBottom: 16,
     paddingHorizontal: 20,
   },
   centerContent: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 40,
+    paddingTop: 16,
   },
   bottomArea: {
     paddingTop: 20,
-    paddingBottom: 112,
+    paddingBottom: 40,
     alignItems: 'center',
     gap: 16,
     minHeight: 100,
@@ -592,8 +592,8 @@ const styles = StyleSheet.create({
   // Containers
   recordButtonContainer: {
     alignItems: 'center',
-    marginTop: 60,
-    minHeight: 200,
+    marginTop: 20,
+    minHeight: 180,
   },
   playbackContainer: {
     alignItems: 'center',
@@ -811,9 +811,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#0277BB',
     borderRadius: 20,
     paddingVertical: 16,
+    marginHorizontal: 20,
     paddingHorizontal: 48,
     alignItems: 'center',
-    width: '100%',
+    alignSelf: 'stretch',
   },
   nextButtonText: {
     color: '#FFFFFF',

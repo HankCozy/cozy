@@ -69,12 +69,20 @@ export async function getCirclesForCommunity(
 
   // Generate new circles
   console.log('[Circles] Generating new circles for community:', communityId);
-  const result = await generateCircles(members);
-
-  // Cache the result
-  circlesCache.set(cacheKey, { data: result, timestamp: now });
-
-  return result;
+  try {
+    const result = await generateCircles(members);
+    circlesCache.set(cacheKey, { data: result, timestamp: now });
+    return result;
+  } catch (error) {
+    // Don't cache failed generation — next request will retry
+    console.error('[Circles] Generation failed, returning fallback without caching');
+    const now2 = new Date();
+    return {
+      circles: [createAllCircle(members)],
+      generatedAt: now2.toISOString(),
+      expiresAt: new Date(now2.getTime() + CACHE_TTL_MS).toISOString(),
+    };
+  }
 }
 
 /**
@@ -200,12 +208,8 @@ Analyze the profiles and create meaningful circles now.`;
     };
   } catch (error) {
     const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    console.error('[Circles] Generation failed, falling back to All circle. Reason:', reason);
-    return {
-      circles: [createAllCircle(members)],
-      generatedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    };
+    console.error('[Circles] Generation failed. Reason:', reason);
+    throw error;
   }
 }
 

@@ -257,10 +257,11 @@ function TabsNavigator() {
           shadowOpacity: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
           marginBottom: 10,
         },
+        tabBarAllowFontScaling: false,
         tabBarIconStyle: {
           marginTop: 10,
         },
@@ -292,7 +293,7 @@ function TabsNavigator() {
         name="Community"
         component={CommunityScreen}
         options={{
-          tabBarLabel: 'Your circles',
+          tabBarLabel: 'Circles',
           tabBarActiveTintColor: '#0277BB',
           tabBarIcon: ({ color }) => <VennIcon color={color} />,
         }}
@@ -301,7 +302,7 @@ function TabsNavigator() {
         name="Spotlight"
         component={SpotlightScreen}
         options={{
-          tabBarLabel: 'Intersections',
+          tabBarLabel: 'Kindred',
           tabBarActiveTintColor: '#FFA0A6',
           tabBarIcon: ({ color, size }) => (
             <Feather name="users" size={size} color={color} />

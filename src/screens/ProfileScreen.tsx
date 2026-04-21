@@ -101,6 +101,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [answerCounts, setAnswerCounts] = useState<Record<string, number>>({});
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [profileSummary, setProfileSummary] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedSummary, setEditedSummary] = useState('');
@@ -295,13 +296,34 @@ export default function ProfileScreen() {
         question: a.question,
         transcript: a.transcript!,
       }));
-      const summary = await generateProfile(questionAnswers, token!, {
+      const rawSummary = await generateProfile(questionAnswers, token!, {
         maxWords: 400,
         style: 'narrative',
         firstName: auth.user?.firstName,
         lastName: auth.user?.lastName,
         pronouns: auth.user?.pronouns,
       });
+
+      // Prepend the existing short snippet as an exec summary above the long narrative
+      const icebreakerPatterns = [
+        /---\s*\*?\*?Icebreaker Questions/i,
+        /\*\*Icebreaker Questions/i,
+        /---/,
+      ];
+      let icebreakerSection = '';
+      for (const pattern of icebreakerPatterns) {
+        const match = rawSummary.match(pattern);
+        if (match && match.index !== undefined) {
+          icebreakerSection = rawSummary.substring(match.index);
+          break;
+        }
+      }
+      const narrativeBody = stripIcebreakerQuestions(rawSummary);
+      const shortSnippet = profileSummary ? stripIcebreakerQuestions(profileSummary) : null;
+      const summary = shortSnippet
+        ? shortSnippet + '\n\n' + narrativeBody + (icebreakerSection ? '\n\n' + icebreakerSection : '')
+        : rawSummary;
+
       await AsyncStorage.setItem('profile_summary', summary);
       setProfileSummary(summary);
 
@@ -333,6 +355,54 @@ export default function ProfileScreen() {
       Alert.alert('Generation Failed', 'Unable to generate your bio. Check your connection and try again.');
     } finally {
       setGeneratingSummary(false);
+    }
+  };
+
+  const handleRegenerateInEdit = async () => {
+    const answersWithT = answers.filter((a) => a.transcript && a.transcript.trim().length > 0);
+    if (answersWithT.length === 0) {
+      Alert.alert('No Transcripts', 'Record and transcribe some answers before regenerating.');
+      return;
+    }
+    try {
+      setIsRegenerating(true);
+      const questionAnswers: QuestionAnswer[] = answersWithT.map((a) => ({
+        sectionId: a.sectionId,
+        question: a.question,
+        transcript: a.transcript!,
+      }));
+      const rawSummary = await generateProfile(questionAnswers, token!, {
+        maxWords: 400,
+        style: 'narrative',
+        firstName: auth.user?.firstName,
+        lastName: auth.user?.lastName,
+        pronouns: auth.user?.pronouns,
+      });
+      const icebreakerPatterns = [
+        /---\s*\*?\*?Icebreaker Questions/i,
+        /\*\*Icebreaker Questions/i,
+        /---/,
+      ];
+      let icebreakerSection = '';
+      for (const pattern of icebreakerPatterns) {
+        const match = rawSummary.match(pattern);
+        if (match && match.index !== undefined) {
+          icebreakerSection = rawSummary.substring(match.index);
+          break;
+        }
+      }
+      const narrativeBody = stripIcebreakerQuestions(rawSummary);
+      const shortSnippet = profileSummary ? stripIcebreakerQuestions(profileSummary) : null;
+      const combined = shortSnippet
+        ? shortSnippet + '\n\n' + narrativeBody + (icebreakerSection ? '\n\n' + icebreakerSection : '')
+        : rawSummary;
+      // Populate TextInput for review — user saves manually
+      setEditedSummary(stripIcebreakerQuestions(combined));
+    } catch (error) {
+      console.error('Failed to regenerate profile:', error);
+      Alert.alert('Generation Failed', 'Unable to regenerate your bio. Check your connection and try again.');
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -614,23 +684,42 @@ export default function ProfileScreen() {
                 {/* Bio */}
                 {isEditingProfile ? (
                   <View style={styles.editBioContainer}>
-                    <TextInput
-                      ref={textInputRef}
-                      style={styles.editBioInput}
-                      value={editedSummary}
-                      onChangeText={setEditedSummary}
-                      multiline
-                      textAlignVertical="top"
-                      autoFocus
-                    />
+                    {isRegenerating ? (
+                      <View style={styles.regeneratingState}>
+                        <ActivityIndicator size="small" color="#00934E" />
+                        <Text style={styles.generatingText}>Regenerating your profile...</Text>
+                      </View>
+                    ) : (
+                      <TextInput
+                        ref={textInputRef}
+                        style={styles.editBioInput}
+                        value={editedSummary}
+                        onChangeText={setEditedSummary}
+                        multiline
+                        textAlignVertical="top"
+                        autoFocus
+                      />
+                    )}
                     <View style={styles.editBioActions}>
-                      <TouchableOpacity style={styles.cancelEditButton} onPress={() => { setIsEditingProfile(false); setEditedSummary(''); }}>
-                        <Text style={styles.cancelEditText}>Cancel</Text>
+                      <TouchableOpacity style={styles.cancelEditButton} disabled={isRegenerating} onPress={() => { setIsEditingProfile(false); setEditedSummary(''); }}>
+                        <Text style={[styles.cancelEditText, isRegenerating && { opacity: 0.4 }]}>Cancel</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.saveBioButton} onPress={handleSaveBio}>
-                        <Text style={styles.saveBioText}>Save</Text>
+                      <TouchableOpacity style={styles.saveBioButton} disabled={isRegenerating} onPress={handleSaveBio}>
+                        <Text style={[styles.saveBioText, isRegenerating && { opacity: 0.4 }]}>Save</Text>
                       </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                      style={[styles.addBioLink, { alignSelf: 'center', marginTop: 8 }]}
+                      onPress={handleRegenerateInEdit}
+                      disabled={isRegenerating}
+                    >
+                      {isRegenerating ? null : (
+                        <>
+                          <Text style={styles.addBioLinkText}>Regenerate </Text>
+                          <Text style={styles.addBioSparkle}>✦</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 ) : bioText ? (() => {
                   const words = bioText.split(/\s+/);
@@ -642,10 +731,9 @@ export default function ProfileScreen() {
                     <>
                       <Text style={styles.bioText}>{displayText}</Text>
                       <View style={styles.bioActions}>
-                        {/* Binary: Show less when expanded, Write full profile when collapsed */}
-                        {isTruncated && bioExpanded ? (
-                          <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(false)}>
-                            <Text style={styles.addBioLinkText}>Show less</Text>
+                        {isTruncated ? (
+                          <TouchableOpacity style={styles.addBioLink} onPress={() => setBioExpanded(!bioExpanded)}>
+                            <Text style={styles.addBioLinkText}>{bioExpanded ? 'Hide profile' : 'Show profile'}</Text>
                           </TouchableOpacity>
                         ) : (
                           <TouchableOpacity
@@ -942,6 +1030,13 @@ const styles = StyleSheet.create({
   addBioSparkle: {
     fontSize: 14,
     color: '#00934E',
+  },
+  regeneratingState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 40,
   },
   generatingState: {
     flexDirection: 'row',
