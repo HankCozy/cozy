@@ -161,8 +161,8 @@ Analyze the profiles and create meaningful circles now.`;
     console.log('[Circles] Sending clustering request to Claude API...');
 
     const message = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
-      max_tokens: 2048,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -352,7 +352,7 @@ Use the exact integer memberId values from the Community Members list above.
 
   try {
     const message = await client.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     });
