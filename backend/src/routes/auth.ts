@@ -86,7 +86,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       tokenPayload.communityId = user.communityId;
     }
 
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '90d' });
 
     // Return user data and token
     res.json({
@@ -230,7 +230,7 @@ router.post('/register', validateRegistrationInput, async (req: Request, res: Re
       registerTokenPayload.communityId = user.communityId;
     }
 
-    const token = jwt.sign(registerTokenPayload, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(registerTokenPayload, JWT_SECRET, { expiresIn: '90d' });
 
     // Return user data and token
     res.status(201).json({

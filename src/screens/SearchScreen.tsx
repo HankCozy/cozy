@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
@@ -64,6 +66,7 @@ export default function SearchScreen() {
     : members;
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Search</Text>
@@ -122,6 +125,7 @@ export default function SearchScreen() {
         />
       )}
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

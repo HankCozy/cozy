@@ -811,14 +811,14 @@ export default function ProfileScreen() {
           {profileSummary && (
             <View style={styles.contactCard}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeaderLabel}>Get in touch:</Text>
+                <Text style={styles.sectionHeaderLabel} maxFontSizeMultiplier={1.2} numberOfLines={1}>Get in touch:</Text>
                 <View style={styles.toggleRow}>
                   <TouchableOpacity onPress={() => handleContactToggle(true)}>
-                    <Text style={[styles.toggleOption, contactPublished && styles.toggleOptionActive]}>ENABLED</Text>
+                    <Text style={[styles.toggleOption, contactPublished && styles.toggleOptionActive]} maxFontSizeMultiplier={1.2}>ENABLED</Text>
                   </TouchableOpacity>
-                  <Text style={styles.toggleSep}> / </Text>
+                  <Text style={styles.toggleSep} maxFontSizeMultiplier={1.2}> / </Text>
                   <TouchableOpacity onPress={() => handleContactToggle(false)}>
-                    <Text style={[styles.toggleOption, !contactPublished && styles.toggleOptionActive]}>DISABLED</Text>
+                    <Text style={[styles.toggleOption, !contactPublished && styles.toggleOptionActive]} maxFontSizeMultiplier={1.2}>DISABLED</Text>
                   </TouchableOpacity>
                 </View>
               </View>

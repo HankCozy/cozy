@@ -54,19 +54,54 @@ For interest/affinity tags, use in this order: Green → Pink → Yellow → Ora
 
 **Primary font: Futura** — used for all headings, labels, buttons, and body text.
 
-| Role | Size | Weight | Color |
-|---|---|---|---|
-| Screen title | 28px | bold (700) | `#00934E` |
-| Section label / input label | 15px | 600 | `#545454` |
-| Body / subtitle | 16px | 400 | `#545454` |
-| Button text | 16–17px | 700 | `#FFFFFF` |
-| Footer / link text | 14px | 600 | `#00934E` |
-| Requirement / hint text | 12px | 400 | `#BE9B51` |
+Font sizes are defined in `src/constants/typography.ts`. **Always import from there — do not hardcode raw numbers in StyleSheets.**
+
+| Role | Constant | Size | Weight | Color |
+|---|---|---|---|---|
+| Screen title | `typography.screenTitle` | 28px | 700 | `#00934E` |
+| Section header | `typography.sectionHeader` | 20px | 600 | `#545454` |
+| Profile name | `typography.profileName` | 26px | 700 | `#545454` |
+| Pull quote | `typography.quote` | 20px | 400 | `#545454` |
+| Body large | `typography.bodyLarge` | 16px | 400 | `#545454` |
+| Body | `typography.body` | 15px | 400 | `#545454` |
+| Label / footer link | `typography.label` | 14px | 600 | `#00934E` |
+| Small / tags / meta | `typography.small` | 13px | 400 | `#545454` |
+| Hint / requirement | `typography.hint` | 12px | 400 | `#BE9B51` |
+| Tiny / badges | `typography.tiny` | 11px | 400 | `#545454` |
+| Button | `typography.button` | 16px | 700 | `#FFFFFF` |
+| Button large (CTA) | `typography.buttonLarge` | 17px | 700 | `#FFFFFF` |
 
 - Always set `fontFamily: 'Futura'` explicitly — do not rely on system default
 - Valid states use `#00934E`; invalid/error states use `#FE6627`
 
+**⚠️ CRITICAL: Dynamic Text & Accessibility Font Scaling**
+
+iOS Dynamic Type can scale any `<Text>` component to 3–4× its base size when the user has large accessibility fonts enabled. Without guards, a 28px title becomes 84px and pushes all content off screen.
+
+**Mandatory rules for all `<Text>` components:**
+1. Any heading or label that must stay on one line: add `maxFontSizeMultiplier={typography.maxMultiplier}` (= 1.2)
+2. Any `<Text>` rendering dynamic API data (user name, community name, section title): add `numberOfLines={1}` (or 2) + `adjustsFontSizeToFit` + `maxFontSizeMultiplier={typography.maxMultiplier}`
+3. Body text and multi-line content can be left uncapped, but must be inside a `ScrollView` so overflow is always reachable
+
+**Pattern for dynamic headings:**
+```tsx
+<Text
+  style={styles.headerTitle}
+  maxFontSizeMultiplier={typography.maxMultiplier}
+  numberOfLines={2}
+  adjustsFontSizeToFit
+>
+  {user?.community?.organization}
+</Text>
+```
+
 ### Component Patterns
+
+**Screen wrapper**
+- Use `ScreenContainer` from `src/components/ScreenContainer.tsx` instead of raw `SafeAreaView`
+- It provides `KeyboardAvoidingView` + `SafeAreaView` + warm white background automatically
+- Every screen with a `TextInput` MUST use `ScreenContainer` so the keyboard never covers inputs
+- Screens without inputs may use `SafeAreaView` directly, but `ScreenContainer` is preferred
 
 **Inputs**
 - Border: 1px `#E7E0D3`, border radius: 20

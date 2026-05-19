@@ -201,8 +201,8 @@ export default function SpotlightScreen() {
 
   const Header = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>Intersections</Text>
-      <Text style={styles.subtitle}>
+      <Text style={styles.title} maxFontSizeMultiplier={1.2} numberOfLines={1} adjustsFontSizeToFit>Intersections</Text>
+      <Text style={styles.subtitle} maxFontSizeMultiplier={1.2} numberOfLines={3} adjustsFontSizeToFit>
         Points of collision and connection across {orgName}
       </Text>
     </View>

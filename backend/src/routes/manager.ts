@@ -55,6 +55,11 @@ router.get('/stats', authenticateToken, requireManagerOrAdmin, async (req: AuthR
       });
     }
 
+    const community = await prisma.community.findUnique({
+      where: { id: targetCommunityId },
+      select: { communityInfo: true }
+    });
+
     // Fetch member statistics (exclude MANAGERs and ADMINs)
     const members = await prisma.user.findMany({
       where: {
@@ -104,7 +109,8 @@ router.get('/stats', authenticateToken, requireManagerOrAdmin, async (req: AuthR
         totalMembers,
         publishedProfiles,
         averageCompletion,
-        members: memberStats
+        members: memberStats,
+        communityInfo: community?.communityInfo ?? null
       }
     });
   } catch (error) {
@@ -113,6 +119,52 @@ router.get('/stats', authenticateToken, requireManagerOrAdmin, async (req: AuthR
       success: false,
       error: 'Failed to fetch member statistics'
     });
+  }
+});
+
+// PATCH /api/manager/community-info - Update community info/announcement text
+router.patch('/community-info', authenticateToken, requireManagerOrAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req;
+    const { communityInfo } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, managedCommunityId: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    let targetCommunityId: string | undefined | null;
+
+    if (user.role === 'MANAGER') {
+      if (!user.managedCommunityId) {
+        return res.status(403).json({ success: false, error: 'Manager not assigned to any community' });
+      }
+      targetCommunityId = user.managedCommunityId;
+    } else if (user.role === 'ADMIN') {
+      const requestedCommunityId = req.body.communityId as string;
+      if (!requestedCommunityId) {
+        return res.status(400).json({ success: false, error: 'Community ID required for admin' });
+      }
+      targetCommunityId = requestedCommunityId;
+    }
+
+    if (!targetCommunityId) {
+      return res.status(400).json({ success: false, error: 'Community ID not found' });
+    }
+
+    await prisma.community.update({
+      where: { id: targetCommunityId },
+      data: { communityInfo: communityInfo?.trim() || null }
+    });
+
+    res.json({ success: true, communityInfo: communityInfo?.trim() || null });
+  } catch (error) {
+    console.error('Update community info error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update community info' });
   }
 });
 

@@ -5,11 +5,19 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
+
+const COMMUNITY_INFO_LIMIT = 500;
 
 interface MemberStat {
   id: string;
@@ -26,6 +34,7 @@ interface Stats {
   publishedProfiles: number;
   averageCompletion: number;
   members: MemberStat[];
+  communityInfo: string | null;
 }
 
 export default function ManagerDashboardScreen() {
@@ -35,6 +44,9 @@ export default function ManagerDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [communityInfo, setCommunityInfo] = useState('');
+  const [communityInfoOriginal, setCommunityInfoOriginal] = useState('');
+  const [savingInfo, setSavingInfo] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -60,6 +72,9 @@ export default function ManagerDashboardScreen() {
 
       if (data.success) {
         setStats(data.stats);
+        const info = data.stats.communityInfo ?? '';
+        setCommunityInfo(info);
+        setCommunityInfoOriginal(info);
       } else {
         setError(data.error || 'Failed to load stats');
       }
@@ -74,6 +89,32 @@ export default function ManagerDashboardScreen() {
 
   const onRefresh = () => {
     fetchStats(true);
+  };
+
+  const saveCommunityInfo = async () => {
+    setSavingInfo(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/manager/community-info`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ communityInfo: communityInfo.trim() }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const saved = data.communityInfo ?? '';
+        setCommunityInfo(saved);
+        setCommunityInfoOriginal(saved);
+      } else {
+        Alert.alert('Error', data.error || 'Failed to save. Please try again.');
+      }
+    } catch {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setSavingInfo(false);
+    }
   };
 
   if (loading) {
@@ -95,6 +136,8 @@ export default function ManagerDashboardScreen() {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF7E6' }}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
@@ -106,6 +149,41 @@ export default function ManagerDashboardScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Manager Dashboard</Text>
         <Text style={styles.headerSubtitle}>{user?.community?.organization || 'Your Community'}</Text>
+      </View>
+
+      {/* Community Info */}
+      <View style={styles.communityInfoSection}>
+        <Text style={styles.sectionTitle}>Community Info</Text>
+        <Text style={styles.communityInfoHint}>
+          This message appears at the top of the People tab for all members.
+        </Text>
+        <TextInput
+          style={styles.communityInfoInput}
+          value={communityInfo}
+          onChangeText={text => setCommunityInfo(text.slice(0, COMMUNITY_INFO_LIMIT))}
+          placeholder="Share updates, announcements, or a welcome note with your community…"
+          placeholderTextColor="#BE9B51"
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+        <View style={styles.communityInfoFooter}>
+          <Text style={styles.charCount}>{communityInfo.length} / {COMMUNITY_INFO_LIMIT}</Text>
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              (communityInfo === communityInfoOriginal || savingInfo) && styles.saveButtonDisabled
+            ]}
+            onPress={saveCommunityInfo}
+            disabled={communityInfo === communityInfoOriginal || savingInfo}
+            activeOpacity={0.8}
+          >
+            {savingInfo
+              ? <ActivityIndicator size="small" color="white" />
+              : <Text style={styles.saveButtonText}>Save</Text>
+            }
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary Cards */}
@@ -190,6 +268,8 @@ export default function ManagerDashboardScreen() {
         )}
       </View>
     </ScrollView>
+    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -272,6 +352,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     textAlign: 'center',
+  },
+  communityInfoSection: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  communityInfoHint: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 10,
+  },
+  communityInfoInput: {
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#E7E0D3',
+    borderRadius: 20,
+    padding: 14,
+    fontSize: 15,
+    color: '#545454',
+    minHeight: 100,
+    fontFamily: 'Futura',
+  },
+  communityInfoFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#BE9B51',
+  },
+  saveButton: {
+    backgroundColor: '#00934E',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: 'Futura',
   },
   membersSection: {
     paddingHorizontal: 20,

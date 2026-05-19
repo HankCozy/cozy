@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -325,6 +326,10 @@ export default function AnswerQuestionScreen() {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
@@ -512,6 +517,7 @@ export default function AnswerQuestionScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -568,7 +574,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   question: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '400',
     fontFamily: 'Futura',
     color: '#545454',

@@ -117,8 +117,8 @@ export default function CommunityScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>You belong to:</Text>
-          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
+          <Text style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>You belong to:</Text>
+          <Text style={styles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={2} adjustsFontSizeToFit>{user?.community?.organization}</Text>
         </View>
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#0277BB" />
@@ -131,8 +131,8 @@ export default function CommunityScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>You belong to:</Text>
-          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
+          <Text style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>You belong to:</Text>
+          <Text style={styles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={2} adjustsFontSizeToFit>{user?.community?.organization}</Text>
         </View>
         <View style={styles.centerState}>
           <View style={styles.lockContent}>
@@ -157,8 +157,8 @@ export default function CommunityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>You belong to:</Text>
-          <Text style={styles.headerTitle}>{user?.community?.organization}</Text>
+          <Text style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>You belong to:</Text>
+          <Text style={styles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={2} adjustsFontSizeToFit>{user?.community?.organization}</Text>
         </View>
 
         {/* Circles Section */}

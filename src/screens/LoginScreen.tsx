@@ -67,8 +67,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             >
               <Feather name="chevron-left" size={24} color="#545454" />
             </TouchableOpacity>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your community</Text>
+            <Text style={styles.title} maxFontSizeMultiplier={1.2}>Welcome Back</Text>
+            <Text style={styles.subtitle} maxFontSizeMultiplier={1.2}>Sign in to your community</Text>
           </View>
 
           <View style={styles.form}>

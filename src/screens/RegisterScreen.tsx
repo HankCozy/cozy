@@ -102,8 +102,8 @@ export default function RegisterScreen({ navigation }: RegisterScreenProps) {
             >
               <Feather name="chevron-left" size={24} color="#545454" />
             </TouchableOpacity>
-            <Text style={styles.title}>Join Community</Text>
-            <Text style={styles.subtitle}>Create your account with an invitation code</Text>
+            <Text style={styles.title} maxFontSizeMultiplier={1.2}>Join Community</Text>
+            <Text style={styles.subtitle} maxFontSizeMultiplier={1.2}>Create your account with an invitation code</Text>
           </View>
 
           <View style={styles.form}>

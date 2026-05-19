@@ -21,35 +21,40 @@ router.get('/members', authenticateToken, async (req: AuthRequest, res: Response
       return res.status(400).json({ error: 'Community ID not found' });
     }
 
-    // Fetch all users in the same community with published profiles
-    // Filter to only show MEMBER users (exclude MANAGERs and ADMINs)
-    const members = await prisma.user.findMany({
-      where: {
-        communityId: communityId,
-        profilePublished: true,
-        role: 'MEMBER'
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        profileSummary: true,
-        profileAnswers: true,
-        profileInterests: true,
-        circlesPublished: true,
-        contactPublished: true,
-        profilePictureUrl: true,
-        createdAt: true
-      },
-      orderBy: {
-        firstName: 'asc'
-      }
-    });
+    const [members, community] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          communityId: communityId,
+          profilePublished: true,
+          role: 'MEMBER'
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          profileSummary: true,
+          profileAnswers: true,
+          profileInterests: true,
+          circlesPublished: true,
+          contactPublished: true,
+          profilePictureUrl: true,
+          createdAt: true
+        },
+        orderBy: {
+          firstName: 'asc'
+        }
+      }),
+      prisma.community.findUnique({
+        where: { id: communityId },
+        select: { communityInfo: true }
+      })
+    ]);
 
     res.json({
       success: true,
-      members
+      members,
+      communityInfo: community?.communityInfo ?? null
     });
   } catch (error) {
     console.error('Fetch community members error:', error);

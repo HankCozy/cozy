@@ -15,13 +15,14 @@ datasource db {
 }
 
 model Community {
-  id           String   @id @default(uuid())
-  organization String
-  division     String?
-  accountOwner String?
-  managerEmail String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  organization  String
+  division      String?
+  accountOwner  String?
+  managerEmail  String?
+  communityInfo String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   users        User[]
   invitations  Invitation[]

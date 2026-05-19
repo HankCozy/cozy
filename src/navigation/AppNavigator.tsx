@@ -17,7 +17,7 @@ import QuestionFlowScreen from '../screens/QuestionFlowScreen';
 import SectionQuestionsScreen from '../screens/SectionQuestionsScreen';
 import AnswerQuestionScreen from '../screens/AnswerQuestionScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
-import SpotlightScreen from '../screens/SpotlightScreen';
+import PeopleScreen from '../screens/PeopleScreen';
 import CircleDetailScreen from '../screens/CircleDetailScreen';
 import ManagerDashboardScreen from '../screens/ManagerDashboardScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
@@ -47,7 +47,7 @@ export type AppTabsParamList = {
   Profile: undefined;
   Questions: undefined;
   Community: undefined;
-  Spotlight: undefined;
+  People: undefined;
   Dashboard?: undefined;
   AdminDashboard?: undefined;
   CreateCommunity?: undefined;
@@ -238,7 +238,7 @@ function TabsNavigator() {
     );
   }
 
-  // MEMBER: Regular experience (Questions, Profile, Your circles, Spotlight)
+  // MEMBER: Regular experience (Questions, Profile, Your circles, People)
   return (
     <AppTabs.Navigator
       initialRouteName="Profile"
@@ -299,10 +299,10 @@ function TabsNavigator() {
         }}
       />
       <AppTabs.Screen
-        name="Spotlight"
-        component={SpotlightScreen}
+        name="People"
+        component={PeopleScreen}
         options={{
-          tabBarLabel: 'Kindred',
+          tabBarLabel: 'People',
           tabBarActiveTintColor: '#FFA0A6',
           tabBarIcon: ({ color, size }) => (
             <Feather name="users" size={size} color={color} />
