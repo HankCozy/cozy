@@ -35,12 +35,12 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       });
     }
 
-    // Validate each answer has required fields
+    // Validate each answer has required fields and non-empty content
     for (const answer of answers) {
-      if (!answer.sectionId || !answer.question || !answer.transcript) {
+      if (!answer.sectionId || !answer.question || !answer.transcript || answer.transcript.trim().length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Each answer must have sectionId, question, and transcript',
+          error: 'Each answer must have sectionId, question, and a non-empty transcript',
         });
       }
     }

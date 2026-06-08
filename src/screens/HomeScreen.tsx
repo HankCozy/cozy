@@ -60,11 +60,21 @@ function stripIcebreakerSection(summary: string): string {
   return summary;
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function buildFeed(members: FeedMember[], communityName: string): FeedCard[] {
-  const peopleCards: FeedCard[] = [];
+  const summaryCards: FeedCard[] = [];
+  const answerCards: FeedCard[] = [];
 
   for (const member of members) {
-    peopleCards.push({ type: 'summary', member });
+    summaryCards.push({ type: 'summary', member });
 
     const answers = member.profileAnswers ?? [];
     const best = answers
@@ -75,13 +85,24 @@ function buildFeed(members: FeedMember[], communityName: string): FeedCard[] {
         best.transcript.length > 220
           ? best.transcript.slice(0, 220) + '…'
           : best.transcript;
-      peopleCards.push({
+      answerCards.push({
         type: 'answer',
         member,
         question: best.question,
         answer: answerText,
       });
     }
+  }
+
+  // Shuffle each type independently, then interleave so the same person
+  // never appears in back-to-back cards.
+  const shuffledSummaries = shuffle(summaryCards);
+  const shuffledAnswers = shuffle(answerCards);
+  const peopleCards: FeedCard[] = [];
+  const maxLen = Math.max(shuffledSummaries.length, shuffledAnswers.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (i < shuffledSummaries.length) peopleCards.push(shuffledSummaries[i]);
+    if (i < shuffledAnswers.length) peopleCards.push(shuffledAnswers[i]);
   }
 
   const interestCounts: Record<string, number> = {};
@@ -328,7 +349,7 @@ export default function HomeScreen() {
         activeOpacity={0.8}
       >
         <Text
-          style={styles.feedAnswerName}
+          style={styles.feedCardName}
           maxFontSizeMultiplier={typography.maxMultiplier}
           numberOfLines={1}
         >
@@ -669,13 +690,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#00934E',
     marginBottom: 8,
-  },
-  feedAnswerName: {
-    fontFamily: 'Futura',
-    fontSize: typography.label,
-    fontWeight: '700',
-    color: '#00934E',
-    marginBottom: 4,
   },
   feedQuestion: {
     fontFamily: 'Futura',

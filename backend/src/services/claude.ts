@@ -21,6 +21,30 @@ export interface ProfileGenerationOptions {
   pronouns?: string;
 }
 
+// Maps frontend sectionIds to readable display names in the prompt.
+// Accepts both legacy backend IDs (identity, lifestyle) and current frontend IDs
+// (intro_identity, interests) so the prompt is correct regardless of client version.
+const SECTION_DISPLAY: Record<string, string> = {
+  intro_identity: 'Identity & Background',
+  interests: 'Interests & Hobbies',
+  relationships: 'Relationships',
+  community: 'Community',
+  identity: 'Identity & Background',
+  lifestyle: 'Interests & Hobbies',
+};
+
+// Patterns that indicate Claude returned a meta-response instead of a profile.
+// These must never be saved as a user's profile summary.
+const META_RESPONSE_PATTERNS = [
+  /I don't see/i,
+  /I'm ready to create/i,
+  /could you please provide/i,
+  /no answers (were )?included/i,
+  /please provide.*answers/i,
+  /I'd be happy to.*once you/i,
+  /I cannot create.*without/i,
+];
+
 /**
  * Generate a formatted profile summary from Q&A transcripts using Claude
  */
@@ -31,132 +55,93 @@ export async function generateProfileSummary(
   const { maxWords = 400, style = 'narrative', firstName, lastName, pronouns } = options;
   const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'this person';
 
-  // Group answers by section
-  const sections = {
-    identity: answers.filter((a) => a.sectionId === 'identity'),
-    relationships: answers.filter((a) => a.sectionId === 'relationships'),
-    lifestyle: answers.filter((a) => a.sectionId === 'lifestyle'),
-    community: answers.filter((a) => a.sectionId === 'community'),
-  };
+  // Group answers by whatever sectionIds arrive — no hardcoded section names.
+  // This ensures intro_identity, interests, and any future sections are all included.
+  const sectionGroups: Record<string, QuestionAnswer[]> = {};
+  for (const answer of answers) {
+    if (!sectionGroups[answer.sectionId]) sectionGroups[answer.sectionId] = [];
+    sectionGroups[answer.sectionId].push(answer);
+  }
 
-  // Build the prompt with all Q&A data
-  const prompt = `You are creating a community profile summary for ${userName} based on voice-recorded answers to profile questions.
+  const answersBlock = Object.entries(sectionGroups)
+    .map(([sectionId, sectionAnswers]) => {
+      const displayName = SECTION_DISPLAY[sectionId] || sectionId;
+      const qaLines = sectionAnswers
+        .map((qa, i) => `Q${i + 1}: ${qa.question}\nA${i + 1}: ${qa.transcript}`)
+        .join('\n\n');
+      return `## ${displayName}\n\n${qaLines}`;
+    })
+    .join('\n\n');
 
-CRITICAL INSTRUCTION: You MUST use the exact name "${userName}" throughout the profile. NEVER make up, invent, or hallucinate a different name. If no name is provided, refer to them as "they" or "this person" - but NEVER create a fictional name.
+  const prompt = `Here are ${userName}'s voice-recorded answers to community profile questions. Use ONLY these answers to write the profile — nothing else.
 
-Here are ${firstName || 'the user'}'s answers organized by section:
+CRITICAL INSTRUCTION: Use the exact name "${userName}" throughout. NEVER invent a different name.
+PRONOUNS: Use "${pronouns || 'they/them'}" pronouns throughout without exception. NEVER mix pronoun sets or guess from the name.
 
-${Object.entries(sections)
-  .filter(([_, sectionAnswers]) => sectionAnswers.length > 0)
-  .map(
-    ([sectionName, sectionAnswers]) => `
-## ${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} Section
+---
+${answersBlock}
+---
 
-${sectionAnswers
-  .map(
-    (qa, i) => `
-Q${i + 1}: ${qa.question}
-A${i + 1}: ${qa.transcript}
-`
-  )
-  .join('\n')}
-`
-  )
-  .join('\n')}
+FACTUAL ACCURACY — MANDATORY:
 
-FACTUAL ACCURACY REQUIREMENTS - READ CAREFULLY:
+Ground every sentence in what ${firstName || 'the person'} explicitly said. Use their exact words and phrases wherever possible. Prefer direct quotation over paraphrase. When in doubt, quote — don't interpret.
 
-Your profile MUST be grounded ONLY in what ${firstName || 'the user'} explicitly stated in their answers. You may make MILD interpretive synthesis (e.g., describing someone as "nature-loving" if they mention hiking and camping), but you must NEVER invent or hallucinate new factual information.
-
-STRICTLY FORBIDDEN - NEVER add these unless explicitly mentioned:
-❌ Physical appearance (height, hair color, eye color, build, style, etc.)
-❌ Specific locations not mentioned (cities, neighborhoods, countries, addresses)
-❌ Jobs, titles, employers, or professional credentials not stated
-❌ Accomplishments, awards, degrees, or achievements not described
-❌ Family members or relationships not mentioned (children, siblings, parents, pets)
-❌ Specific personality traits without clear evidence in their words
+STRICTLY FORBIDDEN (never add unless explicitly stated):
+❌ Physical appearance (height, hair, build, style)
+❌ Locations not mentioned (cities, neighborhoods, countries)
+❌ Jobs, titles, or credentials not stated
+❌ Accomplishments or awards not described
+❌ Family members or relationships not mentioned
 ❌ Specific ages, dates, or timeframes not stated
-❌ Medical conditions, dietary preferences, or lifestyle details not mentioned
+❌ Any detail you cannot point to in their actual words
 
-ALLOWED - Mild synthesis based on clear evidence:
-✅ Describing interests using interpretive language ("nature enthusiast" from multiple outdoor mentions)
-✅ Capturing tone and energy from their speaking style
+ALLOWED — only when clearly evidenced:
 ✅ Connecting themes they explicitly discuss
-✅ Using evocative language to describe things they DID mention
-✅ Inferring values from stories they tell
+✅ Using their own turns of phrase to describe what they mentioned
+✅ Mild synthesis ("outdoor enthusiast" if they mentioned hiking AND camping)
 
-VERIFICATION CHECK - Before writing each sentence, ask yourself:
-- "Did they actually say this, or am I assuming it?"
-- "Can I point to specific words in their answers that support this?"
-- If the answer is no, DO NOT write it.
+VERIFICATION: Before each sentence ask — "Did they actually say this?" If no, do not write it. A shorter, accurate profile is vastly better than a longer one with invented details.
 
-CRITICAL FORMAT RULES:
-- Do NOT start with a title, heading, or "[Name] Community Profile" prefix of any kind
-- Begin directly with the first sentence of the narrative — no preamble
-- Do NOT use section headers or bold labels anywhere in the profile text
-- PRONOUNS: Use "${pronouns || 'they/them'}" pronouns throughout the ENTIRE bio without exception. NEVER mix pronoun sets. NEVER guess or infer pronouns from the person's name.
+FORMAT RULES:
+- Begin directly with the first sentence — no title, no heading, no preamble
+- No section headers or bold labels in the profile text
+- Third person, using "${userName}"
 
-Create a ${style === 'snippet' ? 'concise' : style} profile summary (approximately ${maxWords} words) that reads like a bio in a tech magazine or New York Times profile. Above all else, prioritize FACTUAL ACCURACY - every detail must be traceable to their actual words.
+Write a ${style === 'snippet' ? 'concise' : 'factual community'} profile (approximately ${maxWords} words) that represents ${firstName || 'them'} accurately in their own language.
 
-1. ALWAYS use "${userName}" (and only this exact name) throughout the profile - NEVER substitute or invent a different name
-2. Make ${firstName || 'them'} sound interesting and authentic, but ONLY using details from their actual answers - never embellish or invent
-3. Use their language as much as possible - capture their turns of phrase and pacing
-4. Weave their actual answers into a cohesive narrative - you may connect themes and interpret tone, but never add facts they didn't mention
-5. Highlight their personality, values, interests, and what makes them interesting
-6. Make them approachable and relatable - don't be over the top or use superlatives
-7. If they didn't mention something (appearance, job, location details), simply don't include it - silence is better than invention
-8. Organize information naturally without rigid section headers
-
-Write in third person using ${firstName || 'their'}'s name. Be warm, genuine, and grounded in their actual words.
-
-EXAMPLES OF FORBIDDEN HALLUCINATIONS:
-
-❌ BAD: "Sarah, a tall blonde with an infectious smile, works as a software engineer in Brooklyn..."
-   (Unless she explicitly said she's tall, blonde, a software engineer, and lives in Brooklyn)
-
-✅ GOOD: "Sarah brings a thoughtful perspective shaped by years of problem-solving work..."
-   (If she mentioned problem-solving in her answers, but didn't specify her job title or location)
-
-❌ BAD: "As a father of three who grew up in rural Montana..."
-   (Unless he explicitly mentioned having three children and being from Montana)
-
-✅ GOOD: "Family has always been central to his life, a theme that runs through many of his stories..."
-   (If family was a recurring topic in his answers, without inventing specific details)
-
-Remember: A shorter, accurate profile is VASTLY superior to a longer profile with invented details.
-
-${style !== 'snippet' ? `After the profile summary, add a blank line and then provide 3 thoughtful icebreaker questions that would help someone connect with ${firstName || 'this person'} based on their answers. Format them as:
+${style !== 'snippet' ? `After the profile, add a blank line then 3 icebreaker questions grounded in what they actually said:
 
 ---
 **Icebreaker Questions:**
-1. [First question based on their interests/values]
-2. [Second question about something specific they mentioned]
-3. [Third question that invites deeper conversation]
-
-The primary goal is that this profile leads to real-world connections - help readers understand who ${firstName || 'this person'} truly is and why they'd want to meet them. Avoid generic statements or clichés.` : `The primary goal is that this snippet gives someone an immediate, authentic sense of who ${firstName || 'this person'} is. Keep it to ${maxWords} words or fewer.`}`;
+1. [Question based on something they specifically mentioned]
+2. [Question about a specific interest or value they expressed]
+3. [Question that invites them to share more about something they brought up]` : `Keep it to ${maxWords} words or fewer.`}`;
 
   try {
     console.log('[Claude Service] Sending request to Claude API...');
-    console.log('[Claude Service] Model: claude-3-opus-20240229');
+    console.log('[Claude Service] Model: claude-sonnet-4-6');
     console.log('[Claude Service] Answers count:', answers.length);
 
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1500,
+      temperature: 0,
+      system:
+        'You are a community profile writer. Your only function is to synthesize the provided Q&A answers into a grounded third-person profile. You never add information absent from the answers. You never respond with meta-commentary, clarifying questions, or task explanations. When answers are provided, you write the profile — nothing else.',
+      messages: [{ role: 'user', content: prompt }],
     });
 
     console.log('[Claude Service] Response received successfully');
 
-    // Extract text from response
     const textContent = message.content.find((block) => block.type === 'text');
     if (!textContent || textContent.type !== 'text') {
       throw new Error('No text content in Claude response');
+    }
+
+    // Reject meta-responses before they can be saved as a profile
+    if (META_RESPONSE_PATTERNS.some((p) => p.test(textContent.text))) {
+      console.error('[Claude Service] Meta-response detected — answers did not reach model:', textContent.text.slice(0, 200));
+      throw new Error('Profile generation failed: model did not receive answer content');
     }
 
     return textContent.text;
