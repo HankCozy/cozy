@@ -25,6 +25,7 @@ import AdminCreateCommunityScreen from '../screens/AdminCreateCommunityScreen';
 import AdminEditCommunityScreen from '../screens/AdminEditCommunityScreen';
 import AccountScreen from '../screens/AccountScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import HomeScreen from '../screens/HomeScreen';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -44,6 +45,7 @@ export type AuthStackParamList = {
 };
 
 export type AppTabsParamList = {
+  Home: undefined;
   Profile: undefined;
   Questions: undefined;
   Community: undefined;
@@ -238,10 +240,10 @@ function TabsNavigator() {
     );
   }
 
-  // MEMBER: Regular experience (Questions, Profile, Your circles, People)
+  // MEMBER: Regular experience (Home, Questions, Profile, Your circles, People)
   return (
     <AppTabs.Navigator
-      initialRouteName="Profile"
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarInactiveTintColor: '#545454',
@@ -267,6 +269,17 @@ function TabsNavigator() {
         },
       }}
     >
+      <AppTabs.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+          tabBarActiveTintColor: '#FAC63D',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="home" size={size} color={color} />
+          ),
+        }}
+      />
       <AppTabs.Screen
         name="Questions"
         component={QuestionsTabNavigator}
